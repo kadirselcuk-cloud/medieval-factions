@@ -13,6 +13,31 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.6.3] — 2026-08-02
+
+**Terrain pays.** A held tile's base yield now depends on what the ground is.
+
+### Changed
+
+- The flat **10 gold per held tile** is replaced by an owner-authored, per-terrain yield:
+
+  | Terrain | Base yield per month |
+  |---|---|
+  | Plains | 10 gold, 1 wood |
+  | Forest | 5 gold, 1 wood |
+  | Steppe | 5 gold |
+  | Tundra | 2 gold, 1 wood |
+  | Desert | 2 gold |
+  | Mountain | 1 iron, 1 stone |
+
+- Wood, iron and stone now trickle in from bare territory, where previously **only** a built
+  sawmill or mine produced them.
+- The base yield is deliberately **not** scaled by the terrain modifiers. Those numbers already
+  are the terrain's contribution; scaling them again would count it twice. Only an
+  improvement's own yield is scaled.
+- `baseTileGold` in `data/improvements.json` becomes `baseTileYield`, keyed by terrain. Loading
+  fails loudly if a terrain is missing or unknown, rather than silently paying nothing.
+
 ## [0.6.2] — 2026-08-02
 
 **Map revision.** Owner-directed terrain edits to `data/maps/europe-1350.json`.

@@ -109,3 +109,7 @@ This is the single most important architectural constraint. See [MECHANICS.md](M
 | 43 | "Adjacent" means all **8** surrounding tiles, and decides both fishery income and whether a settlement is coastal | 8 |
 | 44 | City panel has three tabs — Info, Buildings, Armies | 8 |
 | 45 | Top bar carries Cities / Armies / Navies rosters that select and centre the map | 8 |
+| 46 | **Gold may go negative.** The wealth growth band is symmetric, so debt shrinks population exactly as wealth grows it, floored at 100 people per settlement | 9 |
+| 47 | While a treasury is in debt, every land unit has a **10% chance per month of deserting**. Ships are exempt | 9 |
+| 48 | Ships cost wood as well as gold — 50 / 100 / 200 / 500 | 9 |
+| 49 | Base tile yield is **per terrain**, not flat: plains 10g +1w, forest 5g +1w, steppe 5g, tundra 2g +1w, desert 2g, mountain 1 iron +1 stone. Not scaled by the terrain modifiers — it already is the terrain's contribution | 9 |

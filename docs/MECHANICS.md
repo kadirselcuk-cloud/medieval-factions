@@ -162,9 +162,26 @@ whether recruiting consumes population are still **[OPEN]**.
 - A **city tile is also a tile**: a settlement carries an improvement of its own alongside its
   city buildings, under the same rules.
 
-**Every held land tile pays 10 gold/month on its own**, improved or not — territory pays for
-itself from the month it is taken. Flat, not scaled by terrain: it is the spoils of holding
-ground, not what the ground grows. Improvements add on top. **[GEN]**
+**Every held land tile pays a base yield each month**, improved or not — territory pays for
+itself from the month it is taken. The yield depends on the terrain, and improvements add on
+top of it.
+
+| Terrain | Base yield per month |
+|---|---|
+| Plains `.` | 10 gold, 1 wood |
+| Forest `*` | 5 gold, 1 wood |
+| Steppe `:` | 5 gold |
+| Tundra `%` | 2 gold, 1 wood |
+| Desert `_` | 2 gold |
+| Mountain `^` | 1 iron, 1 stone |
+| Water `~` | nothing |
+
+These numbers are **not** run through the terrain modifiers in §4. They already *are* the
+terrain's contribution; scaling them again would count the terrain twice. Only the
+improvement's own yield is scaled.
+
+Note that **mountain pays no gold at all**. A realm boxed in by mountains — Milan is the
+extreme case — starts rich in metal and starved of coin.
 
 | Improvement | Produces | L1 | L2 | L3 | L4 |
 |---|---|---|---|---|---|
@@ -172,9 +189,10 @@ ground, not what the ground grows. Improvements add on top. **[GEN]**
 | Sawmill | wood | 1 | 2 | 3 | 4 |
 | Mine | see the mine table below | | | | |
 
-**Wood is deliberately scarce.** A sawmill yields single digits, and nothing else in the game
-produces wood at all, so the 100 wood a Town upgrade demands is a real campaign of forestry.
-Forest doubles it, tundra doubles it, desert floors it to nothing.
+**Wood is deliberately scarce.** A sawmill yields single digits, and beyond the trickle a
+plains, forest or tundra tile gives for free, nothing else in the game produces wood, so the
+100 wood a Town upgrade demands is a real campaign of forestry. Forest doubles the sawmill,
+tundra doubles it, desert floors it to nothing.
 
 Terrain then scales the result using the modifiers in §4, and the result is **floored** to stay
 integer. A level-1 farm on plains yields 20 gold/month; a level-4 farm on plains yields 80; the

@@ -4,8 +4,16 @@
   "buildMonths": [0, 12, 18, 24, 30],
   "demolishMonths": 6,
 
-  "_baseTileGold": "Gold per month for simply holding a land tile, before any improvement. Territory pays for itself.",
-  "baseTileGold": 10,
+  "_baseTileYield": "What a land tile pays per month for simply being held, before any improvement. Owner-authored, per terrain, and NOT scaled by the terrain modifiers - these values already are the terrain's contribution.",
+  "baseTileYield": {
+    "water": {},
+    "plains": { "gold": 10, "wood": 1 },
+    "forest": { "gold": 5, "wood": 1 },
+    "steppe": { "gold": 5 },
+    "desert": { "gold": 2 },
+    "tundra": { "gold": 2, "wood": 1 },
+    "mountain": { "iron": 1, "stone": 1 }
+  },
 
   "kinds": {
     "farm": {

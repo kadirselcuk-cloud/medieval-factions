@@ -38,11 +38,20 @@ const nodeSchema = z.object({
   yield: z.array(z.number().int().nonnegative()),
 });
 
+const yieldSchema = z
+  .object({
+    gold: z.number().int().nonnegative().default(0),
+    wood: z.number().int().nonnegative().default(0),
+    iron: z.number().int().nonnegative().default(0),
+    stone: z.number().int().nonnegative().default(0),
+  })
+  .default({});
+
 const fileSchema = z.object({
   maxLevel: z.number().int().min(1),
   buildMonths: z.array(z.number().int().nonnegative()),
   demolishMonths: z.number().int().nonnegative(),
-  baseTileGold: z.number().int().nonnegative(),
+  baseTileYield: z.record(z.string(), yieldSchema),
   kinds: z.object({
     farm: kindSchema,
     sawmill: kindSchema,
@@ -74,6 +83,19 @@ function load() {
   for (const [name, node] of Object.entries(data.nodes)) {
     check(node.yield, `nodes.${name}.yield`);
   }
+
+  // Every terrain must state its base yield explicitly. A missing key would silently pay
+  // nothing, which is a plausible-looking number and so the worst kind of typo.
+  for (const terrain of Object.keys(TERRAIN_PROFILE) as Terrain[]) {
+    if (!(terrain in data.baseTileYield)) {
+      throw new Error(`improvements.json: baseTileYield is missing "${terrain}"`);
+    }
+  }
+  for (const terrain of Object.keys(data.baseTileYield)) {
+    if (!(terrain in TERRAIN_PROFILE)) {
+      throw new Error(`improvements.json: baseTileYield has unknown terrain "${terrain}"`);
+    }
+  }
   return data;
 }
 
@@ -81,15 +103,6 @@ const DATA = load();
 
 export const MAX_IMPROVEMENT_LEVEL = DATA.maxLevel;
 export const DEMOLISH_MONTHS = DATA.demolishMonths;
-
-/**
- * Gold per month for holding a land tile, before any improvement.
- *
- * Territory pays for itself, so taking ground is worth something the month it happens rather
- * than only after twelve months of construction. Flat, and not scaled by terrain — this is
- * the spoils of holding ground, not what the ground grows. **[GEN]**
- */
-export const BASE_TILE_GOLD = DATA.baseTileGold;
 
 /** Months to build or upgrade to the given level. */
 export function improvementMonths(level: number): number {
@@ -115,6 +128,19 @@ export interface TileOutput {
 const NO_OUTPUT: TileOutput = { gold: 0, wood: 0, iron: 0, stone: 0 };
 
 /**
+ * What a land tile pays per month for simply being held, before any improvement.
+ *
+ * Territory pays for itself, so taking ground is worth something the month it happens rather
+ * than only after twelve months of construction. Owner-authored per terrain, and deliberately
+ * **not** run through the terrain modifiers: these numbers already *are* the terrain's
+ * contribution, so scaling them again would count it twice.
+ */
+export function baseTileYield(terrain: Terrain): TileOutput {
+  const base = DATA.baseTileYield[terrain];
+  return base ? { ...base } : { ...NO_OUTPUT };
+}
+
+/**
  * Monthly output of a single tile.
  *
  * Terrain scales every improvement, including mines on resource nodes — a gold mine in the
@@ -133,8 +159,8 @@ export function tileOutput(options: {
   const level = clampLevel(options.level);
   if (!profile.buildable) return { ...NO_OUTPUT };
 
-  // Every held land tile pays its base gold, improved or not.
-  const base: TileOutput = { ...NO_OUTPUT, gold: BASE_TILE_GOLD };
+  // Every held land tile pays its terrain's base yield, improved or not.
+  const base = baseTileYield(terrain);
 
   if (improvement === null) {
     return node === null ? base : add(base, nodeOutput(node, 0, profile.output.mine));

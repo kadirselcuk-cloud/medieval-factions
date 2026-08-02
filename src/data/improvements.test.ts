@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BASE_TILE_GOLD, MAX_IMPROVEMENT_LEVEL, tileOutput } from './improvements';
+import { baseTileYield, MAX_IMPROVEMENT_LEVEL, tileOutput } from './improvements';
 import { MODIFIER, TERRAIN_PROFILE } from './terrain';
 
 describe('terrain modifiers', () => {
@@ -18,31 +18,57 @@ describe('terrain modifiers', () => {
   });
 });
 
+describe('base tile yield', () => {
+  // Owner-authored, per terrain. Pinned here because these are the numbers a player feels
+  // the moment they take ground, long before any improvement finishes.
+  it('pays the owner-stated yield for each terrain', () => {
+    expect(baseTileYield('plains')).toEqual({ gold: 10, wood: 1, iron: 0, stone: 0 });
+    expect(baseTileYield('forest')).toEqual({ gold: 5, wood: 1, iron: 0, stone: 0 });
+    expect(baseTileYield('steppe')).toEqual({ gold: 5, wood: 0, iron: 0, stone: 0 });
+    expect(baseTileYield('tundra')).toEqual({ gold: 2, wood: 1, iron: 0, stone: 0 });
+    expect(baseTileYield('desert')).toEqual({ gold: 2, wood: 0, iron: 0, stone: 0 });
+    expect(baseTileYield('mountain')).toEqual({ gold: 0, wood: 0, iron: 1, stone: 1 });
+    expect(baseTileYield('water')).toEqual({ gold: 0, wood: 0, iron: 0, stone: 0 });
+  });
+
+  // The base yield is the terrain's contribution already. Running it through the terrain
+  // modifiers as well would count the terrain twice, and mountains would pay 2 iron.
+  it('is not scaled by the terrain modifiers', () => {
+    expect(tileOutput({ terrain: 'mountain', improvement: null, level: 0, node: null })).toEqual(
+      baseTileYield('mountain'),
+    );
+    expect(tileOutput({ terrain: 'desert', improvement: null, level: 0, node: null })).toEqual(
+      baseTileYield('desert'),
+    );
+  });
+});
+
 describe('tileOutput', () => {
-  // Holding ground pays BASE_TILE_GOLD on its own; improvements add on top of it.
-  it('pays the base tile gold for a bare land tile', () => {
+  it('pays the terrain base for a bare land tile', () => {
     expect(tileOutput({ terrain: 'plains', improvement: null, level: 0, node: null })).toEqual({
-      gold: BASE_TILE_GOLD,
-      wood: 0,
+      gold: 10,
+      wood: 1,
       iron: 0,
       stone: 0,
     });
   });
 
   it('pays a token yield for owning an unmined node, on top of the base', () => {
-    // Gold node, 20 base, on mountain (mines ++) -> 40, plus the tile's own 10.
+    // Gold node, 20 base, on mountain (mines ++) -> 40. Mountain itself pays no gold.
     expect(tileOutput({ terrain: 'mountain', improvement: null, level: 0, node: 'gold' })).toMatchObject({
-      gold: 40 + BASE_TILE_GOLD,
+      gold: 40,
+      iron: 1,
+      stone: 1,
     });
-    // The same node on plains (mines --) is worth a fifth.
+    // The same node on plains (mines --) is worth a fifth, plus the plains' own 10.
     expect(tileOutput({ terrain: 'plains', improvement: null, level: 0, node: 'gold' })).toMatchObject({
-      gold: 4 + BASE_TILE_GOLD,
+      gold: 4 + 10,
     });
   });
 
   it('scales farms by terrain', () => {
     const farm = (terrain: Parameters<typeof tileOutput>[0]['terrain'], level: number) =>
-      tileOutput({ terrain, improvement: 'farm', level, node: null }).gold - BASE_TILE_GOLD;
+      tileOutput({ terrain, improvement: 'farm', level, node: null }).gold - baseTileYield(terrain).gold;
 
     expect(farm('plains', 1)).toBe(20);
     expect(farm('plains', 4)).toBe(80);
@@ -52,27 +78,32 @@ describe('tileOutput', () => {
     expect(farm('desert', 1)).toBe(2);
   });
 
-  // Wood is the scarcest resource: a Town upgrade needs 100 of it and nothing else makes any.
+  // Wood is the scarcest resource: a Town upgrade needs 100 of it. The sawmill's own
+  // contribution, above whatever the bare terrain already pays.
   it('keeps sawmill output deliberately small', () => {
-    expect(tileOutput({ terrain: 'plains', improvement: 'sawmill', level: 1, node: null }).wood).toBe(1);
-    expect(tileOutput({ terrain: 'forest', improvement: 'sawmill', level: 1, node: null }).wood).toBe(2);
-    expect(tileOutput({ terrain: 'forest', improvement: 'sawmill', level: 4, node: null }).wood).toBe(8);
-    expect(tileOutput({ terrain: 'tundra', improvement: 'sawmill', level: 2, node: null }).wood).toBe(4);
+    const sawmill = (terrain: Parameters<typeof tileOutput>[0]['terrain'], level: number) =>
+      tileOutput({ terrain, improvement: 'sawmill', level, node: null }).wood - baseTileYield(terrain).wood;
+
+    expect(sawmill('plains', 1)).toBe(1);
+    expect(sawmill('forest', 1)).toBe(2);
+    expect(sawmill('forest', 4)).toBe(8);
+    expect(sawmill('tundra', 2)).toBe(4);
     // Desert at -80% floors to nothing at all.
-    expect(tileOutput({ terrain: 'desert', improvement: 'sawmill', level: 1, node: null }).wood).toBe(0);
+    expect(sawmill('desert', 1)).toBe(0);
   });
 
   it('gives a mine on an ordinary tile both metals', () => {
     const output = tileOutput({ terrain: 'mountain', improvement: 'mine', level: 2, node: null });
-    expect(output.iron).toBe(4);
-    expect(output.stone).toBe(4);
-    expect(output.gold).toBe(BASE_TILE_GOLD);
+    // 2 at level 2, mountain mines ++ -> 4, on top of the mountain's own 1 of each.
+    expect(output.iron).toBe(5);
+    expect(output.stone).toBe(5);
+    expect(output.gold).toBe(0);
   });
 
   it('routes silver into the gold stockpile', () => {
     const output = tileOutput({ terrain: 'forest', improvement: 'mine', level: 3, node: 'silver' });
-    // 100 at level 3, forest mines -- -> 20, plus the tile's own base.
-    expect(output.gold).toBe(20 + BASE_TILE_GOLD);
+    // 100 at level 3, forest mines -- -> 20, plus the forest's own 5.
+    expect(output.gold).toBe(25);
     expect(output.iron).toBe(0);
   });
 
