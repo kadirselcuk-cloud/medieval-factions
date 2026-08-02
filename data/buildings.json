@@ -1,6 +1,9 @@
 {
   "_comment": "City buildings. All costs and durations are [GEN] proposals. minTier: 1 Village, 2 Town, 3 City, 4 Capitol. Housing and fortification are separately built lines, not granted by the tier.",
 
+  "_siege": "Owner-authored. Months a settlement can hold out once it is invested. At zero its defenders must sortie or surrender.",
+  "siegeMonths": { "1": 1, "2": 3, "3": 6, "4": 12 },
+
   "_settlementUpgrades": "Expanding the settlement itself, built like any other building. Owner-authored population gates: a settlement must already hold this many people before it can grow into the next tier, and a faction may only ever have one Capitol.",
   "settlementUpgrades": [
     { "toTier": 2, "name": "Town", "minPopulation": 2000, "months": 24, "cost": { "gold": 1000, "wood": 100 } },

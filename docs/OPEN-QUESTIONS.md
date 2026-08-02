@@ -22,28 +22,41 @@ summer, fought by the shipped resolver.
   are separate actions, so whoever closes gives up the first blow. Levers, in order of bluntness:
   reduce terrain defence, base damage on *starting* strength, or let a formation that closes
   into contact strike in the same activation (which is what "charge" arguably means).
-- **Ranged dominates the 50-tile field.** — `PROPOSED`. One Archer beats one Light Infantry
-  **without taking a single casualty**; it takes **three** Light Infantry to win, at a cost of
-  183 men. A Light Cavalry unit dies to a lone Archer having never landed a blow. This follows
-  from the 50-tile field: an archer gets 13 free volleys while infantry crosses 37 tiles. Lever:
-  battle speeds — infantry at 3 tiles/turn was set when the field was 10 wide.
-- **Fortified settlements cannot be taken.** — `PROPOSED`, and the sharpest of the three. A
-  Capitol with a Citadel has **9 free defenders and an 80% defender's advantage**, which means
-  attackers deal a fifth of their damage and defenders nearly double. **Ten Heavy Cavalry —
-  2,000 gold and 100 iron — lose 400 men and kill 24.** No army in the game can take it, because
-  20 units is the cap. Levers: the fortification bonuses (currently +10 / +30 / +40 / +60%), the
-  90% cap, or siege mechanics, which are out of v1 scope.
+- ~~**Ranged dominates the 50-tile field.**~~ — **answered in 0.10.0** by owner-authored
+  accuracy. An Archer no longer wins for free: one Light Infantry still loses to one Archer but
+  now costs it 10 men over 20 turns instead of nothing over 10, **two** Light Infantry beat it
+  outright, and two Light Cavalry now break two Skirmishers for 29 casualties against 160.
+  Three Archers against three Sword Infantry runs to turn 42 of 48 — genuinely close. Remaining:
+  a lone Light Cavalry still dies to a lone Archer without landing a blow, which is 40 tiles of
+  open ground under arrows and arguably correct.
+- ~~**Fortified settlements cannot be taken.**~~ — **answered in 0.10.0** by siege. Storming is
+  still impossible on purpose: a full Capitol reaches the 90% ceiling, and twenty Heavy Cavalry
+  — the largest stack the rules allow — lose **787 men and kill 148**. Starving it out drops the
+  field to 40%, where ten Heavy Cavalry win, and even twenty Light Infantry do. The walls are
+  now a reason to bring time rather than a reason to give up.
 
 Two things that work as intended: **spears wreck cavalry** (two Light Cavalry lose 80 men to
 two Spear Infantry and kill 8), and the **3× rout rule** fires cleanly in larger battles.
 
-- **Battle speeds.** — `PROPOSED`. See [CONTENT.md](CONTENT.md) §3. Now live, and the main lever
-  on the point above: they were chosen for a 10-tile field and the field is 50.
+- **Battle speeds.** — `PROPOSED`. See [CONTENT.md](CONTENT.md) §3. Chosen for a 10-tile field
+  and used on a 50-tile one. Less urgent now that accuracy has taken the edge off ranged, but
+  still the lever if infantry feels like it spends the battle walking.
 - **Do defeated armies leave survivors?** — `OPEN`. The losing army is currently destroyed
   outright; routing costs fewer men but still leaves nothing on the map. A retreat to an
-  adjacent tile would be a mechanic of its own — which tile, and what if it is blocked?
+  adjacent tile would be a mechanic of its own — which tile, and what if it is blocked? This now
+  matters more: an army that marched to the relief of a city is destroyed when the city falls.
 - **Does the garrison fight?** — `PROPOSED`. It does, currently. Recruited units standing in a
   city being stormed defend it, and their survivors go back behind the walls if it holds.
+- **Siege starvation rate.** — `PROPOSED`, **[GEN]**. 1% of the population a month. Over the
+  year a Capitol can hold out that is about a ninth of its people. The owner chose starvation
+  but not its rate.
+- **Where is the line between surrender and sortie?** — `PROPOSED`, **[GEN]**. Currently the
+  same 3-to-1 the battlefield uses for a rout: outnumbered by more than that, a starved-out
+  settlement opens its gates rather than throwing its defenders away.
+- **Can a besieger be starved in turn?** — `OPEN`. An army sitting outside a city for a year
+  pays upkeep and nothing else happens to it. Attrition, foraging or supply were never specified.
+- **Should a siege stop reinforcement?** — `OPEN`. A besieged settlement cannot finish
+  recruitment, but nothing stops a relieving army marching in and standing on the city tile.
 
 ## Due before naval (build phase 0.11.0)
 
@@ -97,10 +110,9 @@ two Spear Infantry and kill 8), and the **3× rout rule** fires cleanly in large
 
 ## Raised by armies (0.7.0)
 
-- **Can an army besiege or blockade?** — `OPEN`, and now pressing. Since 0.9.0 a hostile
-  settlement can be assaulted, but a fortified one cannot realistically be carried by assault
-  (see above). A siege — cutting income, starving the population, wearing the walls down over
-  months — is the missing answer, and it is currently out of v1 scope.
+- ~~**Can an army besiege or blockade?**~~ — **answered in 0.10.0**. It can do both: a siege
+  cuts the settlement's income, stalls its queues and starves it, and ends in a sortie or a
+  surrender. See [MECHANICS.md](MECHANICS.md) §6.
 - **Can a settlement be recaptured immediately?** — `OPEN`. A city that changes hands has its
   new owner's derived defenders the instant it falls, so the loser cannot walk back in. Whether
   a freshly taken city should be weaker for a while was never specified.

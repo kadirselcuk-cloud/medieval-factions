@@ -72,6 +72,8 @@ const settlementUpgradeSchema = z.object({
 export type SettlementUpgrade = z.infer<typeof settlementUpgradeSchema>;
 
 const fileSchema = z.object({
+  /** Months a settlement of each tier can hold out once it is invested. Owner-authored. */
+  siegeMonths: z.record(z.string(), z.number().int().positive()),
   settlementUpgrades: z.array(settlementUpgradeSchema).length(3),
   buildings: z.array(buildingSchema).min(1),
 });
@@ -94,9 +96,25 @@ function data(): z.infer<typeof fileSchema> {
         );
       }
     }
+
+    // A tier with no stated endurance would hold out forever, which is the sort of thing that
+    // only shows up when a campaign stalls at a wall it can never take.
+    for (const tier of ['1', '2', '3', '4']) {
+      if (!file.siegeMonths[tier]) {
+        throw new Error(`buildings.json: siegeMonths is missing tier ${tier}`);
+      }
+    }
     parsed = file;
   }
   return parsed;
+}
+
+/**
+ * Months this settlement can hold out once it is invested — Village 1, Town 3, City 6,
+ * Capitol 12. Owner-authored.
+ */
+export function siegeMonths(tier: number): number {
+  return data().siegeMonths[String(tier)] ?? 1;
 }
 
 export function loadBuildings(): readonly Building[] {

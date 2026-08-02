@@ -138,3 +138,9 @@ This is the single most important architectural constraint. See [MECHANICS.md](M
 | 72 | A **captured settlement keeps its people and buildings** and loses its queues, garrison and fleet. The **losing army is destroyed**; there is no retreat | 12 |
 | 73 | A realm is **extinguished** when it holds neither settlement nor army, and its remaining ground reverts to no-one rather than to the conqueror | 12 |
 | 74 | The defender's advantage is **capped at 90%**, so the ground can never heal an attacker. **[GEN]** | 12 |
+| 75 | Ranged units have an **accuracy**: Skirmisher 30%, Archer 50%, Cavalry Archer 40%. A straight multiplier on the volley, not a roll per shot | 12 |
+| 76 | **Siege.** An army at the gates invests a settlement. It pays nothing, finishes nothing and starves at 1%/month. Endurance by tier: Village 1, Town 3, City 6, Capitol 12 months | 12 |
+| 77 | At the end of a siege the defenders **surrender** if outnumbered more than 3 to 1, and otherwise **sortie into an open-field battle** where nobody has the fortification bonus | 12 |
+| 78 | A battle **for a settlement** draws in every army of either realm within a **5 × 5 box** | 12 |
+| 79 | The defender's advantage belongs to the **defending formation, not the battle**: troops behind the walls keep the fortification, a relieving army from outside does not | 12 |
+| 80 | A settlement is taken by **assault** (walls count, immediate) or by **siege** (walls do not count, but it takes months) | 12 |

@@ -103,14 +103,28 @@ interface Fighter {
   position: number;
   soldiers: number;
   readonly started: number;
+  /** Defender's advantage this formation fights under, per-mille. Zero for attackers. */
+  advantage: number;
+  /** The army this formation came from, or -1 for a settlement's own troops. */
+  armyId: number;
   /** The charge modifier fires once, on a formation's first blow in melee. */
   charged: boolean;
 }
 
-/** One contribution to a side's line. A settlement fields up to three of these. */
+/**
+ * One contribution to a side's line.
+ *
+ * A defended settlement fields several: its own defenders and garrison behind the walls, and
+ * every relieving army that reached it — each with its own `advantage`, because the men on the
+ * walls and the men who marched to the relief are not standing on the same ground.
+ */
 export interface BattleContingent {
   source: FighterSource;
   stack: UnitStack;
+  /** Defender's advantage for this contingent, per-mille. Ignored on the attacking side. */
+  advantage?: number;
+  /** Which army these came from, so survivors go back to it. -1 for a settlement's own. */
+  armyId?: number;
 }
 
 export interface BattleSetup {
@@ -131,7 +145,7 @@ export interface BattleSetup {
  */
 function muster(contingents: readonly BattleContingent[], side: BattleSide, from: number): Fighter[] {
   const fighters: Fighter[] = [];
-  for (const { source, stack } of contingents) {
+  for (const { source, stack, advantage, armyId } of contingents) {
     for (const unitId of Object.keys(stack).sort()) {
       const unit = unitById(unitId);
       if (!unit) continue;
@@ -145,6 +159,8 @@ function muster(contingents: readonly BattleContingent[], side: BattleSide, from
           position: side === ATTACKER ? 0 : FIELD_WIDTH,
           soldiers: unit.size,
           started: unit.size,
+          advantage: side === DEFENDER ? (advantage ?? 0) : 0,
+          armyId: armyId ?? -1,
           charged: false,
         });
       }
@@ -188,12 +204,7 @@ function reachOf(unit: Unit): number {
  * spear's matchup against cavalry, shielded infantry's resistance to arrows, and the defender's
  * advantage. Floored at each step, then divided by the target's per-soldier HP.
  */
-function casualtiesFrom(
-  actor: Fighter,
-  target: Fighter,
-  advantage: number,
-  charging: boolean,
-): number {
+function casualtiesFrom(actor: Fighter, target: Fighter, charging: boolean): number {
   const a = actor.unit;
   const t = target.unit;
   const ranged = a.range > 0;
@@ -207,11 +218,21 @@ function casualtiesFrom(
   if (t.class === 'cavalry' && a.antiCavalry > 1) {
     mod = Math.floor((mod * permille(a.antiCavalry)) / 1000);
   }
-  if (ranged && t.rangedResist > 0) {
-    mod = Math.floor((mod * (1000 - permille(t.rangedResist))) / 1000);
+  if (ranged) {
+    // Most of a volley falls on empty ground. Owner-authored: 30% for skirmishers, 50% for
+    // archers, 40% from the saddle.
+    mod = Math.floor((mod * permille(a.accuracy)) / 1000);
+    if (t.rangedResist > 0) mod = Math.floor((mod * (1000 - permille(t.rangedResist))) / 1000);
   }
 
-  // The attacker's blows are blunted by the ground, the defender's sharpened by it.
+  /*
+   * The ground belongs to the **defending** formation, not to the battle.
+   *
+   * A relieving army that marches to a siege is fighting in the open even though the men on the
+   * walls beside it are not, so the advantage is carried per fighter and applied from whichever
+   * side is defending: it sharpens that formation's blows and blunts the ones aimed at it.
+   */
+  const advantage = actor.side === DEFENDER ? actor.advantage : target.advantage;
   mod = Math.floor((mod * (actor.side === DEFENDER ? 1000 + advantage : 1000 - advantage)) / 1000);
 
   return Math.floor(Math.floor((raw * mod) / 1000) / t.hp);
@@ -219,15 +240,26 @@ function casualtiesFrom(
 
 // -------------------------------------------------------------------- the battle
 
+/**
+ * Who walks away, and where they walk back to.
+ *
+ * The report carries only totals. This is what `conquest.ts` writes back, and since a battle at
+ * a settlement can draw in several armies from either side, survivors have to be returned to the
+ * exact army that sent them. A settlement's free defenders leave nothing behind — they are
+ * derived from its tier and reappear at full strength the moment the fighting stops.
+ */
+export interface SideSurvivors {
+  /** Reformed survivors of the settlement's own garrison. */
+  garrison: UnitStack;
+  /** Reformed survivors, by the army that fielded them. */
+  armies: { armyId: number; units: UnitStack }[];
+  /** All of the above merged — the figure the report shows. */
+  total: UnitStack;
+}
+
 export interface BattleResult {
   report: BattleReport;
-  /**
-   * Survivors by side and by where they were raised, for the caller to put back.
-   *
-   * The report carries only totals. This distinguishes a settlement's free defenders (which
-   * leave nothing behind) from its garrison (which does) from an army standing on the tile.
-   */
-  survivors: [Record<FighterSource, UnitStack>, Record<FighterSource, UnitStack>];
+  survivors: [SideSurvivors, SideSurvivors];
 }
 
 /**
@@ -280,10 +312,7 @@ export function fightBattle(state: SimState, world: World, setup: BattleSetup): 
         const melee = actor.unit.range === 0;
         const charging =
           melee && !actor.charged && (actor.unit.chargeBonus > 0 || actor.unit.chargeMultiplier > 1);
-        const casualties = Math.min(
-          target.soldiers,
-          casualtiesFrom(actor, target, advantage.total, charging),
-        );
+        const casualties = Math.min(target.soldiers, casualtiesFrom(actor, target, charging));
 
         target.soldiers -= casualties;
         if (melee) actor.charged = true;
@@ -330,11 +359,11 @@ export function fightBattle(state: SimState, world: World, setup: BattleSetup): 
     winner === 'defender' || winner === 'stalemate',
   ];
 
-  // Survivors are split by where they were raised first, and the report's totals are the sum of
-  // those parts — so what the player is shown can never disagree with what is written back.
-  const survivors: [Record<FighterSource, UnitStack>, Record<FighterSource, UnitStack>] = [
-    bySource(fighters, ATTACKER, held[0]),
-    bySource(fighters, DEFENDER, held[1]),
+  // Survivors are split by the army that fielded them first, and the report's totals are the sum
+  // of those parts — so what the player is shown can never disagree with what is written back.
+  const survivors: [SideSurvivors, SideSurvivors] = [
+    walkAway(fighters, ATTACKER, held[0]),
+    walkAway(fighters, DEFENDER, held[1]),
   ];
 
   const report: BattleReport = {
@@ -352,13 +381,14 @@ export function fightBattle(state: SimState, world: World, setup: BattleSetup): 
       unitId: f.unitId,
       soldiers: f.started,
       position: f.side === ATTACKER ? 0 : FIELD_WIDTH,
+      advantage: f.advantage,
     })),
     turns,
     winner,
     ending,
     losses: [lossesOf(fighters, ATTACKER), lossesOf(fighters, DEFENDER)],
     before: [fieldedUnits(fighters, ATTACKER), fieldedUnits(fighters, DEFENDER)],
-    after: [mergeStacks(survivors[0]), mergeStacks(survivors[1])],
+    after: [survivors[0].total, survivors[1].total],
     captured: false,
   };
 
@@ -366,38 +396,36 @@ export function fightBattle(state: SimState, world: World, setup: BattleSetup): 
 }
 
 /**
- * A side's survivors, kept apart by where they were raised.
+ * A side's survivors, returned to the garrison or the army that fielded them.
  *
- * `held` is the rule that stops a side that stayed on the field from evaporating on a rounding
- * boundary: if any of its men are still standing, it walks away with at least one unit. Applied
- * across the whole side rather than per contingent, so a settlement whose defenders and garrison
- * were both mauled below half still keeps one formation rather than one of each.
+ * `held` is the rule that stops a formation that stayed on the field from evaporating on a
+ * rounding boundary: an army with any men still standing walks away with at least one unit.
+ * Applied per army rather than per side, because each is its own entity on the map.
  */
-function bySource(
-  fighters: readonly Fighter[],
-  side: BattleSide,
-  held: boolean,
-): Record<FighterSource, UnitStack> {
-  const split: Record<FighterSource, UnitStack> = {
-    army: reformed(fighters, side, 'army'),
-    garrison: reformed(fighters, side, 'garrison'),
-    defence: reformed(fighters, side, 'defence'),
-  };
-  if (!held || unitCount(mergeStacks(split)) > 0) return split;
+function walkAway(fighters: readonly Fighter[], side: BattleSide, held: boolean): SideSurvivors {
+  const mine = (f: Fighter) => f.side === side;
+  const garrison = reformed(fighters, (f) => mine(f) && f.source === 'garrison', held);
 
-  const strongest = fighters
-    .filter((f) => f.side === side && f.soldiers > 0)
-    .sort((a, b) => b.soldiers - a.soldiers || a.slot - b.slot)[0];
-  if (strongest) split[strongest.source][strongest.unitId] = 1;
-  return split;
-}
+  // Every formation raised by an army goes back to the army that raised it. Bucketing by id
+  // rather than by "has an id" means a contingent that was never tagged still lands somewhere
+  // and shows up in the totals, instead of silently vanishing between the two.
+  const ids = [...new Set(fighters.filter((f) => mine(f) && f.source === 'army').map((f) => f.armyId))];
+  const armies = ids
+    .sort((a, b) => a - b)
+    .map((armyId) => ({
+      armyId,
+      units: reformed(fighters, (f) => mine(f) && f.source === 'army' && f.armyId === armyId, held),
+    }));
 
-function mergeStacks(split: Record<FighterSource, UnitStack>): UnitStack {
-  const stack: UnitStack = {};
-  for (const part of Object.values(split)) {
-    for (const [id, count] of Object.entries(part)) stack[id] = (stack[id] ?? 0) + count;
+  // A settlement's free defenders are derived from its tier, so they are never written back —
+  // but they are still standing there, and the report would lie if it left them out.
+  const defence = reformed(fighters, (f) => mine(f) && f.source === 'defence', held);
+
+  const total: UnitStack = {};
+  for (const part of [defence, garrison, ...armies.map((a) => a.units)]) {
+    for (const [id, count] of Object.entries(part)) total[id] = (total[id] ?? 0) + count;
   }
-  return stack;
+  return { garrison, armies, total };
 }
 
 function lossesOf(fighters: readonly Fighter[], side: BattleSide): number {
@@ -425,13 +453,13 @@ function fieldedUnits(fighters: readonly Fighter[], side: BattleSide): UnitStack
  */
 function reformed(
   fighters: readonly Fighter[],
-  side: BattleSide,
-  source: FighterSource,
+  belongs: (fighter: Fighter) => boolean,
+  held: boolean,
 ): UnitStack {
+  const mine = fighters.filter(belongs);
   const fielded = new Map<string, number>();
   const soldiers = new Map<string, number>();
-  for (const f of fighters) {
-    if (f.side !== side || f.source !== source) continue;
+  for (const f of mine) {
     fielded.set(f.unitId, (fielded.get(f.unitId) ?? 0) + 1);
     if (f.soldiers > 0) soldiers.set(f.unitId, (soldiers.get(f.unitId) ?? 0) + f.soldiers);
   }
@@ -442,20 +470,44 @@ function reformed(
     const units = Math.min(fielded.get(id) ?? 0, Math.round(total / size));
     if (units > 0) stack[id] = units;
   }
+
+  if (held && Object.keys(stack).length === 0 && soldiers.size > 0) {
+    const strongest = mine
+      .filter((f) => f.soldiers > 0)
+      .sort((a, b) => b.soldiers - a.soldiers || a.slot - b.slot)[0];
+    if (strongest) stack[strongest.unitId] = 1;
+  }
   return stack;
 }
 
 // -------------------------------------------------------------------- assembling
 
-/** Everything a settlement puts on the field: its free defenders, then its garrison. */
-export function settlementContingents(city: CityState): BattleContingent[] {
+/**
+ * Everything a settlement puts on the field from behind its own walls: its free defenders, then
+ * its garrison. Both fight under the full advantage — the walls are theirs.
+ */
+export function settlementContingents(city: CityState, advantage: number): BattleContingent[] {
   const parts: BattleContingent[] = [
-    { source: 'defence', stack: cityDefence(city.tier, city.buildings) },
+    { source: 'defence', stack: cityDefence(city.tier, city.buildings), advantage, armyId: -1 },
   ];
   if (Object.keys(city.garrison).length > 0) {
-    parts.push({ source: 'garrison', stack: { ...city.garrison } });
+    parts.push({ source: 'garrison', stack: { ...city.garrison }, advantage, armyId: -1 });
   }
   return parts;
+}
+
+/**
+ * What a formation fighting *outside* the walls gets.
+ *
+ * Owner-specified: an army that marches to the relief of a settlement it does not stand in
+ * fights with the defender's advantage **minus the fortification**. The ground, the ten per cent
+ * a settlement's tile carries and the winter are still theirs; the citadel is not.
+ */
+export function openFieldAdvantage(advantage: BattleAdvantage): number {
+  return Math.min(
+    MAX_DEFENDER_ADVANTAGE,
+    advantage.terrain + advantage.settlement + advantage.winter,
+  );
 }
 
 export function recordBattle(state: SimState, report: BattleReport): void {

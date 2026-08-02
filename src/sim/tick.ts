@@ -4,6 +4,7 @@ import type { World } from '../data/world';
 import { removeArmy } from './armies';
 import { isMonthBoundary, TICKS_PER_MONTH } from './calendar';
 import { advanceConstruction } from './construction';
+import { advanceSieges } from './conquest';
 import { pushEvent } from './events';
 import { advanceArmies } from './movement';
 import { recomputeIncome } from './state';
@@ -34,9 +35,22 @@ export function advance(state: SimState, world: World): void {
     advanceConstruction(state, world);
     desertUnpaidTroops(state, world);
     growPopulation(state);
+    // Last of the month, because a siege that ends this month resolves into a battle, and a
+    // battle can take the settlement — after which nothing else about it is worth computing.
+    advanceSieges(state, world);
     recomputeIncome(state, world);
   }
 }
+
+/**
+ * What a month under siege costs a settlement — owner-specified.
+ *
+ * It pays its owner nothing, finishes nothing, and starves: growth is replaced outright by a
+ * loss, so time is the besieger's weapon and not merely an inconvenience. The **1% a month** is
+ * **[GEN]** — the owner chose starvation but not its rate. Over the year a Capitol can hold out
+ * that is about a ninth of its people.
+ */
+export const SIEGE_STARVATION_TENTHS = -10;
 
 /** Chance each unit deserts in a month its faction cannot pay for it. */
 export const DESERTION_CHANCE = 0.1;
@@ -106,6 +120,8 @@ function desertFrom(
 export function cityGrowthTenths(state: SimState, city: CityState): number {
   const owner = state.factions[city.ownerIndex];
   if (!owner) return 0;
+  // A settlement under siege does not grow at all — it starves, whatever it has built.
+  if (city.siege) return SIEGE_STARVATION_TENTHS;
   const buildings = summariseBuildings(city.buildings);
   // Housing and the hall line both contribute through `growthTenths`, which sums the standing
   // buildings rather than reading a level — the two lines give diminishing amounts per step,

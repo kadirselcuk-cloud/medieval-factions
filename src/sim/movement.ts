@@ -1,6 +1,6 @@
 import { TERRAIN_PROFILE } from '../data/terrain';
 import { inBounds, TERRAINS, tileIndex, type Terrain, type World } from '../data/world';
-import { armyAt, armyById, armySpeed, merge, stackSize } from './armies';
+import { armyAt, armyById, armySpeed, occupy, stackSize } from './armies';
 import { calendarAt, TICKS_PER_MONTH, type Season } from './calendar';
 import { resolveEngagement } from './conquest';
 import { pushEvent } from './events';
@@ -311,7 +311,7 @@ export function advanceArmies(state: SimState, world: World): void {
         army.march -= toll;
 
         const { advance } = resolveEngagement(state, world, army, next);
-        if (advance) enter(state, army, next);
+        if (advance) occupy(state, army, next);
         // A battle changes what each realm holds and what it has to pay for, whether or not the
         // ground moved, so income is always stale afterwards.
         claimed = true;
@@ -335,7 +335,7 @@ export function advanceArmies(state: SimState, world: World): void {
 
       army.march -= cost;
       army.path.shift();
-      if (enter(state, army, next)) claimed = true;
+      if (occupy(state, army, next)) claimed = true;
 
       // The army merged into another and no longer exists.
       if (!state.armies.includes(army)) break;
@@ -347,19 +347,18 @@ export function advanceArmies(state: SimState, world: World): void {
   if (claimed) recomputeIncome(state, world);
 }
 
-/** Move an army onto a tile it has already been cleared to enter. Returns true if ground changed hands. */
-function enter(state: SimState, army: ArmyState, index: number): boolean {
-  army.tileIndex = index;
+/**
+ * Storm a settlement now, from where the army stands.
+ *
+ * The other way in is to besiege it and wait; this is the impatient one, and the walls count.
+ * It lives here rather than in `conquest.ts` because taking ground and walking onto it are the
+ * same act, and marching already owns that pairing.
+ */
+export function assault(state: SimState, world: World, armyId: number, tile: number): void {
+  const army = armyById(state, armyId);
+  if (!army) return;
 
-  const standing = state.armies.find((other) => other.id !== army.id && other.tileIndex === index);
-  if (standing) {
-    // Arriving where a friendly stack is already parked folds the two together.
-    merge(state, standing.id, army.id);
-    return false;
-  }
-
-  // Territory is claimed by presence — docs/DESIGN.md decision 21.
-  if ((state.tileOwner[index] ?? -1) === army.ownerIndex) return false;
-  state.tileOwner[index] = army.ownerIndex;
-  return true;
+  const { advance } = resolveEngagement(state, world, army, tile);
+  if (advance) occupy(state, army, tile);
+  recomputeIncome(state, world);
 }

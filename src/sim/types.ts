@@ -48,6 +48,22 @@ export interface ProductionOrder {
   monthsRemaining: number;
 }
 
+/**
+ * A settlement under siege — docs/MECHANICS.md §6.
+ *
+ * A siege is held by presence: it lasts only while the besieging realm keeps an army beside the
+ * walls, and it ends the moment that army leaves or dies. While it holds, the settlement pays
+ * its owner nothing, builds nothing, trains nothing and slowly starves.
+ */
+export interface SiegeState {
+  /** The realm pressing the siege. */
+  byIndex: number;
+  /** Months before the defenders must sortie or surrender. Owner-authored, per tier. */
+  monthsRemaining: number;
+  /** Months endured so far, for the panel. */
+  monthsHeld: number;
+}
+
 export interface CityState {
   /** Index into World.cities. */
   readonly cityIndex: number;
@@ -74,6 +90,8 @@ export interface CityState {
   garrison: Record<string, number>;
   /** Completed ships moored here, by ship id. */
   fleet: Record<string, number>;
+  /** Set while a hostile realm has the settlement invested. */
+  siege: SiegeState | null;
 }
 
 /** docs/MECHANICS.md §3 — one army per tile, up to twenty units. */
@@ -128,6 +146,13 @@ export interface BattleFighter {
   soldiers: number;
   /** Tiles from the attacker's edge at the opening bell — 0 or FIELD_WIDTH. */
   position: number;
+  /**
+   * Defender's advantage this formation fought under, per-mille; 0 for attackers.
+   *
+   * Carried per formation because a relieving army that marched to a siege fights in the open
+   * while the men on the walls beside it do not.
+   */
+  advantage: number;
 }
 
 export type BattleAction =
@@ -192,6 +217,7 @@ export type EventKind =
   | 'desertion'
   | 'army'
   | 'battle'
+  | 'siege'
   | 'conquest';
 
 /** A thing that finished. Kept in state so the log survives a save. */

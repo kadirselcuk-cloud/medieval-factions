@@ -350,6 +350,65 @@ defended settlement, and arriving there is what starts the fight; a route will n
 *through* hostile ground on its way somewhere else. The army pays the tile's march cost to make
 contact whether or not it takes the ground — closing with an enemy is itself a march.
 
+There are **two ways to take a settlement**, and they are not the same fight:
+
+| | What it is | The walls |
+|---|---|---|
+| **Assault** | March onto the tile, or press Assault from beside it. Immediate. | **Count in full** |
+| **Siege** | Sit at the gates until the defenders have to come out. | **Do not count** |
+
+### Siege
+
+An army standing on any of the **eight tiles around** a hostile settlement may invest it. A
+siege is **held by presence** — it ends the moment nobody is at the gates.
+
+While it holds, the settlement:
+
+- **pays its owner nothing** — no taxes leave a blockaded city, though its tiles still pay;
+- **finishes nothing** — building, recruitment and ship queues all stop where they are;
+- **starves** — growth is replaced outright by **−1% a month** (**[GEN]**; the owner chose
+  starvation but not its rate), floored at the usual 100 people.
+
+How long it can hold out is **owner-authored, by tier**:
+
+| Tier | Holds out |
+|---|---|
+| Village | 1 month |
+| Town | 3 months |
+| City | 6 months |
+| Capitol | 12 months |
+
+When the clock reaches zero the defenders must **surrender or sortie**:
+
+- **Surrender** if the besiegers outnumber everything the settlement can field by more than
+  **3 to 1** — the same ratio the battlefield uses to decide a rout, reused so there is one rule
+  about hopeless odds and not two. The settlement changes hands without a battle. **[GEN]**: the
+  owner named both outcomes but not the line between them.
+- **Sortie** otherwise: a **forced open-field battle**. The garrison is outside its walls now,
+  so *nobody* on the field has the fortification bonus. This is the whole point of a siege — a
+  Citadel that cannot be stormed can be starved into a fight it might lose.
+
+### Everyone within five tiles
+
+A battle **for a settlement** is not a duel. Every army of either realm standing within a
+**5 × 5 box** — two tiles in any direction, diagonals included — joins in, on the side of its own
+realm. Owner-specified.
+
+The two sides do **not** fight on the same ground:
+
+| Who | Advantage |
+|---|---|
+| Attackers, wherever they stand | none |
+| The settlement's defenders and garrison | the full advantage — unless they have sortied |
+| A defending army standing **in** the settlement | the full advantage |
+| A defending army that **marched to the relief** | everything **except the fortification** |
+
+A relieving army that loses is destroyed with the city. Proximity cuts both ways.
+
+Meeting engagements between two field armies stay a fight between those two armies: dragging
+every stack within two tiles into every skirmish would make it impossible to move an army
+anywhere near a war.
+
 ### Framing
 - Resolved as **battle turns of 1 in-game hour, 6 per tick**.
 - v1 is **auto-resolve only**, but simulated turn by turn so the player can **open the battle
@@ -435,15 +494,23 @@ province it has never seen.
 ### Damage formula — **[GEN]**, owner to approve
 ```
 raw       = attacker.soldiers × attacker.damagePerSoldier
-modified  = raw × chargeMod × matchupMod × (1 − rangedResist) × (1 − defenderAdvantage)
+modified  = raw × chargeMod × matchupMod × accuracy × (1 − rangedResist) × (1 − defenderAdvantage)
 casualties = floor(modified / target.hpPerSoldier)
 ```
 - `chargeMod` — applied **once**, on the turn a unit closes into melee contact:
   shock infantry `+50 flat per soldier`, light cavalry `×2`, heavy cavalry `×3`.
 - `matchupMod` — spear infantry `×2` vs cavalry.
+- `accuracy` — **ranged units only**, owner-authored: Skirmisher `0.30`, Archer `0.50`,
+  Cavalry Archer `0.40`. Most of a volley falls on empty ground. It is a straight multiplier on
+  the volley rather than a hit-or-miss roll per shot — a hundred men loosing at once average
+  out, and an auto-resolve that swung on a coin flip would be worse to watch, not better.
+  **[GEN]** interpretation.
 - `rangedResist` — `0.20` for spear and sword infantry against ranged attacks.
 - `defenderAdvantage` — terrain + settlement fortification + winter, from §4 above. The
-  attacker's damage is reduced by X% and the defender's raised by X%. **Capped at 90%**,
+  attacker's damage is reduced by X% and the defender's raised by X%. It belongs to the
+  **defending formation, not to the battle**: a relieving army fighting in the open beside men
+  on a wall carries a different figure from theirs, and both apply when that formation strikes
+  and when it is struck. **Capped at 90%**,
   because a Citadel Capitol on a mountain in winter otherwise reaches 110%, at which point the
   attacker deals negative damage and heals the defenders. **[GEN]**
 

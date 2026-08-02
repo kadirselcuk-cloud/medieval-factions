@@ -11,8 +11,9 @@ import type { SimState } from './types';
 /**
  * 1 → 2: field armies. A v1 save has none, and its factions have never left home.
  * 2 → 3: battles. A v2 save has fought none, and every faction it knows about is still alive.
+ * 3 → 4: sieges. A v3 save has no settlement invested, because nothing could invest one.
  */
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 const DB_NAME = 'medieval-factions';
 const DB_VERSION = 1;
@@ -120,6 +121,11 @@ export function migrate(file: SaveFile): SaveFile {
     state.battles = state.battles ?? [];
     state.nextBattleId = state.nextBattleId ?? 1;
     for (const faction of state.factions) faction.alive = faction.alive ?? true;
+  }
+
+  // v3 predates sieges. No settlement is invested, because nothing could invest one.
+  if (file.version < 4) {
+    for (const city of state.cities) city.siege = city.siege ?? null;
   }
 
   return { ...file, version: SAVE_VERSION, state };

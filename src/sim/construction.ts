@@ -323,6 +323,10 @@ export function advanceConstruction(state: SimState, world: World): void {
   for (const city of state.cities) {
     const name = world.cities[city.cityIndex]?.name ?? 'a settlement';
 
+    // Nothing is finished inside a settlement that is invested. The queues are not lost — they
+    // simply stop, so a long siege costs the defender every month of work it was owed.
+    if (city.siege) continue;
+
     const order = city.queue[0];
     if (order) {
       order.monthsRemaining -= 1;

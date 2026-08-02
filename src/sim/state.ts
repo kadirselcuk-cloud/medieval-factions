@@ -99,6 +99,7 @@ export function createInitialState(
       // to the teeth. Their settlements defend themselves like everyone else's.
       garrison: ownerIndex === neutralIndex ? {} : { [STARTING_UNIT]: 1 },
       fleet: {},
+      siege: null,
     };
   });
 
@@ -158,6 +159,9 @@ export function recomputeIncome(state: SimState, world: World): void {
   for (const city of state.cities) {
     const faction = state.factions[city.ownerIndex];
     if (!faction) continue;
+    // An invested settlement pays its owner nothing — no taxes leave a blockaded city. Its
+    // tiles carry on paying; only the walls are cut off.
+    if (city.siege) continue;
     const location = world.cities[city.cityIndex];
     const buildings = summariseBuildings(city.buildings);
 

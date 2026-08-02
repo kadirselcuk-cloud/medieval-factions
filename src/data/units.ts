@@ -33,6 +33,14 @@ const unitSchema = z.object({
   damage: z.number().int().nonnegative(),
   size: z.number().int().positive(),
   range: z.number().int().nonnegative().default(0),
+  /**
+   * Share of a volley that finds a target — owner-authored, ranged units only.
+   *
+   * Applied as a straight multiplier on the damage a volley does, not as a hit-or-miss roll
+   * per shot: a hundred men loosing at once average out, and an auto-resolve that swung on a
+   * coin flip would be worse to watch, not better. **[GEN]** interpretation.
+   */
+  accuracy: z.number().min(0).max(1).default(1),
   strategicSpeed: z.number().int().positive(),
   battleSpeed: z.number().int().positive(),
   antiCavalry: z.number().default(1),

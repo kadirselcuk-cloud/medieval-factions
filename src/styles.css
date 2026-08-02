@@ -1397,3 +1397,14 @@ body {
 .verdict--lost h2 {
   color: #d98b7a;
 }
+
+.panel__note--bad {
+  color: #d98b7a;
+}
+
+.battle__ground {
+  margin-left: 4px;
+  color: var(--accent);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}

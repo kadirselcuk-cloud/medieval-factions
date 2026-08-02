@@ -130,13 +130,25 @@ describe("defender's advantage", () => {
 // ------------------------------------------------------------------- the battle
 
 describe('auto-resolve', () => {
+  /**
+   * The advantage is carried per contingent, not by the battle, so a caller has to state it —
+   * which is the whole point: relief armies at a siege fight on different ground from the men
+   * on the walls. Here both sides are field armies, so the defender simply gets the terrain.
+   */
   const setup = (attacker: UnitStack, defender: UnitStack, tile: number) => ({
     tileIndex: tile,
     cityIndex: -1,
     attackerIndex: FRANKS,
     defenderIndex: NEUTRAL,
-    attacker: [{ source: 'army' as const, stack: attacker }],
-    defender: [{ source: 'army' as const, stack: defender }],
+    attacker: [{ source: 'army' as const, stack: attacker, armyId: 1 }],
+    defender: [
+      {
+        source: 'army' as const,
+        stack: defender,
+        armyId: 2,
+        advantage: defenderAdvantage(state, world, tile).total,
+      },
+    ],
   });
 
   it('is reproducible from the same seed and campaign state', () => {

@@ -13,6 +13,61 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.10.0] — 2026-08-03
+
+**Siege, and the fight for a city.** A walled capital is no longer untakeable — it is taken by
+sitting outside it. Four owner-specified changes, and all three of 0.9.0's measured problems
+either close or improve.
+
+### Added
+
+- **Ranged accuracy**, owner-authored: Skirmisher **30%**, Archer **50%**, Cavalry Archer
+  **40%**. Applied as a straight multiplier on the volley rather than a roll per shot — a
+  hundred men loosing at once average out, and an auto-resolve that swung on a coin flip would
+  be worse to watch, not better.
+- **Sieges.** An army standing on any of the eight tiles around a hostile settlement can invest
+  it. A besieged settlement **pays its owner nothing, finishes nothing** in any of its three
+  queues, and **starves at 1% a month**. It holds out for as long as its tier allows —
+  owner-authored: **Village 1 month, Town 3, City 6, Capitol 12**.
+  - When the clock runs out the defenders **surrender** if outnumbered more than three to one,
+    and otherwise **sortie into a forced open-field battle** in which *nobody* has the
+    fortification bonus. That is what a siege buys.
+  - A siege is **held by presence** — walk away and it is over.
+  - **Assault** remains available at any time, from beside the walls or by marching onto them.
+    It is immediate, and the walls count in full.
+- **Every army within a 5 × 5 box joins a battle for a settlement**, on both sides — two tiles
+  in any direction, diagonals included. A relieving army that loses is destroyed with the city.
+- **Siege orders and readouts**: Besiege and Assault on the army card, months remaining and what
+  the siege is doing to the settlement on the city panel.
+
+### Changed
+
+- **The defender's advantage now belongs to the formation, not to the battle.** Troops behind
+  the walls keep the fortification; an army that marched to the relief fights on the terrain and
+  the season alone. Both figures apply when that formation strikes *and* when it is struck, and
+  the battle viewer shows each formation's own number.
+- Survivors are returned to **the exact army that fielded them**, which a multi-army battle
+  requires. A formation that stayed on the field keeps at least one unit if any of its men are
+  standing — now judged per army rather than per side.
+- A captured settlement's tile changes hands with it, whether or not an army is left to walk in.
+- Save format **v3 → v4**, with a migration. A v3 save has no settlement invested.
+- Roadmap renumbered: AI is 0.11.0, naval 0.12.0, identity and polish 0.13.0.
+
+### Measured
+
+Real battles, on the shipped resolver, against the 0.9.0 figures.
+
+| | 0.9.0 | 0.10.0 |
+|---|---|---|
+| 1 Light Infantry vs 1 Archer | archer wins, **0** casualties | archer wins, 10 casualties, 20 turns |
+| Light Infantry needed to beat 1 Archer | 3, for 183 dead | **2**, for 85 |
+| 2 Light Cavalry vs 2 Skirmishers | — | cavalry win, 29 lost against 160 |
+| 20 Heavy Cavalry storming a full Capitol | — | **lose 787, kill 148** — still impossible, by design |
+| 10 Heavy Cavalry against the same Capitol's sortie | — | **win**, 260 lost against 460 |
+
+The walls are 90% and the open field is 40%. Storming a Citadel is meant to be hopeless; the
+siege is the answer, and even twenty Light Infantry beat a full Capitol once it has come out.
+
 ## [0.9.0] — 2026-08-03
 
 **Combat and conquest.** Cities can be taken, realms can be extinguished, and every battle can

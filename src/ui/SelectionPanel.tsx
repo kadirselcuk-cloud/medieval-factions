@@ -5,6 +5,7 @@ import {
   buildingsForTier,
   CHAIN_LINES,
   settlementUpgradeTo,
+  siegeMonths,
   summariseBuildings,
   type Building,
   type SettlementUpgrade,
@@ -41,7 +42,8 @@ import {
   standDown,
 } from '../sim/armies';
 import { calendarAt } from '../sim/calendar';
-import { halt, SEASON_MOVEMENT } from '../sim/movement';
+import { beginSiege, siegeTarget } from '../sim/conquest';
+import { assault, halt, SEASON_MOVEMENT } from '../sim/movement';
 import {
   buildOptions,
   cancelImprovement,
@@ -70,7 +72,7 @@ import {
   type CityState,
   type SimState,
 } from '../sim/types';
-import { num } from './format';
+import { num, signed } from './format';
 
 interface SelectionPanelProps {
   tile: TileInfo;
@@ -266,6 +268,20 @@ function TileFacts({
               value={`+${num(buildings.goldPerWaterTile * water)} gold / month`}
             />
           )}
+          {city.siege && (
+            <>
+              <Row
+                label="Under siege"
+                value={`${city.siege.monthsRemaining} month${city.siege.monthsRemaining === 1 ? '' : 's'} left`}
+              />
+              <p className="panel__note panel__note--bad">
+                Invested for {city.siege.monthsHeld} month
+                {city.siege.monthsHeld === 1 ? '' : 's'}. It pays nothing, finishes nothing and is
+                starving. When the clock runs out its defenders must come out and fight in the
+                open — or surrender.
+              </p>
+            </>
+          )}
         </>
       )}
     </>
@@ -275,7 +291,9 @@ function TileFacts({
 function growthText(state: SimState, city: CityState): string {
   const tenths = cityGrowthTenths(state, city);
   const people = Math.floor((city.populationMilli * tenths) / 1000 / MILLI);
-  return `+${(tenths / 10).toFixed(1)}% · ${num(people)} / month`;
+  // A settlement under siege starves, so this is the one growth figure that can be negative.
+  const percent = `${tenths < 0 ? '−' : '+'}${Math.abs(tenths / 10).toFixed(1)}%`;
+  return `${percent} · ${signed(people)} / month`;
 }
 
 interface ProgressItem {
@@ -606,6 +624,12 @@ function ArmyCard({
     (c) => c.tileIndex === army.tileIndex && c.ownerIndex === army.ownerIndex,
   );
 
+  // Standing at the gates of a hostile settlement opens the two ways of taking one: throw the
+  // army at the walls now, or sit outside until the defenders have to come out to you.
+  const besiegeable = siegeTarget(state, world, army);
+  const siege = besiegeable?.siege;
+  const investing = siege?.byIndex === army.ownerIndex;
+
   const winter = calendarAt(state.tick).season === 'winter';
   const effective = (speed * (SEASON_MOVEMENT[calendarAt(state.tick).season] ?? 100)) / 100;
 
@@ -636,13 +660,47 @@ function ArmyCard({
       />
       <Row
         label="Orders"
-        value={army.path.length > 0 ? `Marching · ${army.path.length} tiles to go` : 'Holding'}
+        value={
+          investing
+            ? `Besieging · ${siege?.monthsRemaining} month${siege?.monthsRemaining === 1 ? '' : 's'} until they must come out`
+            : army.path.length > 0
+              ? `Marching · ${army.path.length} tiles to go`
+              : 'Holding'
+        }
       />
+
+      {besiegeable && (
+        <p className="panel__note">
+          {investing
+            ? 'The settlement pays its owner nothing, finishes nothing and starves. When the clock runs out its defenders must sortie into the open — or surrender, if the odds are hopeless.'
+            : `Assaulting ${world.cities[besiegeable.cityIndex]?.name ?? 'it'} means storming the walls, and the walls count. A siege takes ${siegeMonths(besiegeable.tier)} month${siegeMonths(besiegeable.tier) === 1 ? '' : 's'}, but the fight at the end of it is fought in the open.`}
+        </p>
+      )}
 
       <div className="army-orders">
         <button type="button" className="action" onClick={() => onMarch(army.id)}>
           March…
         </button>
+        {besiegeable && !investing && (
+          <button
+            type="button"
+            className="action"
+            onClick={() => game.command((s) => beginSiege(s, world, army.id))}
+            title="Invest the settlement and starve it out"
+          >
+            Besiege
+          </button>
+        )}
+        {besiegeable && (
+          <button
+            type="button"
+            className="action action--danger"
+            onClick={() => game.command((s) => assault(s, world, army.id, besiegeable.tileIndex))}
+            title="Storm the walls now, with every army of yours within two tiles"
+          >
+            Assault
+          </button>
+        )}
         {army.path.length > 0 && (
           <button
             type="button"

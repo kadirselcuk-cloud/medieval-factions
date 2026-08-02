@@ -160,9 +160,19 @@ Plus the flat +10% "city tile" bonus from [MECHANICS.md](MECHANICS.md) §4, and 
 under the settlement. Stone Walls read +25% here until 0.9.0; the data has always held +30%,
 because the value is stored in tenths and 25% is not expressible. The data wins.
 
-**These are the sharpest numbers in the game.** A Capitol with a Citadel on plains reaches an
-80% defender's advantage, which no army in v1 can overcome — see
-[OPEN-QUESTIONS.md](OPEN-QUESTIONS.md).
+**These are the sharpest numbers in the game.** A Capitol with a Citadel reaches the 90% ceiling
+on hilly ground, and **no army in the game can storm it** — twenty Heavy Cavalry, the largest
+stack the rules allow, lose 787 men and kill 148. That is deliberate: a fortified capital is
+taken by **siege**, not by assault. See [MECHANICS.md](MECHANICS.md) §6.
+
+Owner-authored endurance under siege, by tier:
+
+| Tier | Holds out |
+|---|---|
+| Village | 1 month |
+| Town | 3 months |
+| City | 6 months |
+| Capitol | 12 months |
 
 ---
 
@@ -183,15 +193,15 @@ because the value is stored in tenths and 25% is not expressible. The data wins.
 | 2 | Spear & Shield Infantry | 80g, 2 iron | 15g | 120 | 20 | 60 | 5 | Spear Quarters | ×2 vs cavalry; −20% dmg from ranged |
 | 3 | Sword & Shield Infantry | 100g, 3 iron | 20g | 150 | 25 | 60 | 6 | Barracks | −20% dmg from ranged |
 | 4 | Two-handed Sword / Axe | 100g, 2 iron | 20g | 100 | 25 | 60 | 6 | Axe Quarters | Shock; +50 dmg on charge |
-| 5 | Skirmisher | 80g, 2 wood | 10g | 60 | 10 | 80 | 5 | — **[OPEN]** | Ranged 30 |
-| 6 | Archer | 100g, 4 wood | 20g | 80 | 20 | 60 | 6 | Archery Range | Ranged 40 |
+| 5 | Skirmisher | 80g, 2 wood | 10g | 60 | 10 | 80 | 5 | — **[OPEN]** | Ranged 30, **accuracy 30%** |
+| 6 | Archer | 100g, 4 wood | 20g | 80 | 20 | 60 | 6 | Archery Range | Ranged 40, **accuracy 50%** |
 | 7 | Light Cavalry | 120g, 3 iron | 20g | 120 | 30 | 40 | 8 | Stables | Hit & run; ×2 charge |
 
 ### City tier
 
 | # | Unit | Cost | Upkeep | HP | Dmg | Size | Time | Requires | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| 8 | Cavalry Archer | 150g, 4 wood, 2 iron | 30g | 100 | 20 | 40 | 10 | Stables + Archery Range | Ranged 30; hit & run |
+| 8 | Cavalry Archer | 150g, 4 wood, 2 iron | 30g | 100 | 20 | 40 | 10 | Stables + Archery Range | Ranged 30, **accuracy 40%**; hit & run |
 | 9 | Heavy Cavalry | 200g, 10 iron | 50g | 200 | 40 | 40 | 12 | Barracks + Stables | ×3 charge |
 
 ### Capitol tier

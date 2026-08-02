@@ -79,6 +79,7 @@
       "damage": 10,
       "size": 80,
       "range": 30,
+      "accuracy": 0.3,
       "strategicSpeed": 4,
       "battleSpeed": 3
     },
@@ -95,6 +96,7 @@
       "damage": 20,
       "size": 60,
       "range": 40,
+      "accuracy": 0.5,
       "strategicSpeed": 4,
       "battleSpeed": 2
     },
@@ -127,6 +129,7 @@
       "damage": 20,
       "size": 40,
       "range": 30,
+      "accuracy": 0.4,
       "strategicSpeed": 8,
       "battleSpeed": 6
     },

@@ -138,7 +138,8 @@ export function BattleView({
               </span>
             </h2>
             <p className="battle__where">
-              {where} · defender’s advantage {advantageText(report)}
+              {where} · behind the walls {advantageText(report)}
+              {sortied(report) && ' · the defenders came out, so nobody has them'}
             </p>
           </div>
           <button type="button" className="panel__close" onClick={onClose} title="Close">
@@ -165,9 +166,19 @@ export function BattleView({
                       className={`battle__row${alive ? '' : ' battle__row--dead'}`}
                       key={fighter.slot}
                     >
-                      <span className="battle__unit" title={SOURCE_LABEL[fighter.source]}>
+                      <span
+                        className="battle__unit"
+                        title={`${SOURCE_LABEL[fighter.source]}${
+                          fighter.advantage > 0
+                            ? ` · fighting with ${fighter.advantage / 10}% of the ground`
+                            : ''
+                        }`}
+                      >
                         <span aria-hidden="true">{artFor(fighter.unitId).icon}</span>
                         {unit?.name ?? fighter.unitId}
+                        {fighter.advantage > 0 && (
+                          <span className="battle__ground">+{fighter.advantage / 10}%</span>
+                        )}
                       </span>
 
                       <span className="battle__track">
@@ -262,4 +273,17 @@ export function BattleView({
 
 function sideFaction(report: BattleReport, side: BattleSide): number {
   return side === ATTACKER ? report.attackerIndex : report.defenderIndex;
+}
+
+/**
+ * Whether this was a sortie — a starved-out garrison forced into the open.
+ *
+ * Read off the field rather than stored: if the settlement's own troops are fighting on less
+ * ground than the walls would give them, they are not behind the walls.
+ */
+function sortied(report: BattleReport): boolean {
+  if (report.cityIndex < 0 || report.advantage.fortification === 0) return false;
+  return report.fighters.some(
+    (f) => f.source === 'defence' && f.advantage < report.advantage.total,
+  );
 }

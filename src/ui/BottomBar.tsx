@@ -53,6 +53,7 @@ const EVENT_ICON: Record<GameEvent['kind'], string> = {
   desertion: '⚠',
   army: '🏳',
   battle: '⚔',
+  siege: '⛨',
   conquest: '⚑',
 };
 

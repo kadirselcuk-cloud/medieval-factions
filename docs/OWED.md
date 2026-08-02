@@ -46,9 +46,14 @@ it is tagged **[GEN]** at its definition. None of it is owner-authored truth.
 | Strategic speeds (tiles/month) | `docs/CONTENT.md` §3 | **live** — infantry crosses 4 tiles a month |
 | Orthogonal-only army movement | `src/sim/movement.ts` | implemented |
 | Which unit each building adds to a settlement's defence | `data/units.json` | implemented |
-| Battle speeds (tiles/battle turn) | `docs/CONTENT.md` §3 | **live** — and the main lever on combat balance |
-| Fortification bonuses per settlement tier | `docs/CONTENT.md` §2 | **live** — a Citadel Capitol is currently untakeable |
+| Battle speeds (tiles/battle turn) | `docs/CONTENT.md` §3 | **live** — the lever if infantry spends the battle walking |
+| Fortification bonuses per settlement tier | `docs/CONTENT.md` §2 | **live** — a Citadel Capitol cannot be stormed, only starved |
 | Damage formula and its modifiers | `docs/MECHANICS.md` §6 | **live** — measured, see OPEN-QUESTIONS |
+| Accuracy as a volley multiplier, not a per-shot roll | `src/data/units.ts` | **live** — the figures themselves are owner-authored |
+| Siege starvation, 1% of the population a month | `src/sim/tick.ts` | **live** |
+| Surrender at more than 3-to-1, sortie otherwise | `src/sim/conquest.ts` | **live** |
+| Investment means any of the 8 tiles around a settlement | `src/sim/conquest.ts` | **live** |
+| Relief range is Chebyshev distance 2, settlements only | `src/sim/conquest.ts` | **live** — the 5 × 5 box is owner-authored |
 | 90% cap on the defender's advantage | `src/sim/battle.ts` | **live** |
 | Survivors reformed into whole units | `src/sim/battle.ts` | **live** |
 | The garrison fights alongside a settlement's defenders | `src/sim/conquest.ts` | **live** |
@@ -63,12 +68,12 @@ it is tagged **[GEN]** at its definition. None of it is owner-authored truth.
 
 Tracked in [ROADMAP.md](ROADMAP.md); listed here so nothing quietly disappears.
 
-- Per-faction unit names and the 10 elite units — 0.12.0, to be designed with the owner
-- Faction strengths and weaknesses — 0.12.0
-- The owner's 2D art, dropped into `data/art.json` as image paths — 0.12.0
-- AI opponents — 0.10.0. Currently the 12 rivals do nothing at all: they never muster, never
-  march, and never take ground
-- Naval — 0.11.0. Britons and Moors cannot leave their landmass until this exists
+- Per-faction unit names and the 10 elite units — 0.13.0, to be designed with the owner
+- Faction strengths and weaknesses — 0.13.0
+- The owner's 2D art, dropped into `data/art.json` as image paths — 0.13.0
+- AI opponents — 0.11.0. Currently the 12 rivals do nothing at all: they never muster, never
+  march, never besiege and never take ground
+- Naval — 0.12.0. Britons and Moors cannot leave their landmass until this exists
 - Capacitor mobile wrap, ad and premium-unlock hooks — 1.0.0
 - Tactical battle map — 2.0.0
 

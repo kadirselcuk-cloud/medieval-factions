@@ -179,6 +179,28 @@ export function disband(state: SimState, armyId: number): ArmyResult {
   return { ok: true, armyId };
 }
 
+/**
+ * Move an army onto a tile it has already been cleared to enter, and claim it.
+ *
+ * Returns true if ground changed hands. Shared by marching and by walking into a settlement
+ * that has just been taken — both are the same act, and territory is claimed by presence either
+ * way (docs/DESIGN.md decision 21).
+ */
+export function occupy(state: SimState, army: ArmyState, tileIndex: number): boolean {
+  army.tileIndex = tileIndex;
+
+  const standing = state.armies.find((other) => other.id !== army.id && other.tileIndex === tileIndex);
+  if (standing) {
+    // Arriving where a friendly stack is already parked folds the two together.
+    merge(state, standing.id, army.id);
+    return false;
+  }
+
+  if ((state.tileOwner[tileIndex] ?? -1) === army.ownerIndex) return false;
+  state.tileOwner[tileIndex] = army.ownerIndex;
+  return true;
+}
+
 export function removeArmy(state: SimState, armyId: number): void {
   const position = state.armies.findIndex((army) => army.id === armyId);
   if (position >= 0) state.armies.splice(position, 1);
