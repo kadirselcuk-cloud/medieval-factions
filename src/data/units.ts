@@ -147,6 +147,11 @@ export function cityDefence(tier: number, buildings: readonly string[]): UnitSta
   return stack;
 }
 
+/** Building ids that add a permanent defender to the settlement that holds them. */
+export function defenceBuildings(): readonly string[] {
+  return Object.keys(data().defence.byBuilding);
+}
+
 /** Ships need their naval building; the line is a chain, so anything above it also qualifies. */
 export function buildableShips(buildings: readonly string[]): readonly Ship[] {
   const standing = new Set(buildings);

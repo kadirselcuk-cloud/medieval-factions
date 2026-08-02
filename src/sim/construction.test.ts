@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { settlementUpgradeTo } from '../data/buildings';
 import { loadFactions } from '../data/factions';
 import { loadEurope1350 } from '../data/maps';
 import { buildableShips, recruitableUnits } from '../data/units';
@@ -14,6 +15,7 @@ import {
   queueSettlementUpgrade,
   queueShip,
   queueUnit,
+  settlementUpgradeBlock,
   totalUpkeep,
 } from './construction';
 import { deserialise, serialise } from './save';
@@ -114,10 +116,67 @@ describe('building construction', () => {
 
   it('raises the settlement tier when an upgrade finishes', () => {
     enrich();
+    paris.populationMilli = 5_000 * MILLI; // a Town needs 5,000 people
     expect(queueSettlementUpgrade(state, paris)).toEqual({ ok: true });
     advanceBy(state, world, TICKS_PER_MONTH * 24);
     expect(paris.tier).toBe(2);
     expect(buildOptions(world, paris).map((b) => b.id)).toContain('barracks');
+  });
+});
+
+describe('expanding a settlement', () => {
+  it('refuses until the settlement holds enough people', () => {
+    enrich();
+    expect(settlementUpgradeBlock(state, paris)).toBe('too-few-people');
+    expect(queueSettlementUpgrade(state, paris)).toEqual({
+      ok: false,
+      reason: 'too-few-people',
+    });
+
+    paris.populationMilli = 4_999 * MILLI;
+    expect(settlementUpgradeBlock(state, paris)).toBe('too-few-people');
+
+    paris.populationMilli = 5_000 * MILLI;
+    expect(settlementUpgradeBlock(state, paris)).toBeNull();
+  });
+
+  // The population gate is the same idea at every tier, and it rises much faster than a
+  // settlement grows — expanding is meant to be the work of decades.
+  it('gates each tier on its own population', () => {
+    enrich();
+    const gate = (tier: 2 | 3 | 4) => settlementUpgradeTo(tier)?.minPopulation;
+    expect(gate(2)).toBe(5_000);
+    expect(gate(3)).toBe(10_000);
+    expect(gate(4)).toBe(20_000);
+  });
+
+  it('allows only one Capitol per realm', () => {
+    enrich(1_000_000);
+    paris.tier = 3;
+    paris.populationMilli = 20_000 * MILLI;
+
+    // A second City of the same realm, already on its way to Capitol.
+    const other = state.cities.find((c) => c !== paris && c.ownerIndex !== FRANKS)!;
+    other.ownerIndex = FRANKS;
+    other.tier = 4;
+
+    expect(settlementUpgradeBlock(state, paris)).toBe('already-have-one');
+
+    other.tier = 1;
+    expect(settlementUpgradeBlock(state, paris)).toBeNull();
+  });
+
+  it('counts a Capitol that is merely under construction', () => {
+    enrich(1_000_000);
+    paris.tier = 3;
+    paris.populationMilli = 20_000 * MILLI;
+
+    const other = state.cities.find((c) => c !== paris && c.ownerIndex !== FRANKS)!;
+    other.ownerIndex = FRANKS;
+    other.tier = 3;
+    other.queue.push({ kind: 'settlement', targetTier: 4, monthsRemaining: 48 });
+
+    expect(settlementUpgradeBlock(state, paris)).toBe('already-have-one');
   });
 });
 

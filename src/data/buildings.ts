@@ -61,6 +61,10 @@ export const CHAIN_LINES: readonly BuildingLine[] = [
 const settlementUpgradeSchema = z.object({
   toTier: z.number().int().min(2).max(4),
   name: z.string().min(1),
+  /** People the settlement must already hold before it can grow into this tier. */
+  minPopulation: z.number().int().nonnegative().default(0),
+  /** A faction may hold only one settlement at this tier. */
+  unique: z.boolean().default(false),
   months: z.number().int().positive(),
   cost: costSchema,
 });

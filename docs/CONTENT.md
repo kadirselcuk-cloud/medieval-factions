@@ -54,12 +54,30 @@ names, bonuses and elite units are **[GEN]** — Claude drafts, owner revises.
 
 ## 2. Settlement tiers
 
-| Tier | Upgrade cost | Unlocks |
+A settlement grows into the next tier by **building it, like anything else** — the card sits
+first in the City Buildings grid and reads as the settlement expanding rather than as an
+abstract "upgrade".
+
+| Tier | Needs | Cost | Unlocks |
+|---|---|---|---|
+| **Village** (start) | — | — | Basic Farms, Wooden Houses, Cottage Shops, Wooden Palisade |
+| **Town** | **5,000 people** | 1,000g + 100 wood | Advanced Farms, Stone Houses, Merchants, **1 military building**, Town Hall, Stone Walls, Dock (coastal) |
+| **City** | **10,000 people** | 5,000g + 100 stone | Irrigation, Villas, Artisans, **2 military buildings**, City Hall, City Walls, Port (coastal) |
+| **Capitol** | **20,000 people**, and only one per realm | 20,000g + 1,000 stone | Guildhouse, **military buildings**, Palace, Citadel, Shipyard (coastal) |
+
+**Population is the real gate, not gold.** A realm cannot buy its way up the tiers; it has to
+have built somewhere people want to live. Since the wealth bonus dominates population growth,
+the practical route to a Capitol runs through the treasury anyway — but through a treasury held
+for decades, not one spent in a month.
+
+Roughly how long the first gate takes, from the opening 1,000 people:
+
+| Situation | Growth | To 5,000 people |
 |---|---|---|
-| **Village** (start) | — | Basic Farms, Wooden Houses, Cottage Shops, Wooden Palisade |
-| **Town** | 1,000g + 100 wood | Advanced Farms, Stone Houses, Merchants, **1 military building**, Town Hall, Stone Walls, Dock (coastal) |
-| **City** | 5,000g + 100 stone | Irrigation, Villas, Artisans, **2 military buildings**, City Hall, City Walls, Port (coastal) |
-| **Capitol** | 20,000g + 1,000 stone | Guildhouse, **military buildings**, Palace, Citadel, Shipyard (coastal) |
+| Village, nothing built, empty treasury | 0.2%/mo | ~76 years |
+| Village, Wooden Houses, empty treasury | 0.3%/mo | ~49 years |
+| Village, Wooden Houses, 10,000 gold banked | 1.3%/mo | ~11 years |
+| Village, Wooden Houses, 100,000 gold banked | 2.3%/mo | ~6 years |
 
 Military buildings: **Spear Quarters, Barracks, Axe Quarters, Archery Range, Stables**.
 The slot limit gates the roster — Heavy Cavalry needs Barracks *and* Stables, so it needs

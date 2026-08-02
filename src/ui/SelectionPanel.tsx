@@ -1,15 +1,34 @@
 import { useState, type JSX } from 'react';
+import { artFor, settlementArtKey } from '../data/art';
 import {
   buildingById,
+  buildingsForTier,
+  CHAIN_LINES,
   settlementUpgradeTo,
   summariseBuildings,
-  type Cost,
+  type Building,
+  type SettlementUpgrade,
 } from '../data/buildings';
 import { RELIGION_LABEL, type Faction } from '../data/factions';
-import { improvementCost, improvementMonths, tileOutput } from '../data/improvements';
+import {
+  improvementCost,
+  improvementMonths,
+  MAX_IMPROVEMENT_LEVEL,
+  tileOutput,
+} from '../data/improvements';
 import { TERRAIN_PROFILE, type ImprovementKind } from '../data/terrain';
-import { buildableShips, recruitableUnits, shipById, unitById } from '../data/units';
+import {
+  buildableShips,
+  defenceBuildings,
+  loadShips,
+  loadUnits,
+  recruitableUnits,
+  shipById,
+  unitById,
+  type Unit,
+} from '../data/units';
 import { adjacentWaterCount, TERRAIN_LABEL, type TileInfo, type World } from '../data/world';
+import { BuildGrid, costText, type BuildTile } from './BuildGrid';
 import {
   armyAt,
   armySpeed,
@@ -31,11 +50,14 @@ import {
   canAfford,
   improvementAt,
   improvementCap,
+  isCoastal,
   queueBuilding,
   queueImprovement,
   queueSettlementUpgrade,
   queueShip,
   queueUnit,
+  settlementUpgradeBlock,
+  type BuildFailure,
 } from '../sim/construction';
 import type { Game } from '../sim/game';
 import { cityGrowthTenths } from '../sim/tick';
@@ -61,13 +83,13 @@ interface SelectionPanelProps {
   onClose: () => void;
 }
 
-type Tab = 'info' | 'buildings' | 'improvements' | 'armies';
+type Tab = 'info' | 'buildings' | 'armies' | 'navy';
 
 const TAB_LABEL: Record<Tab, string> = {
   info: 'Info',
   buildings: 'Buildings',
-  improvements: 'Land',
   armies: 'Armies',
+  navy: 'Navy',
 };
 
 const IMPROVEMENT_KINDS: readonly ImprovementKind[] = ['farm', 'mine', 'sawmill'];
@@ -76,13 +98,6 @@ const IMPROVEMENT_NAME: Record<ImprovementKind, string> = {
   mine: 'Mine',
   sawmill: 'Sawmill',
 };
-
-function costText(cost: Cost): string {
-  const parts = (['gold', 'wood', 'iron', 'stone'] as const)
-    .filter((resource) => (cost[resource] ?? 0) > 0)
-    .map((resource) => `${num(cost[resource] ?? 0)} ${resource}`);
-  return parts.length > 0 ? parts.join(' · ') : 'free';
-}
 
 function Row({ label, value }: { label: string; value: string }): JSX.Element {
   return (
@@ -105,6 +120,12 @@ export function SelectionPanel(props: SelectionPanelProps): JSX.Element {
   const city = cityFeature ? state.cities.find((c) => c.tileIndex === tile.index) : undefined;
   const tabbed = Boolean(city && isPlayers);
 
+  // Landlocked settlements have no navy to speak of, so they do not carry the tab at all.
+  const coastal = isCoastal(world, tile.x, tile.y);
+  const tabs: Tab[] = coastal
+    ? ['info', 'buildings', 'armies', 'navy']
+    : ['info', 'buildings', 'armies'];
+
   // An army is selected by selecting the ground it stands on. Ownership of the tile and of the
   // army can differ the moment fighting exists, so the panel asks the army who it belongs to.
   const army = armyAt(state, tile.index);
@@ -124,7 +145,7 @@ export function SelectionPanel(props: SelectionPanelProps): JSX.Element {
 
       {tabbed && (
         <nav className="tabs" role="tablist">
-          {(['info', 'buildings', 'improvements', 'armies'] as const).map((value) => (
+          {tabs.map((value) => (
             <button
               key={value}
               type="button"
@@ -163,24 +184,14 @@ export function SelectionPanel(props: SelectionPanelProps): JSX.Element {
             <ArmyCard army={playersArmy} game={game} state={state} world={world} onMarch={onMarch} />
           )}
           {!tabbed && isPlayers && TERRAIN_PROFILE[tile.terrain].buildable && (
-            <ImprovementSection tile={tile} game={game} state={state} world={world} />
+            <FiefBuildings tile={tile} game={game} state={state} world={world} />
           )}
         </div>
       )}
 
       {tabbed && tab === 'buildings' && city && (
         <div className="panel__body">
-          <CityBuildings city={city} game={game} state={state} world={world} />
-        </div>
-      )}
-
-      {tabbed && tab === 'improvements' && (
-        <div className="panel__body">
-          <p className="panel__note">
-            A settlement stands on a tile like any other, and can work it. Improve the
-            surrounding land by selecting those tiles on the map.
-          </p>
-          <ImprovementSection tile={tile} game={game} state={state} world={world} />
+          <CityBuildings city={city} tile={tile} game={game} state={state} world={world} />
         </div>
       )}
 
@@ -190,6 +201,12 @@ export function SelectionPanel(props: SelectionPanelProps): JSX.Element {
             <ArmyCard army={playersArmy} game={game} state={state} world={world} onMarch={onMarch} />
           )}
           <Garrison city={city} game={game} state={state} world={world} />
+        </div>
+      )}
+
+      {tabbed && tab === 'navy' && city && coastal && (
+        <div className="panel__body">
+          <Navy city={city} game={game} state={state} coastal={coastal} />
         </div>
       )}
     </aside>
@@ -414,8 +431,54 @@ function Garrison({
 }): JSX.Element {
   const defenders = Object.entries(defenceOf(city)).filter(([, count]) => count > 0);
   const units = Object.entries(city.garrison).filter(([, count]) => count > 0);
-  const ships = Object.entries(city.fleet).filter(([, count]) => count > 0);
-  const recruitable = recruitableUnits(city.tier, city.buildings);
+  const recruitable = new Set(recruitableUnits(city.tier, city.buildings).map((u) => u.id));
+
+  // The whole roster, so a player can read what a Barracks would eventually buy them rather
+  // than only what they can already afford today.
+  const tiles: BuildTile[] = loadUnits().map((unit) => {
+    const affordable = canAfford(state, city.ownerIndex, unit.cost);
+    const unlocked = recruitable.has(unit.id);
+    const missing = unit.requires
+      .filter((id) => !city.buildings.includes(id))
+      .map((id) => buildingById(id)?.name ?? id);
+
+    return {
+      id: unit.id,
+      name: unit.name,
+      state: unlocked && affordable ? 'available' : 'blocked',
+      footnote: `${num(unit.cost.gold)}g · ${unit.months} mo`,
+      blurb: artFor(unit.id).blurb,
+      facts: [
+        { label: 'Class', value: labelOf(unit.class) },
+        { label: 'Soldiers', value: `${num(unit.size)} men` },
+        { label: 'Per soldier', value: `${unit.hp} HP · ${unit.damage} damage` },
+        { label: 'Unit strength', value: `${num(unit.size * unit.hp)} HP total` },
+        ...(unit.range > 0 ? [{ label: 'Range', value: String(unit.range) }] : []),
+        { label: 'Speed', value: `${unit.strategicSpeed} tiles a month` },
+        { label: 'Cost', value: costText(unit.cost) },
+        { label: 'Takes', value: `${unit.months} months` },
+        { label: 'Upkeep', value: `${unit.upkeep} gold a month` },
+        {
+          label: 'Needs',
+          value:
+            unit.requires.length > 0
+              ? unit.requires.map((id) => buildingById(id)?.name ?? id).join(' + ')
+              : `${TIER_NAME[unit.minTier as 1 | 2 | 3 | 4]} tier`,
+        },
+        ...unitTraits(unit),
+      ],
+      reason:
+        unit.minTier > city.tier
+          ? `Needs a ${TIER_NAME[unit.minTier as 1 | 2 | 3 | 4]}. This settlement is a ${TIER_NAME[city.tier]}.`
+          : missing.length > 0
+            ? `Needs ${missing.join(' and ')}, built in the Buildings tab.`
+            : affordable
+              ? undefined
+              : 'Not enough in the treasury.',
+      action: `Recruit ${unit.name}`,
+      onAction: () => game.command((s) => queueUnit(s, city, unit.id)),
+    };
+  });
 
   const training = creeping(
     city.recruitQueue.map((order) => ({
@@ -508,42 +571,19 @@ function Garrison({
         </div>
       )}
 
-      {recruitable.length > 0 && (
-        <div className="panel__section">
-          <div className="panel__heading">Recruit</div>
-          {recruitable.map((unit) => (
-            <button
-              key={unit.id}
-              type="button"
-              className="action"
-              disabled={!canAfford(state, city.ownerIndex, unit.cost)}
-              onClick={() => game.command((s) => queueUnit(s, city, unit.id))}
-            >
-              <span>{unit.name}</span>
-              <span className="action__cost">
-                {costText(unit.cost)} · {unit.months} mo · {unit.upkeep}g/mo
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {ships.length > 0 && (
-        <div className="panel__section">
-          <div className="panel__heading">Fleet</div>
-          {ships.map(([id, count]) => (
-            <div className="panel__row" key={id}>
-              <span className="panel__label">{shipById(id)?.name ?? id}</span>
-              <span className="panel__value">
-                ×{count}
-                <span className="panel__muted"> · {(shipById(id)?.upkeep ?? 0) * count}g/mo</span>
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+      <BuildGrid heading="Recruit" tiles={tiles} />
     </>
   );
+}
+
+/** A unit's combat quirks, in words. Read from the roster so they cannot drift from the rules. */
+function unitTraits(unit: Unit): { label: string; value: string }[] {
+  const traits: string[] = [];
+  if (unit.antiCavalry > 1) traits.push(`×${unit.antiCavalry} damage against cavalry`);
+  if (unit.rangedResist > 0) traits.push(`−${Math.round(unit.rangedResist * 100)}% damage from missiles`);
+  if (unit.chargeBonus > 0) traits.push(`+${unit.chargeBonus} damage on the charge`);
+  if (unit.chargeMultiplier > 1) traits.push(`×${unit.chargeMultiplier} damage on the charge`);
+  return traits.length > 0 ? [{ label: 'In battle', value: traits.join(' · ') }] : [];
 }
 
 /** A field army: what it is made of, where it is going, and the orders it can be given. */
@@ -641,7 +681,13 @@ function totalMonths(order: CityState['queue'][number]): number {
   return settlementUpgradeTo(order.targetTier)?.months ?? 1;
 }
 
-function ImprovementSection({
+/**
+ * Fief buildings — what can be raised on the land itself rather than inside the walls.
+ *
+ * A tile holds one of farm, mine or sawmill, upgraded up to four times, so the grid offers all
+ * three on bare ground and only the one already there afterwards.
+ */
+function FiefBuildings({
   tile,
   game,
   state,
@@ -658,12 +704,14 @@ function ImprovementSection({
   const monthsLeft = state.improvementMonths[tile.index] ?? 0;
   const target = state.improvementTarget[tile.index] ?? 0;
   const cap = improvementCap(state, player);
+  const profile = TERRAIN_PROFILE[tile.terrain];
+  const nextLevel = level + 1;
 
   if (monthsLeft > 0) {
     const total = improvementMonths(target);
     return (
       <div className="panel__section">
-        <div className="panel__heading">Improvement</div>
+        <div className="panel__heading">Fief Buildings</div>
         <Meter
           item={{
             label: `${kind ? IMPROVEMENT_NAME[kind] : 'Work'} → level ${target}`,
@@ -683,87 +731,176 @@ function ImprovementSection({
     );
   }
 
-  // A tile holds one improvement, so once something is built only that line can continue.
   const choices = kind === null ? IMPROVEMENT_KINDS : [kind];
-  const nextLevel = level + 1;
+  const tiles: BuildTile[] = choices.map((choice) => {
+    const cost = improvementCost(choice, nextLevel);
+    const beyondCap = nextLevel > cap;
+    const affordable = canAfford(state, player, cost);
+    const modifier = profile.output[choice];
+
+    return {
+      id: choice,
+      name: IMPROVEMENT_NAME[choice],
+      state: beyondCap || !affordable ? 'blocked' : 'available',
+      footnote: level > 0 ? `level ${level} → ${nextLevel}` : `${improvementMonths(nextLevel)} mo`,
+      blurb: artFor(choice).blurb,
+      facts: [
+        { label: 'Cost', value: costText(cost) },
+        { label: 'Takes', value: `${improvementMonths(nextLevel)} months` },
+        { label: 'Level', value: `${level} → ${nextLevel} of ${MAX_IMPROVEMENT_LEVEL}` },
+        { label: 'Ground', value: TERRAIN_LABEL[tile.terrain] },
+        {
+          label: 'Terrain effect',
+          value:
+            modifier === 1
+              ? 'no change'
+              : `${modifier > 1 ? '+' : ''}${Math.round((modifier - 1) * 100)}% yield here`,
+        },
+        {
+          label: 'Yield at this level',
+          value: yieldText(tile, choice, nextLevel),
+        },
+      ],
+      reason: beyondCap
+        ? `Level ${nextLevel} needs a tier-${nextLevel} settlement somewhere in your realm. Your best is tier ${cap}.`
+        : affordable
+          ? undefined
+          : 'Not enough in the treasury.',
+      action: level === 0 ? `Build ${IMPROVEMENT_NAME[choice]}` : `Upgrade to level ${nextLevel}`,
+      onAction: () =>
+        game.command((s) => queueImprovement(s, world, player, tile.x, tile.y, choice)),
+    };
+  });
 
   return (
-    <div className="panel__section">
-      <div className="panel__heading">
-        Improvement
-        {kind !== null && (
-          <span className="panel__muted">
-            {' '}
-            · {IMPROVEMENT_NAME[kind]} level {level}
-          </span>
-        )}
-      </div>
-
-      {nextLevel > cap ? (
-        <p className="panel__note">
-          Level {nextLevel} needs a tier-{nextLevel} settlement somewhere in your realm. Your
-          best is tier {cap}.
-        </p>
-      ) : (
-        choices.map((choice) => {
-          const cost = improvementCost(choice, nextLevel);
-          const affordable = canAfford(state, player, cost);
-          return (
-            <button
-              key={choice}
-              type="button"
-              className="action"
-              disabled={!affordable}
-              onClick={() =>
-                game.command((s) => queueImprovement(s, world, player, tile.x, tile.y, choice))
-              }
-              title={affordable ? undefined : 'Not enough resources'}
-            >
-              <span>
-                {level === 0 ? 'Build' : 'Upgrade'} {IMPROVEMENT_NAME[choice]}
-                {level > 0 ? ` ${nextLevel}` : ''}
-              </span>
-              <span className="action__cost">
-                {costText(cost)} · {improvementMonths(nextLevel)} mo
-              </span>
-            </button>
-          );
-        })
-      )}
-    </div>
+    <BuildGrid
+      heading="Fief Buildings"
+      tiles={tiles}
+      note={
+        kind === null
+          ? 'A tile holds one of these three, and the choice is permanent. Improve the land around a settlement by selecting those tiles on the map.'
+          : `This land is worked as a ${IMPROVEMENT_NAME[kind].toLowerCase()}, level ${level}.`
+      }
+    />
   );
+}
+
+/** What one tile would yield with the given improvement at the given level. */
+function yieldText(tile: TileInfo, kind: ImprovementKind, level: number): string {
+  const node = tile.feature?.kind === 'resource' ? tile.feature.resource : null;
+  const before = tileOutput({ terrain: tile.terrain, improvement: kind, level: level - 1, node });
+  const after = tileOutput({ terrain: tile.terrain, improvement: kind, level, node });
+
+  const parts = (['gold', 'wood', 'iron', 'stone'] as const)
+    .filter((resource) => after[resource] > 0)
+    .map((resource) => {
+      const gain = after[resource] - before[resource];
+      return `${after[resource]} ${resource}${gain > 0 ? ` (+${gain})` : ''}`;
+    });
+  return parts.length > 0 ? `${parts.join(', ')} / month` : '—';
 }
 
 function CityBuildings({
   city,
+  tile,
   game,
   state,
   world,
 }: {
   city: CityState;
+  tile: TileInfo;
   game: Game;
   state: SimState;
   world: World;
 }): JSX.Element {
-  const options = buildOptions(world, city);
+  const available = new Set(buildOptions(world, city).map((b) => b.id));
+  const built = new Set(city.buildings);
+  const queued = new Set(
+    city.queue.flatMap((order) => (order.kind === 'building' ? [order.id] : [])),
+  );
+  const coastal = isCoastal(world, tile.x, tile.y);
+
+  // Every building this settlement's tier can reach, in one grid — built, queued, buildable
+  // and merely unaffordable alike. Seeing the whole line at once is what makes it read as a
+  // progression rather than a menu that changes shape every time something finishes.
+  const tiles: BuildTile[] = buildingsForTier(city.tier)
+    .filter((building) => !building.coastal || coastal)
+    .map((building) => {
+      const affordable = canAfford(state, city.ownerIndex, building.cost);
+      const state_: BuildTile['state'] = built.has(building.id)
+        ? 'built'
+        : queued.has(building.id)
+          ? 'queued'
+          : available.has(building.id) && affordable
+            ? 'available'
+            : 'blocked';
+
+      return {
+        id: building.id,
+        name: building.name,
+        state: state_,
+        footnote: built.has(building.id)
+          ? 'standing'
+          : queued.has(building.id)
+            ? 'building'
+            : `${num(building.cost.gold)}g · ${building.months} mo`,
+        blurb: artFor(building.id).blurb,
+        facts: [
+          { label: 'Line', value: `${labelOf(building.line)} · level ${building.level}` },
+          { label: 'Cost', value: costText(building.cost) },
+          { label: 'Takes', value: `${building.months} months` },
+          { label: 'Needs', value: `${TIER_NAME[building.minTier as 1 | 2 | 3 | 4]} or better` },
+          ...buildingEffects(building),
+        ],
+        reason: buildingReason(building, built, queued, available, affordable),
+        action: `Build ${building.name}`,
+        onAction: () => game.command((s) => queueBuilding(s, world, city, building.id)),
+      };
+    });
+
   const upgrade = settlementUpgradeTo(city.tier + 1);
-  const upgradeQueued = city.queue.some((order) => order.kind === 'settlement');
-  const ships = buildableShips(city.buildings);
+  if (upgrade) {
+    const blocked = settlementUpgradeBlock(state, city);
+    tiles.unshift({
+      id: settlementArtKey(upgrade.toTier),
+      name: upgrade.name,
+      state: blocked === 'already-building' ? 'queued' : blocked ? 'blocked' : 'available',
+      footnote: `${num(upgrade.minPopulation)} people`,
+      blurb: artFor(settlementArtKey(upgrade.toTier)).blurb,
+      facts: [
+        { label: 'Expands', value: `${TIER_NAME[city.tier]} → ${upgrade.name}` },
+        { label: 'Needs', value: `${num(upgrade.minPopulation)} people` },
+        { label: 'Population', value: `${num(whole(city.populationMilli))} here now` },
+        { label: 'Cost', value: costText(upgrade.cost) },
+        { label: 'Takes', value: `${upgrade.months} months` },
+        ...(upgrade.unique ? [{ label: 'Limit', value: 'One per realm' }] : []),
+      ],
+      reason: upgradeReason(blocked, upgrade, city),
+      action: `Expand into a ${upgrade.name}`,
+      onAction: () => game.command((s) => queueSettlementUpgrade(s, city)),
+    });
+  }
+
+  const underway = creeping(
+    city.queue.map((order) => ({
+      label:
+        order.kind === 'building'
+          ? (buildingById(order.id)?.name ?? labelOf(order.id))
+          : `Expanding into a ${TIER_NAME[order.targetTier]}`,
+      done: totalMonths(order) - order.monthsRemaining,
+      total: totalMonths(order),
+    })),
+    monthFraction(state),
+  );
 
   return (
     <>
-      {city.queue.length > 0 && (
+      {underway.length > 0 && (
         <div className="panel__section panel__section--first">
           <div className="panel__heading">Under construction</div>
-          {city.queue.map((order, position) => (
-            <div className="progress" key={`${order.kind}-${position}`}>
-              <span>
-                {order.kind === 'building'
-                  ? (options.find((b) => b.id === order.id)?.name ?? labelOf(order.id))
-                  : `Upgrade to ${TIER_NAME[order.targetTier]}`}
-                {position > 0 && <span className="panel__muted"> · waiting</span>}
-              </span>
-              <span className="panel__muted">{order.monthsRemaining} mo</span>
+          {underway.map((item, position) => (
+            <div className="training-row" key={`${item.label}-${position}`}>
+              <Meter item={item} waiting={position > 0} />
               <button
                 type="button"
                 className="panel__close"
@@ -777,74 +914,9 @@ function CityBuildings({
         </div>
       )}
 
-      {upgrade && !upgradeQueued && (
-        <div className="panel__section panel__section--first">
-          <button
-            type="button"
-            className="action action--primary"
-            disabled={!canAfford(state, city.ownerIndex, upgrade.cost)}
-            onClick={() => game.command((s) => queueSettlementUpgrade(s, city))}
-          >
-            <span>Upgrade to {upgrade.name}</span>
-            <span className="action__cost">
-              {costText(upgrade.cost)} · {upgrade.months} mo
-            </span>
-          </button>
-        </div>
-      )}
+      <BuildGrid heading="City Buildings" tiles={tiles} />
 
-      {options.length > 0 ? (
-        <div className="panel__section">
-          <div className="panel__heading">Build</div>
-          {options.map((building) => (
-            <button
-              key={building.id}
-              type="button"
-              className="action"
-              disabled={!canAfford(state, city.ownerIndex, building.cost)}
-              onClick={() => game.command((s) => queueBuilding(s, world, city, building.id))}
-            >
-              <span>{building.name}</span>
-              <span className="action__cost">
-                {costText(building.cost)} · {building.months} mo
-              </span>
-            </button>
-          ))}
-        </div>
-      ) : (
-        <p className="panel__note">Nothing further can be built at this settlement tier.</p>
-      )}
-
-      {ships.length > 0 && (
-        <div className="panel__section">
-          <div className="panel__heading">Dock</div>
-          {ships.map((ship) => (
-            <button
-              key={ship.id}
-              type="button"
-              className="action"
-              disabled={!canAfford(state, city.ownerIndex, ship.cost)}
-              onClick={() => game.command((s) => queueShip(s, city, ship.id))}
-            >
-              <span>{ship.name}</span>
-              <span className="action__cost">
-                {costText(ship.cost)} · {ship.months} mo · {ship.upkeep}g/mo
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {city.buildings.length > 0 && (
-        <div className="panel__section">
-          <div className="panel__heading">Standing</div>
-          {city.buildings.map((id) => (
-            <div className="progress" key={id}>
-              <span>{labelOf(id)}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      <FiefBuildings tile={tile} game={game} state={state} world={world} />
 
       <p className="panel__note">
         Treasury {num(whole(state.factions[city.ownerIndex]?.stock.gold ?? 0))} gold
@@ -852,6 +924,181 @@ function CityBuildings({
     </>
   );
 }
+
+/** The mechanical effects a building carries, as rows. Derived, so they cannot go stale. */
+function buildingEffects(building: Building): { label: string; value: string }[] {
+  const rows: { label: string; value: string }[] = [];
+  if (building.housingLevel > 0) {
+    rows.push({ label: 'Growth', value: `+${(building.housingLevel / 10).toFixed(1)}% a month` });
+  }
+  if (building.growthTenths > 0) {
+    rows.push({ label: 'Growth', value: `+${(building.growthTenths / 10).toFixed(1)}% a month` });
+  }
+  if (building.goldPerMonth > 0) {
+    rows.push({ label: 'Income', value: `+${num(building.goldPerMonth)} gold a month` });
+  }
+  if (building.goldPerWaterTile > 0) {
+    rows.push({
+      label: 'Income',
+      value: `+${building.goldPerWaterTile} gold a month per adjacent water tile`,
+    });
+  }
+  if (building.defenceTenths > 0) {
+    rows.push({ label: 'Defence', value: `+${building.defenceTenths * 10}% for the defender` });
+  }
+
+  const trains = loadUnits().filter((unit) => unit.requires.includes(building.id));
+  if (trains.length > 0) {
+    rows.push({ label: 'Unlocks', value: trains.map((unit) => unit.name).join(', ') });
+  }
+  const launches = loadShips().filter((ship) => ship.requires === building.id);
+  if (launches.length > 0) {
+    rows.push({ label: 'Unlocks', value: launches.map((ship) => ship.name).join(', ') });
+  }
+  if (defenceBuildings().includes(building.id)) {
+    rows.push({ label: 'Garrison', value: '+1 permanent defender' });
+  }
+  if (building.coastal) rows.push({ label: 'Requires', value: 'A coastal settlement' });
+  return rows;
+}
+
+function buildingReason(
+  building: Building,
+  built: ReadonlySet<string>,
+  queued: ReadonlySet<string>,
+  available: ReadonlySet<string>,
+  affordable: boolean,
+): string | undefined {
+  if (built.has(building.id) || queued.has(building.id)) return undefined;
+  if (!available.has(building.id)) {
+    return CHAIN_LINES.includes(building.line)
+      ? `The ${labelOf(building.line).toLowerCase()} line has to be built in order — finish level ${building.level - 1} first.`
+      : 'Not available at this settlement yet.';
+  }
+  return affordable ? undefined : 'Not enough in the treasury.';
+}
+
+function upgradeReason(
+  blocked: BuildFailure | null,
+  upgrade: SettlementUpgrade,
+  city: CityState,
+): string | undefined {
+  switch (blocked) {
+    case null:
+    case 'already-building':
+      return undefined;
+    case 'too-few-people':
+      return `A ${upgrade.name} needs ${num(upgrade.minPopulation)} people. This settlement holds ${num(whole(city.populationMilli))} — it has to grow into it.`;
+    case 'already-have-one':
+      return `A realm may only ever have one ${upgrade.name}.`;
+    case 'insufficient-resources':
+      return 'Not enough in the treasury.';
+    default:
+      return 'Cannot expand any further.';
+  }
+}
+
+/** Ships, their yard and the fleet they join. */
+function Navy({
+  city,
+  game,
+  state,
+  coastal,
+}: {
+  city: CityState;
+  game: Game;
+  state: SimState;
+  coastal: boolean;
+}): JSX.Element {
+  const moored = Object.entries(city.fleet).filter(([, count]) => count > 0);
+  const buildable = new Set(buildableShips(city.buildings).map((s) => s.id));
+
+  const inYard = creeping(
+    city.shipQueue.map((order) => ({
+      label: shipById(order.id)?.name ?? order.id,
+      done: (shipById(order.id)?.months ?? 0) - order.monthsRemaining,
+      total: shipById(order.id)?.months ?? 0,
+    })),
+    monthFraction(state),
+  );
+
+  const tiles: BuildTile[] = loadShips().map((ship) => {
+    const affordable = canAfford(state, city.ownerIndex, ship.cost);
+    const unlocked = buildable.has(ship.id);
+    return {
+      id: ship.id,
+      name: ship.name,
+      state: unlocked && affordable ? 'available' : 'blocked',
+      footnote: `${num(ship.cost.gold)}g · ${ship.months} mo`,
+      blurb: artFor(ship.id).blurb,
+      facts: [
+        { label: 'Cost', value: costText(ship.cost) },
+        { label: 'Takes', value: `${ship.months} months` },
+        { label: 'Upkeep', value: `${ship.upkeep} gold a month` },
+        { label: 'Needs', value: buildingById(ship.requires)?.name ?? ship.requires },
+      ],
+      reason: !coastal
+        ? 'This settlement does not border water.'
+        : !unlocked
+          ? `Needs a ${buildingById(ship.requires)?.name ?? ship.requires}, built in the Buildings tab.`
+          : affordable
+            ? undefined
+            : 'Not enough in the treasury.',
+      action: `Lay down a ${ship.name}`,
+      onAction: () => game.command((s) => queueShip(s, city, ship.id)),
+    };
+  });
+
+  return (
+    <>
+      <div className="panel__section panel__section--first">
+        <div className="panel__heading">Fleet</div>
+        {moored.length === 0 ? (
+          <p className="panel__note">Nothing in harbour here.</p>
+        ) : (
+          moored.map(([id, count]) => (
+            <div className="panel__row" key={id}>
+              <span className="panel__label">{shipById(id)?.name ?? id}</span>
+              <span className="panel__value">
+                ×{count}
+                <span className="panel__muted"> · {(shipById(id)?.upkeep ?? 0) * count}g/mo</span>
+              </span>
+            </div>
+          ))
+        )}
+      </div>
+
+      {inYard.length > 0 && (
+        <div className="panel__section">
+          <div className="panel__heading">
+            In the yard
+            <span className="panel__muted"> · {inYard.length} queued</span>
+          </div>
+          {inYard.map((item, position) => (
+            <div className="training-row" key={`${item.label}-${position}`}>
+              <Meter item={item} waiting={position > 0} />
+              <button
+                type="button"
+                className="panel__close"
+                title="Cancel, full refund"
+                onClick={() => game.command((s) => cancelProduction(s, city, 'ship', position))}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <BuildGrid
+        heading="Shipyard"
+        tiles={tiles}
+        note="Ships are built and moored here. Putting a fleet to sea comes with the naval phase."
+      />
+    </>
+  );
+}
+
 
 function labelOf(id: string): string {
   return id.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());

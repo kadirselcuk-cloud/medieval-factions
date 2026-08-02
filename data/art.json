@@ -1,0 +1,71 @@
+{
+  "_comment": "Art and flavour manifest. Every buildable, recruitable and improvable thing in the game is keyed here by its id. NOTHING in the code hardcodes an icon or an image path - swap 'icon' for 'image' when real art arrives and no logic changes. 'blurb' is [GEN] placeholder prose and is the owner's to rewrite; the detail window derives every actual number from the data files, never from here.",
+
+  "_image": "Optional. A path relative to the public/ directory, e.g. \"art/buildings/barracks.png\". When present it is drawn instead of the icon.",
+
+  "fallback": { "icon": "◻" },
+
+  "entries": {
+    "settlement_2": {
+      "icon": "🏘",
+      "blurb": "The village spreads beyond its first lane. New streets are laid, a market square is cleared, and the settlement is large enough to be called a town."
+    },
+    "settlement_3": {
+      "icon": "🏙",
+      "blurb": "The town outgrows its bounds. Quarters form around the trades, the market becomes permanent, and the place begins to govern the country around it."
+    },
+    "settlement_4": {
+      "icon": "👑",
+      "blurb": "The city becomes the seat of the realm. There is only ever one, and everything a faction can build is unlocked here."
+    },
+
+    "wooden_houses": { "icon": "🛖", "blurb": "Timber and thatch, packed close. Somewhere to put the people who keep arriving." },
+    "stone_houses": { "icon": "🏠", "blurb": "Stone walls and tiled roofs. They do not burn, and families stay in them for generations." },
+    "villas": { "icon": "🏡", "blurb": "Room to live rather than merely to shelter. The wealthy stop leaving for the countryside." },
+    "manors": { "icon": "🏰", "blurb": "Great houses for the people who own the country. The settlement's population grows fastest of all here." },
+
+    "wooden_palisade": { "icon": "🪵", "blurb": "A ditch and a ring of sharpened stakes. It will not stop an army, but it stops a raid." },
+    "stone_walls": { "icon": "🧱", "blurb": "Mortared stone, high enough to need ladders. The first fortification worth besieging." },
+    "city_walls": { "icon": "🏯", "blurb": "Curtain walls with towers, gates and a walkway. An attacker now needs a plan." },
+    "citadel": { "icon": "🛡", "blurb": "A fortress inside the walls. Even a fallen city can be held from here." },
+
+    "cottage_shops": { "icon": "🧺", "blurb": "Trades worked out of front rooms. Small money, but it arrives every month." },
+    "merchants": { "icon": "⚖", "blurb": "Traders with warehouses and contacts beyond the realm." },
+    "artisans": { "icon": "🔨", "blurb": "Skilled workshops making goods worth carrying a long way." },
+    "guildhouse": { "icon": "🏛", "blurb": "The trades organise, set their own prices, and pay the settlement handsomely for the privilege." },
+
+    "town_hall": { "icon": "📜", "blurb": "Somewhere to keep the records and settle the disputes. People stay where they are governed - and the hall musters a militia of its own." },
+    "city_hall": { "icon": "🗝", "blurb": "Real administration: courts, charters and a treasury of its own." },
+    "palace": { "icon": "👑", "blurb": "The seat of rule. The realm is administered from this room." },
+
+    "spear_quarters": { "icon": "🔱", "blurb": "Billets and a drill yard for spearmen. Unlocks Spear & Shield Infantry." },
+    "archery_range": { "icon": "🏹", "blurb": "Butts, bowyers and a long field. Unlocks Archers, and adds one to the settlement's defence." },
+    "axe_quarters": { "icon": "🪓", "blurb": "Quarters for shock troops who carry no shield. Unlocks Two-handed Sword and Axe." },
+    "barracks": { "icon": "⚔", "blurb": "Proper soldiers, properly housed. Unlocks Sword & Shield Infantry, and adds one to the settlement's defence." },
+    "stables": { "icon": "🐎", "blurb": "Horse lines, a farrier and pasture. Unlocks Light Cavalry, and adds one to the settlement's defence." },
+
+    "fishery": { "icon": "🐟", "blurb": "Boats, nets and a curing shed. Pays for every stretch of water around the settlement - which is what stops a coastal town being poorer than an inland one." },
+    "dock": { "icon": "⚓", "blurb": "A quay deep enough to tie up to. Unlocks Transports and Light Ships." },
+    "port": { "icon": "🚢", "blurb": "Cranes, bonded stores and a harbour master. Unlocks Heavy Ships." },
+    "shipyard": { "icon": "🛠", "blurb": "Slipways and a mast pond. Unlocks the Flagship." },
+
+    "farm": { "icon": "🌾", "blurb": "Ploughed strips worked from the settlement. Farms pay in gold, and plains double their yield." },
+    "mine": { "icon": "⛏", "blurb": "A shaft and a spoil heap. On a resource node it works that node; on ordinary ground it turns up both iron and stone." },
+    "sawmill": { "icon": "🪚", "blurb": "A saw pit and a timber yard. Wood is the scarcest thing in the game and this is nearly the only way to get it." },
+
+    "light_infantry": { "icon": "🗡", "blurb": "Levied men with whatever they own. Cheap, numerous, and the only thing a village can raise." },
+    "spear_infantry": { "icon": "🔱", "blurb": "A hedge of spears behind a shield wall. Twice as dangerous to cavalry, and hard for archers to hurt." },
+    "sword_infantry": { "icon": "⚔", "blurb": "Trained swordsmen with shields. The line that holds while everything else manoeuvres." },
+    "shock_infantry": { "icon": "🪓", "blurb": "Two hands on the weapon and no shield at all. Devastating on the charge, exposed to arrows." },
+    "skirmisher": { "icon": "🎯", "blurb": "Javelins and speed. Meant to harass and withdraw, not to hold ground." },
+    "archer": { "icon": "🏹", "blurb": "The longest reach in the roster. Ruinous against unshielded troops, helpless once reached." },
+    "light_cavalry": { "icon": "🐎", "blurb": "Fast riders for the flanks and the pursuit. Hits hard on the charge and does not stay to trade blows." },
+    "cavalry_archer": { "icon": "🏇", "blurb": "Shoots from the saddle and rides away. The hardest unit on the map to pin down." },
+    "heavy_cavalry": { "icon": "🛡", "blurb": "Armoured knights. The most expensive thing a faction can put in the field, and the most decisive." },
+
+    "transport": { "icon": "⛵", "blurb": "A hull for carrying men across water, not for fighting on it." },
+    "light_ship": { "icon": "🚤", "blurb": "Fast and cheap. Enough to chase a transport, not enough to face a warship." },
+    "heavy_ship": { "icon": "🚢", "blurb": "A real warship, built to win a sea fight rather than to survive one." },
+    "flagship": { "icon": "🏴", "blurb": "The pride of a realm's navy, and a national project in timber alone." }
+  }
+}

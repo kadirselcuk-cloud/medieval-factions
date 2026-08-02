@@ -61,12 +61,12 @@ it is tagged **[GEN]** at its definition. None of it is owner-authored truth.
 
 Tracked in [ROADMAP.md](ROADMAP.md); listed here so nothing quietly disappears.
 
-- Per-faction unit names and the 10 elite units — 0.11.0, to be designed with the owner
-- Faction strengths and weaknesses — 0.11.0
-- Asset manifest so the owner's 2D art replaces placeholders without touching logic — 0.11.0
-- AI opponents — 0.9.0. Currently the 12 rivals do nothing at all: they never muster, never
+- Per-faction unit names and the 10 elite units — 0.12.0, to be designed with the owner
+- Faction strengths and weaknesses — 0.12.0
+- The owner's 2D art, dropped into `data/art.json` as image paths — 0.12.0
+- AI opponents — 0.10.0. Currently the 12 rivals do nothing at all: they never muster, never
   march, and never take ground
-- Naval — 0.10.0. Britons and Moors cannot leave their landmass until this exists
+- Naval — 0.11.0. Britons and Moors cannot leave their landmass until this exists
 - Capacitor mobile wrap, ad and premium-unlock hooks — 1.0.0
 - Tactical battle map — 2.0.0
 

@@ -13,6 +13,48 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.8.0] — 2026-08-03
+
+**Everything is a square.** The settlement panel is rebuilt around a picture grid, and
+expanding a settlement becomes a building you put up rather than an abstract upgrade.
+
+### Added
+
+- **Square tile grid, two to a row**, for every building, unit, ship and land improvement.
+  Nothing is ordered from the square itself: clicking opens a **detail window** carrying the
+  description, the full numbers and the order button — so a refusal has somewhere to explain
+  itself instead of being a greyed-out button with no reason.
+- **`data/art.json`** — the art and flavour manifest. Every icon and every blurb lives here,
+  keyed by id. Nothing in the code names an icon or an asset path, so real art arrives by
+  adding `"image": "..."` to this file and changing no code at all. Blurbs are **[GEN]** and
+  the owner's to rewrite; every number in a detail window is derived from the content files,
+  so flavour can never drift out of step with the rules.
+- **Navy tab**, carrying the fleet, the yard queue and the ship grid. Landlocked settlements
+  do not show it.
+- **Population requirements for expanding a settlement**: Town 5,000, City 10,000, Capitol
+  20,000 — and **only one Capitol per realm**, counting one merely under construction.
+
+### Changed
+
+- Expanding a settlement is now **built like any other building**, first card in the grid, and
+  described as the settlement growing rather than as an "upgrade".
+- **The Land tab is gone.** Tile improvements are now **Fief Buildings**, sitting under **City
+  Buildings** inside the Buildings tab. Tabs are Info / Buildings / Armies / Navy.
+- The Buildings tab shows a **creeping meter for what is under construction**, matching the
+  Info tab, with a cancel button and a full refund.
+- The City Buildings grid holds **every building the settlement's tier can reach** — built,
+  queued, buildable and unaffordable alike — so a chain reads as a progression rather than a
+  menu that changes shape whenever something finishes.
+- The Recruit grid likewise shows the **whole roster**, so it is possible to read what a
+  Barracks would eventually buy rather than only what is affordable today.
+- Ship building moved out of the Buildings tab into Navy.
+
+### Known limits
+
+- The population gates are steep. A Village with nothing built and no treasury grows at
+  0.2% a month, which is **76 years** to the 5,000 people a Town needs. The wealth bonus is
+  what makes expansion possible at all: 100,000 gold banked turns that into about six years.
+
 ## [0.7.1] — 2026-08-02
 
 **Orders you can see.** Follow-up to 0.7.0 from the owner's first play.
@@ -79,7 +121,7 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 ### Known limits
 
 - **Nothing can be conquered yet.** Every settlement is defended and combat does not exist, so
-  a hostile settlement stops a march dead. Conquest lands with combat in 0.8.0.
+  a hostile settlement stops a march dead. Conquest lands with combat in 0.9.0.
 - The 12 rival factions still do nothing — they never muster, march or take ground.
 
 ## [0.6.4] — 2026-08-02

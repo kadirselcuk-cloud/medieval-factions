@@ -21,6 +21,7 @@ import {
   MILLI,
   RESOURCES,
   TIER_NAME,
+  whole,
   type CityState,
   type EventKind,
   type SettlementTier,
@@ -42,7 +43,9 @@ export type BuildFailure =
   | 'not-available'
   | 'unbuildable-terrain'
   | 'max-level'
-  | 'wrong-improvement';
+  | 'wrong-improvement'
+  | 'too-few-people'
+  | 'already-have-one';
 
 export type BuildResult = { ok: true } | { ok: false; reason: BuildFailure };
 
@@ -108,12 +111,54 @@ export function queueBuilding(
   return OK;
 }
 
+/**
+ * Why this settlement cannot grow into its next tier right now, or `null` if it can.
+ *
+ * Exported so the panel can explain the refusal rather than just greying a square out, and so
+ * there is only one implementation of the rule for the UI and the simulation to agree on.
+ */
+export function settlementUpgradeBlock(
+  state: SimState,
+  city: CityState,
+): BuildFailure | null {
+  const upgrade = settlementUpgradeTo(city.tier + 1);
+  if (!upgrade) return 'max-level';
+  if (city.queue.some((order) => order.kind === 'settlement')) return 'already-building';
+
+  // Population is what a settlement grows *by*, so it gates what it can grow *into*. A realm
+  // cannot buy its way to a Capitol; it has to have built somewhere people want to live.
+  if (whole(city.populationMilli) < upgrade.minPopulation) return 'too-few-people';
+
+  if (upgrade.unique && hasTier(state, city.ownerIndex, upgrade.toTier, city)) {
+    return 'already-have-one';
+  }
+  if (!canAfford(state, city.ownerIndex, upgrade.cost)) return 'insufficient-resources';
+  return null;
+}
+
+/** Does this faction already hold a settlement at the given tier, or have one on the way? */
+function hasTier(
+  state: SimState,
+  factionIndex: number,
+  tier: number,
+  except: CityState,
+): boolean {
+  return state.cities.some(
+    (other) =>
+      other !== except &&
+      other.ownerIndex === factionIndex &&
+      (other.tier >= tier ||
+        other.queue.some((order) => order.kind === 'settlement' && order.targetTier >= tier)),
+  );
+}
+
 export function queueSettlementUpgrade(state: SimState, city: CityState): BuildResult {
   const targetTier = (city.tier + 1) as SettlementTier;
   const upgrade = settlementUpgradeTo(targetTier);
   if (!upgrade) return fail('max-level');
-  if (city.queue.some((order) => order.kind === 'settlement')) return fail('already-building');
-  if (!canAfford(state, city.ownerIndex, upgrade.cost)) return fail('insufficient-resources');
+
+  const blocked = settlementUpgradeBlock(state, city);
+  if (blocked) return fail(blocked);
 
   pay(state, city.ownerIndex, upgrade.cost);
   city.queue.push({ kind: 'settlement', targetTier, monthsRemaining: upgrade.months });

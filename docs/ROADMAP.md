@@ -17,11 +17,12 @@ Outstanding commitments and slipped work are tracked separately in [OWED.md](OWE
 | 0.4.0 | Cities & production | Settlement upgrades, buildings, tile improvements, **save/load** | ✅ shipped without recruitment |
 | 0.5.0 | Economy & realm UI | Fishery line, wood scarcity, tabbed city panel, cities/armies/navies rosters | ✅ shipped |
 | 0.6.x | Debt & terrain | Negative treasuries, desertion, per-terrain tile yields, map revisions | ✅ shipped |
-| 0.7.0 | Armies & movement | Army entities, city defenders, the starting unit, A* over terrain cost, territory claimed by presence, seasonal penalties | ✅ shipped without the balance debug panel |
-| 0.8.0 | Combat & conquest | Auto-resolve per the owner's algorithm, watchable battle viewer, city capture, victory | next |
-| 0.9.0 | AI | The 12 rival factions actually play — economy, expansion, army composition, war | |
-| 0.10.0 | Naval | Four ship types, transports, embarkation; unblocks Britons and Moors | |
-| 0.11.0 | Identity & polish | Per-faction unit names, faction bonuses, 10 elite units, asset manifest, balance pass | |
+| 0.7.x | Armies & movement | Army entities, city defenders, the starting unit, A* over terrain cost, territory claimed by presence, seasonal penalties, visible marching orders | ✅ shipped without the balance debug panel |
+| 0.8.0 | Settlement UI & growth gates | Square-tile build grid with detail windows, art manifest, Navy tab, population requirements for expanding a settlement | ✅ shipped |
+| 0.9.0 | Combat & conquest | Auto-resolve per the owner's algorithm, watchable battle viewer, city capture, victory | next |
+| 0.10.0 | AI | The 12 rival factions actually play — economy, expansion, army composition, war | |
+| 0.11.0 | Naval | Four ship types, transports, embarkation; unblocks Britons and Moors | |
+| 0.12.0 | Identity & polish | Per-faction unit names, faction bonuses, 10 elite units, the owner's real art, balance pass | |
 | 1.0.0 | Release | Capacitor wrap for Android/iOS, ad and premium hooks wired but inert, phone performance pass | |
 | 2.0.0 | Phase B | Tactical battle map — regiment-level units, move/attack/hold orders | |
 
@@ -31,7 +32,7 @@ renumbered rather than the versions rewound. The order is unchanged.
 Recruitment shipped in 0.5.0 but had nowhere to go until armies landed in 0.7.0 — units with
 nowhere to stand are inventory, not gameplay.
 
-Phase B plugs into the battle prompt built in 0.8.0. It is deliberately the last thing built:
+Phase B plugs into the battle prompt built in 0.9.0. It is deliberately the last thing built:
 it is the largest technical risk in the project and the strategic layer must be finished first.
 
 ## Stack

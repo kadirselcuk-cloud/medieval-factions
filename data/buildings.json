@@ -1,10 +1,11 @@
 {
   "_comment": "City buildings. All costs and durations are [GEN] proposals. minTier: 1 Village, 2 Town, 3 City, 4 Capitol. Housing and fortification are separately built lines, not granted by the tier.",
 
+  "_settlementUpgrades": "Expanding the settlement itself, built like any other building. Owner-authored population gates: a settlement must already hold this many people before it can grow into the next tier, and a faction may only ever have one Capitol.",
   "settlementUpgrades": [
-    { "toTier": 2, "name": "Town", "months": 24, "cost": { "gold": 1000, "wood": 100 } },
-    { "toTier": 3, "name": "City", "months": 36, "cost": { "gold": 5000, "stone": 100 } },
-    { "toTier": 4, "name": "Capitol", "months": 48, "cost": { "gold": 20000, "stone": 1000 } }
+    { "toTier": 2, "name": "Town", "minPopulation": 5000, "months": 24, "cost": { "gold": 1000, "wood": 100 } },
+    { "toTier": 3, "name": "City", "minPopulation": 10000, "months": 36, "cost": { "gold": 5000, "stone": 100 } },
+    { "toTier": 4, "name": "Capitol", "minPopulation": 20000, "unique": true, "months": 48, "cost": { "gold": 20000, "stone": 1000 } }
   ],
 
   "buildings": [
