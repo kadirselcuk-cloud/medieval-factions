@@ -9,18 +9,12 @@ Nothing here blocks starting the build. Each item is due before the phase that n
 
 ---
 
-## Due before combat (build phase 0.6.0)
+## Due before combat (build phase 0.9.0)
 
-- **Range → tiles.** — `PROPOSED`. Ranges are 30/40 but the auto-resolve field is 10 tiles
-  wide, so the scales must be reconciled or archers always fire from turn 1. Proposal:
-  **range ÷ 10 = tiles** (archer 4, skirmisher 3, cavalry archer 3). Confirm or restate.
-- **Battle-turn cap outcome.** — `OPEN`. At 48 turns with neither side destroyed and neither
-  at a 3× unit advantage, what happens? Draw and both withdraw? Attacker retreats? Higher
-  remaining soldier count wins?
 - **Damage formula constants.** — `PROPOSED`. See [MECHANICS.md](MECHANICS.md) §6. Approve or tune.
 - **Battle speeds.** — `PROPOSED`. See [CONTENT.md](CONTENT.md) §3.
 
-## Due before naval (build phase 0.8.0)
+## Due before naval (build phase 0.11.0)
 
 - **Ship statistics.** — `OPEN`. Only cost, upkeep and building requirement were given. Need
   HP, damage, crew size, build time, and strategic speed for all four ship types.
@@ -31,7 +25,7 @@ Nothing here blocks starting the build. Each item is due before the phase that n
   tile it owns?
 - **Are Transport and Flagship also renamed per faction**, or only Light and Heavy ships?
 
-## Due before economy (build phase 0.4.0)
+## Economy — shipped, but these were never answered
 
 - **Level 4 mine yields.** — `PROPOSED`. Four improvement levels are confirmed, but only three
   mine levels were given. Proposal continues each pattern: gold 400, silver 200, iron/stone
@@ -92,7 +86,7 @@ Nothing here blocks starting the build. Each item is due before the phase that n
 - **Strategic speeds.** — `PROPOSED`. See [CONTENT.md](CONTENT.md) §3. Now live, and felt:
   infantry crosses 4 tiles a month, 2.4 in winter.
 
-## Raised by 0.6.0
+## Raised by the 0.6.x economy work
 
 - **Do fleets desert too?** — `OPEN`. The owner specified that *armies* have a 10% monthly
   desertion chance while in debt. Ships cost upkeep but are currently immune.

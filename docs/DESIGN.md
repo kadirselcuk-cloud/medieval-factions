@@ -80,12 +80,12 @@ This is the single most important architectural constraint. See [MECHANICS.md](M
 | 14 | Factions start with one city + the 4 surrounding tiles | 3 |
 | 15 | Seasons affect movement and farm income | 3 |
 | 16 | Saves: IndexedDB, named slots, month-rollover autosave, JSON export/import | 3 |
-| 17 | The other 45 cities belong to a neutral, garrisoned **Independents** faction | 4 |
+| 17 | The other **47** cities belong to a neutral, defended **Independents** faction | 4 |
 | 18 | No food resource — **farms produce gold**, 10/month at Basic tier | 4 |
 | 19 | Four ship types: Transport, Light, Heavy, Flagship — gated by Dock/Port/Shipyard | 4 |
 | 20 | Every faction starts at **Village** tier with **250 gold**; Castille = Toledo, Hungary = Buda | 4 |
 | 21 | Territory is claimed by **army presence**; starting tiles are the 4 orthogonal neighbours | 4 |
-| 22 | Auto-resolve: 10-tile field, alternating speed-ordered activations, one action each, 3× rout rule after turn 10, 48-turn cap | 4 |
+| 22 | Auto-resolve: alternating speed-ordered activations, one action each, 3× rout rule after turn 10, 48-turn cap. Field width superseded by 66 | 4 |
 | 23 | Winter adds +10% defender's advantage on top of movement and harvest penalties | 4 |
 | 24 | Cities have **population**, starting at 1,000, compounding monthly from wealth, city level and housing | 5 |
 | 25 | Every 100 population yields 1 gold/month | 5 |
@@ -95,7 +95,7 @@ This is the single most important architectural constraint. See [MECHANICS.md](M
 | 29 | A city tile is also a tile — settlements carry improvements alongside city buildings | 6 |
 | 30 | Buildings 12 months at level 1, +6 per level; settlement upgrades 24 / 36 / 48 months | 6 |
 | 31 | Building and unit queues are independent — construction never blocks recruitment | 6 |
-| 32 | Commerce line gives +10 gold per upgrade; hall line gives +0.1% growth each | 6 |
+| 32 | Commerce line gives +10 gold per upgrade. Hall growth superseded by 65 | 6 |
 | 33 | Wealth growth bonus is treasury-wide and diminishing: +1% at 10k, +2% at 100k, +3% at 1M | 6 |
 | 34 | Autosaves: 5 monthly plus 3 yearly | 6 |
 | 35 | Map revision: Toulouse and Genoa removed; Burgundy, Sardinia, Crete and Cyprus added; Leon, Barcelona and Mecca moved. 60 cities | 6 |
@@ -129,3 +129,5 @@ This is the single most important architectural constraint. See [MECHANICS.md](M
 | 63 | All icons and flavour text live in `data/art.json`; **no asset path is ever hardcoded** | 11 |
 | 64 | Tabs are Info / Buildings / Armies / Navy. The Land tab is gone — improvements are **Fief Buildings** inside Buildings, beside **City Buildings** | 11 |
 | 65 | Housing and hall lines give **diminishing growth**: +1.0%, then +0.5%, then +0.2% (then +0.1% for the fourth housing step, **[GEN]**). Replaces the old flat +0.1% per level | 11 |
+| 66 | The auto-resolve battlefield is **50 tiles across**, so unit ranges (30, 40) are used exactly as written | 11 |
+| 67 | At the 48-turn cap a battle is a **stalemate and both armies withdraw** | 11 |

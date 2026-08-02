@@ -40,8 +40,9 @@ All are permanently hostile in v1.
 | Moors | Fez | (8, 26) |
 
 ### Independents (neutral)
-Holds the remaining **45 cities**, each **garrisoned**. Never expands, never attacks; exists
-to be conquered. Garrison composition scales with settlement tier — **[GEN]**.
+Holds the remaining **47 cities**, each **defended**. Never expands, never attacks; exists to
+be conquered. Defender composition is owner-authored and listed in
+[MECHANICS.md](MECHANICS.md) §3.
 
 **Playable in v1:** Franks, Turks, Russians. The other 10 are AI-only; playability is a data
 flag so premium faction unlocks are a config change, not a code change.
@@ -95,28 +96,31 @@ Upgrade durations: Village→Town 24 months, Town→City 36, City→Capitol 48. 
 Farms, mines and sawmills are **tile improvements**, not city buildings — see
 [MECHANICS.md](MECHANICS.md) §5.
 
-**Housing and fortification come with the settlement tier itself** — a Town *is* Stone Houses
-and Stone Walls. They are not separately built. This keeps the owner's population formula
-meaningful (city level and housing level move together) and answers what a Capitol's housing
-tier is without inventing a building for it. **[GEN]**
+**Housing and fortification are separately built lines**, not granted by the tier — the owner
+chose this explicitly. A Town that never puts up Stone Houses keeps growing at its Wooden
+Houses rate; the tier unlocks the better building, it does not hand it over.
 
 Everything else is built, and lives in [`data/buildings.json`](../data/buildings.json).
 All costs and durations below are **[GEN]** proposals.
 
 | Building | Line | Tier | Cost | Months | Effect |
 |---|---|---|---|---|---|
+| Wooden Houses | housing | Village | 120g | 12 | **+1.0% growth** |
+| Stone Houses | housing | Town | 350g, 40 wood, 40 stone | 18 | **+0.5% growth** |
+| Villas | housing | City | 800g, 80 wood, 100 stone | 24 | **+0.2% growth** |
+| Manors | housing | Capitol | 1,600g, 150 wood, 200 stone | 30 | **+0.1% growth** |
 | Cottage Shops | commerce | Village | 150g | 12 | +10 gold/month |
 | Merchants | commerce | Town | 400g, 60 wood | 18 | +20 gold/month |
 | Artisans | commerce | City | 900g, 100 wood, 60 stone | 24 | +30 gold/month |
 | Guildhouse | commerce | Capitol | 1,800g, 150 wood, 120 stone | 30 | +40 gold/month |
-| Town Hall | admin | Town | 500g, 50 wood, 50 stone | 12 | +0.1% growth |
-| City Hall | admin | City | 1,200g, 100 wood, 120 stone | 18 | +0.1% growth |
-| Palace | admin | Capitol | 3,000g, 200 wood, 300 stone | 24 | +0.1% growth |
+| Town Hall | admin | Town | 500g, 50 wood, 50 stone | 12 | **+1.0% growth**, +1 defender |
+| City Hall | admin | City | 1,200g, 100 wood, 120 stone | 18 | **+0.5% growth** |
+| Palace | admin | Capitol | 3,000g, 200 wood, 300 stone | 24 | **+0.2% growth** |
 | Spear Quarters | military | Town | 300g, 50 wood | 12 | unlocks Spear Infantry |
-| Archery Range | military | Town | 350g, 60 wood | 12 | unlocks Archer |
+| Archery Range | military | Town | 350g, 60 wood | 12 | unlocks Archer, +1 defender |
 | Axe Quarters | military | Town | 400g, 40 wood, 30 iron | 12 | unlocks Shock Infantry |
-| Barracks | military | Town | 500g, 60 wood, 40 iron | 12 | unlocks Sword Infantry |
-| Stables | military | Town | 600g, 80 wood, 30 iron | 12 | unlocks Light Cavalry |
+| Barracks | military | Town | 500g, 60 wood, 40 iron | 12 | unlocks Sword Infantry, +1 defender |
+| Stables | military | Town | 600g, 80 wood, 30 iron | 12 | unlocks Light Cavalry, +1 defender |
 | Fishery | naval | Village | 150g | 12 | +10 gold/month **per adjacent water tile** |
 | Dock | naval | Town | 400g, 80 wood | 18 | +20 per water tile; Transport, Light Ship |
 | Port | naval | City | 1,000g, 150 wood, 80 stone | 24 | +30 per water tile; Heavy Ship |
@@ -193,7 +197,7 @@ Plus the flat +10% "city tile" bonus from [MECHANICS.md](MECHANICS.md) §4.
 ### Speeds — **[GEN]**
 
 Strategic speed is tiles per month before terrain penalties; an army moves at its slowest
-unit. Battle speed is tiles per battle turn on the 10-tile auto-resolve field.
+unit. Battle speed is tiles per battle turn on the 50-tile auto-resolve field.
 
 | Units | Strategic (tiles/month) | Battle (tiles/turn) |
 |---|---|---|

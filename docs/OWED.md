@@ -9,12 +9,7 @@ Delete an entry when it ships, and say so in `CHANGELOG.md`.
 
 ## Debts — promised for a phase that has already shipped
 
-### 1. Balance debug panel — promised for 0.4.0, not built
-A panel showing projected income, upkeep and time-to-afford, so the owner tunes the economy
-from real numbers rather than from Claude's guesses. Committed to when flagging that a
-10 gold/month farm against a 10 gold/month unit upkeep makes for a very slow opening.
-
-### 2. Nothing has been visually verified
+### 1. Nothing has been visually verified
 There is no browser automation in this environment, so **Claude has never seen the game
 render.** Everything shipped so far is verified by typecheck, unit tests and a production
 build only. Layout, colour and readability are unconfirmed.
@@ -30,6 +25,9 @@ Do not describe the game's appearance as confirmed until one of those happens.
   JSON export/import, schema versioning with a migration seam, and tests proving both an exact
   round trip and that a reloaded campaign advances identically.
 - **Settlement upgrades** — shipped in 0.4.0, no longer inert.
+- **Balance debug panel** — shipped in 0.8.3, owed since 0.4.0. Income and growth split into
+  the terms that produce them, time-to-afford, months-to-next-gate, and projections that run
+  the real simulation forward on a copy. Any faction can be inspected, not only the player's.
 - **Recruitment** — shipped in 0.5.0, and given somewhere to go in 0.7.0.
 - **The starting unit** — shipped in 0.7.0. Every playable faction opens with one Light
   Infantry in its capital's garrison, deferred four times before it had an army to join.

@@ -6,6 +6,7 @@ import type { ArmyView, MapRenderer, TerritoryView, TileInfo } from '../render/M
 import { stackSize } from '../sim/armies';
 import { Game, type Speed } from '../sim/game';
 import { orderMove } from '../sim/movement';
+import { BalancePanel } from './BalancePanel';
 import { BottomBar } from './BottomBar';
 import { MapView } from './MapView';
 import { RosterMenu, type RosterKind } from './RosterMenu';
@@ -76,6 +77,8 @@ function Campaign({
   const [rosterKind, setRoster] = useState<RosterKind | null>(null);
   /** The army waiting for a destination click, if the player has pressed March. */
   const [marchingId, setMarching] = useState<number | null>(null);
+  /** The balance panel is a developer tool, opened with B. */
+  const [balanceOpen, setBalanceOpen] = useState(false);
 
   const territory = useMemo<TerritoryView>(
     () => ({ owner: state.tileOwner, colors: roster.map((f) => f.color) }),
@@ -136,10 +139,13 @@ function Campaign({
       if (event.code === 'Space') {
         event.preventDefault();
         game.setSpeed(game.speed === 0 ? 1 : 0);
+      } else if (event.key === 'b' || event.key === 'B') {
+        setBalanceOpen((open) => !open);
       } else if (event.key === 'Escape') {
         setMenuOpen(false);
         setRoster(null);
         setMarching(null);
+        setBalanceOpen(false);
         setSelected(null);
       }
     };
@@ -188,6 +194,15 @@ function Campaign({
       </main>
 
       {menuOpen && <SaveMenu game={game} onClose={() => setMenuOpen(false)} />}
+
+      {balanceOpen && (
+        <BalancePanel
+          state={state}
+          world={world}
+          roster={roster}
+          onClose={() => setBalanceOpen(false)}
+        />
+      )}
 
       {rosterKind && (
         <RosterMenu

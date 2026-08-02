@@ -41,7 +41,8 @@ Conquer every other faction. All factions permanently hostile; no diplomacy in v
   exists, and otherwise coastal capitals would open owning open sea. **[GEN]**
 - **Territory is claimed by army presence**: a tile becomes yours when one of your armies
   enters it. There is no passive border growth.
-- The other **45 cities** belong to a neutral **Independents** faction and are garrisoned.
+- The other **47 cities** belong to a neutral **Independents** faction, and every one of them
+  is defended.
 
 ### Armies
 - **One army per tile.** No stacking. Two friendly armies meeting on a tile **merge**.
@@ -353,7 +354,7 @@ An army moving onto a tile held by a hostile army, or onto a hostile city tile, 
 - AI-vs-AI battles resolve without pausing.
 
 ### Auto-resolve algorithm — owner-specified
-1. The two armies start **10 tiles apart**.
+1. The battlefield is **50 tiles across**, and the two armies start at opposite ends of it.
 2. Turn order alternates by speed: **attacker's fastest unit, defender's fastest, attacker's
    next-fastest, defender's next-fastest**, and so on.
 3. On activation a unit takes **one action** — *Move* toward the enemy (up to its battle
@@ -366,7 +367,8 @@ An army moving onto a tile held by a hostile army, or onto a hostile city tile, 
 ### End conditions
 - **Any time:** one army is destroyed.
 - **After turn 10:** one army has **more than 3× the other's unit count** → the smaller routs.
-- **Hard cap: 48 battle turns.** Outcome at the cap is **[OPEN]**.
+- **Hard cap: 48 battle turns.** At the cap the battle is a **stalemate and both armies
+  withdraw** — neither side takes the ground, and the attacker gains nothing for having tried.
 
 ### Damage formula — **[GEN]**, owner to approve
 ```
@@ -381,10 +383,10 @@ casualties = floor(modified / target.hpPerSoldier)
 - `defenderAdvantage` — terrain + settlement fortification + winter, from §4 above. The
   attacker's damage is reduced by X% and the defender's raised by X%.
 
-### Range → tiles — **[GEN]**, owner to approve
-Unit ranges are given as 30 and 40 but the battlefield is 10 tiles across, so the two scales
-must be reconciled. Proposal: **range ÷ 10 = tiles**. Archer 40 → 4 tiles, Skirmisher 30 → 3,
-Cavalry Archer 30 → 3.
+### Range
+Ranges are used **exactly as written** — Archer 40, Skirmisher 30, Cavalry Archer 30 — because
+the field is 50 tiles wide rather than 10. From a standing start an archer is 10 tiles of
+approach away from its first shot, which is what buys a battle its opening phase.
 
 There is **no morale system** — the 3× unit-count rout rule replaces it.
 

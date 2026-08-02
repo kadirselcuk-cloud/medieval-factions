@@ -13,6 +13,36 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.8.3] — 2026-08-03
+
+**The balance panel**, owed since 0.4.0. Press **B**.
+
+### Added
+
+- **`src/sim/balance.ts`** — income and growth split into the terms that produce them, rather
+  than only the totals the simulation needs.
+  - **Income**: population, commerce, fishing, bare land, improvements, upkeep, net — plus
+    wood, iron and stone.
+  - **Growth**: base, treasury, tier, buildings, and the people that adds next month.
+  - **Months to the next population gate**, per settlement.
+  - **Months to afford** any cost, at the realm's current net income.
+- **Projections** that run the **real simulation** forward 1, 5, 10 and 25 years on a copy of
+  the campaign, and report where a faction ends up. The copy comes from the save round trip, so
+  it is exact; the live campaign is never touched, and a test asserts that.
+- **Any faction can be inspected**, not only the player's. Comparing your realm against an
+  untouched rival is the fastest way to see whether a rule is doing what it should.
+- Two tests keep the panel honest: the income breakdown must sum to exactly what the simulation
+  pays every faction, and the growth breakdown must sum to the rate the simulation uses.
+
+### Changed
+
+- Two combat decisions recorded ahead of 0.9.0: the auto-resolve field is **50 tiles across**,
+  so unit ranges are used exactly as written rather than divided by ten; and at the 48-turn cap
+  a battle is a **stalemate with both armies withdrawing**.
+- Documentation corrected where it had drifted: the Independents hold 47 cities not 45, housing
+  and fortification are separately built lines, and the building table now lists the real
+  growth figures.
+
 ## [0.8.2] — 2026-08-03
 
 ### Changed
