@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { loadFactions } from '../data/factions';
 import { loadEurope1350 } from '../data/maps';
+import { buildableShips, recruitableUnits } from '../data/units';
 import { adjacentWaterCount } from '../data/world';
 import { TICKS_PER_MONTH } from './calendar';
 import {
@@ -11,6 +12,9 @@ import {
   queueBuilding,
   queueImprovement,
   queueSettlementUpgrade,
+  queueShip,
+  queueUnit,
+  totalUpkeep,
 } from './construction';
 import { deserialise, serialise } from './save';
 import { createInitialState, recomputeIncome } from './state';
@@ -215,6 +219,77 @@ describe('fishery', () => {
     city.buildings.push('fishery', 'dock');
     recomputeIncome(state, world);
     expect(faction.monthlyIncome.gold - bare).toBe(20 * water);
+  });
+});
+
+describe('recruitment and shipyards', () => {
+  it('offers only what the tier and standing buildings allow', () => {
+    expect(recruitableUnits(paris.tier, paris.buildings).map((u) => u.id)).toEqual([
+      'light_infantry',
+    ]);
+
+    paris.tier = 2;
+    paris.buildings.push('stables');
+    const town = recruitableUnits(paris.tier, paris.buildings).map((u) => u.id);
+    expect(town).toContain('light_cavalry');
+    expect(town).toContain('skirmisher');
+    // Heavy cavalry needs Barracks as well, and City tier.
+    expect(town).not.toContain('heavy_cavalry');
+  });
+
+  it('trains a unit into the garrison and announces it', () => {
+    enrich();
+    expect(queueUnit(state, paris, 'light_infantry')).toEqual({ ok: true });
+    advanceBy(state, world, TICKS_PER_MONTH * 4);
+
+    expect(paris.garrison['light_infantry']).toBe(1);
+    expect(paris.recruitQueue).toEqual([]);
+    expect(state.events.some((e) => e.kind === 'unit' && e.text.includes('Paris'))).toBe(true);
+  });
+
+  it('runs building and recruitment queues in parallel', () => {
+    enrich();
+    queueBuilding(state, world, paris, 'wooden_houses'); // 12 months
+    queueUnit(state, paris, 'light_infantry'); // 4 months
+
+    advanceBy(state, world, TICKS_PER_MONTH * 4);
+    expect(paris.garrison['light_infantry']).toBe(1);
+    expect(paris.queue[0]?.monthsRemaining).toBe(8);
+  });
+
+  it('only offers ships once the naval line is standing', () => {
+    expect(buildableShips(paris.buildings)).toEqual([]);
+    expect(buildableShips(['fishery'])).toEqual([]);
+    expect(buildableShips(['dock']).map((s) => s.id)).toEqual(['transport', 'light_ship']);
+    expect(buildableShips(['shipyard'])).toHaveLength(4);
+  });
+
+  it('launches a ship into the fleet', () => {
+    enrich();
+    paris.buildings.push('dock');
+    expect(queueShip(state, paris, 'transport')).toEqual({ ok: true });
+    advanceBy(state, world, TICKS_PER_MONTH * 6);
+    expect(paris.fleet['transport']).toBe(1);
+  });
+
+  it('charges upkeep against monthly income', () => {
+    enrich();
+    recomputeIncome(state, world);
+    const before = state.factions[FRANKS]!.monthlyIncome.gold;
+
+    paris.garrison['light_infantry'] = 3; // 10 gold each
+    recomputeIncome(state, world);
+    expect(state.factions[FRANKS]!.monthlyIncome.gold).toBe(before - 30);
+    expect(totalUpkeep(state, FRANKS)).toBe(30);
+  });
+
+  it('never lets a treasury go negative', () => {
+    const faction = state.factions[FRANKS]!;
+    faction.stock.gold = 0;
+    paris.garrison['heavy_cavalry'] = 20; // 1,000 gold a month against a bare treasury
+    recomputeIncome(state, world);
+    advanceBy(state, world, TICKS_PER_MONTH * 3);
+    expect(faction.stock.gold).toBe(0);
   });
 });
 

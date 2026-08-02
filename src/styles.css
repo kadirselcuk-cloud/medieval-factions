@@ -173,6 +173,87 @@ body {
   font-size: 12px;
 }
 
+/* ---------------------------------------------------------- progress bars */
+
+.bar-item + .bar-item {
+  margin-top: 7px;
+}
+
+.bar-item__top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.bar-item__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meter {
+  height: 5px;
+  border-radius: 3px;
+  background: #0f0c08;
+  overflow: hidden;
+}
+
+.meter__fill {
+  height: 100%;
+  background: linear-gradient(90deg, #5a4626, var(--accent));
+  transition: width 0.3s linear;
+}
+
+.meter__fill--idle {
+  background: #3a3025;
+}
+
+/* -------------------------------------------------------- notifications */
+
+.notifications {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  max-width: 340px;
+}
+
+.notification {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.notification:hover {
+  background: rgba(200, 162, 74, 0.12);
+}
+
+.notification__icon {
+  color: var(--accent);
+  flex: none;
+}
+
+.notification__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* --------------------------------------------------------------- readout */
 
 .readout {
@@ -237,7 +318,7 @@ body {
   .rotate-gate {
     position: fixed;
     inset: 0;
-    z-index: 50;
+    z-index: 200;
     display: grid;
     place-items: center;
     background: var(--void);
@@ -573,14 +654,28 @@ body {
 
 /* ---------------------------------------------------------------- overlay */
 
+/* Layering, highest last: map panel < bars < overlay < rotate gate. Declared in one place
+   so a new floating element cannot quietly land on the wrong side of a dialog. */
+.panel {
+  z-index: 10;
+}
+
+.bar {
+  position: relative;
+  z-index: 20;
+}
+
 .overlay {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: 100;
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgba(6, 5, 3, 0.72);
+  /* Nearly opaque: at 0.72 the top-bar icons read through the backdrop and looked like they
+     were floating on top of the dialog. */
+  background: rgba(6, 5, 3, 0.94);
+  backdrop-filter: blur(4px);
 }
 
 .overlay__panel {

@@ -4,6 +4,9 @@
   "buildMonths": [0, 12, 18, 24, 30],
   "demolishMonths": 6,
 
+  "_baseTileGold": "Gold per month for simply holding a land tile, before any improvement. Territory pays for itself.",
+  "baseTileGold": 10,
+
   "kinds": {
     "farm": {
       "name": "Farm",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_IMPROVEMENT_LEVEL, tileOutput } from './improvements';
+import { BASE_TILE_GOLD, MAX_IMPROVEMENT_LEVEL, tileOutput } from './improvements';
 import { MODIFIER, TERRAIN_PROFILE } from './terrain';
 
 describe('terrain modifiers', () => {
@@ -19,33 +19,37 @@ describe('terrain modifiers', () => {
 });
 
 describe('tileOutput', () => {
-  it('pays nothing for a bare tile with no node', () => {
+  // Holding ground pays BASE_TILE_GOLD on its own; improvements add on top of it.
+  it('pays the base tile gold for a bare land tile', () => {
     expect(tileOutput({ terrain: 'plains', improvement: null, level: 0, node: null })).toEqual({
-      gold: 0,
+      gold: BASE_TILE_GOLD,
       wood: 0,
       iron: 0,
       stone: 0,
     });
   });
 
-  it('pays a token yield for owning an unmined node', () => {
-    // Gold node, 20 base, on mountain (mines ++) -> 40.
+  it('pays a token yield for owning an unmined node, on top of the base', () => {
+    // Gold node, 20 base, on mountain (mines ++) -> 40, plus the tile's own 10.
     expect(tileOutput({ terrain: 'mountain', improvement: null, level: 0, node: 'gold' })).toMatchObject({
-      gold: 40,
+      gold: 40 + BASE_TILE_GOLD,
     });
     // The same node on plains (mines --) is worth a fifth.
     expect(tileOutput({ terrain: 'plains', improvement: null, level: 0, node: 'gold' })).toMatchObject({
-      gold: 4,
+      gold: 4 + BASE_TILE_GOLD,
     });
   });
 
   it('scales farms by terrain', () => {
-    expect(tileOutput({ terrain: 'plains', improvement: 'farm', level: 1, node: null }).gold).toBe(20);
-    expect(tileOutput({ terrain: 'plains', improvement: 'farm', level: 4, node: null }).gold).toBe(80);
-    expect(tileOutput({ terrain: 'steppe', improvement: 'farm', level: 1, node: null }).gold).toBe(15);
-    expect(tileOutput({ terrain: 'forest', improvement: 'farm', level: 1, node: null }).gold).toBe(10);
-    expect(tileOutput({ terrain: 'tundra', improvement: 'farm', level: 1, node: null }).gold).toBe(6);
-    expect(tileOutput({ terrain: 'desert', improvement: 'farm', level: 1, node: null }).gold).toBe(2);
+    const farm = (terrain: Parameters<typeof tileOutput>[0]['terrain'], level: number) =>
+      tileOutput({ terrain, improvement: 'farm', level, node: null }).gold - BASE_TILE_GOLD;
+
+    expect(farm('plains', 1)).toBe(20);
+    expect(farm('plains', 4)).toBe(80);
+    expect(farm('steppe', 1)).toBe(15);
+    expect(farm('forest', 1)).toBe(10);
+    expect(farm('tundra', 1)).toBe(6);
+    expect(farm('desert', 1)).toBe(2);
   });
 
   // Wood is the scarcest resource: a Town upgrade needs 100 of it and nothing else makes any.
@@ -62,13 +66,13 @@ describe('tileOutput', () => {
     const output = tileOutput({ terrain: 'mountain', improvement: 'mine', level: 2, node: null });
     expect(output.iron).toBe(4);
     expect(output.stone).toBe(4);
-    expect(output.gold).toBe(0);
+    expect(output.gold).toBe(BASE_TILE_GOLD);
   });
 
   it('routes silver into the gold stockpile', () => {
     const output = tileOutput({ terrain: 'forest', improvement: 'mine', level: 3, node: 'silver' });
-    // 100 base at level 3, forest mines -- -> 20.
-    expect(output.gold).toBe(20);
+    // 100 at level 3, forest mines -- -> 20, plus the tile's own base.
+    expect(output.gold).toBe(20 + BASE_TILE_GOLD);
     expect(output.iron).toBe(0);
   });
 

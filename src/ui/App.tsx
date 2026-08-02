@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react';
 import { loadFactions, playableFactions, type Faction } from '../data/factions';
 import { loadEurope1350 } from '../data/maps';
-import type { World } from '../data/world';
+import { describeTile, type World } from '../data/world';
 import type { MapRenderer, TerritoryView, TileInfo } from '../render/MapRenderer';
 import { Game, type Speed } from '../sim/game';
 import { BottomBar } from './BottomBar';
@@ -151,6 +151,11 @@ function Campaign({
         speed={game.speed}
         autoPaused={game.isAutoPaused}
         onSpeedChange={(speed: Speed) => game.setSpeed(speed)}
+        onSelectEvent={(tileIndex) => {
+          const tile = describeTile(world, tileIndex % world.width, Math.floor(tileIndex / world.width));
+          setSelected(tile);
+          rendererRef.current?.centerOn(tile.x, tile.y);
+        }}
         hovered={hovered}
         zoom={zoom}
         onZoomIn={() => rendererRef.current?.zoomBy(1.35)}

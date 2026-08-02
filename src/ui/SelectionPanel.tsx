@@ -1,8 +1,14 @@
 import { useState, type JSX } from 'react';
-import { settlementUpgradeTo, summariseBuildings, type Cost } from '../data/buildings';
+import {
+  buildingById,
+  settlementUpgradeTo,
+  summariseBuildings,
+  type Cost,
+} from '../data/buildings';
 import { RELIGION_LABEL, type Faction } from '../data/factions';
 import { improvementCost, improvementMonths, tileOutput } from '../data/improvements';
 import { TERRAIN_PROFILE, type ImprovementKind } from '../data/terrain';
+import { buildableShips, recruitableUnits, shipById, unitById } from '../data/units';
 import { adjacentWaterCount, TERRAIN_LABEL, type TileInfo, type World } from '../data/world';
 import {
   buildOptions,
@@ -14,8 +20,11 @@ import {
   queueBuilding,
   queueImprovement,
   queueSettlementUpgrade,
+  queueShip,
+  queueUnit,
 } from '../sim/construction';
 import type { Game } from '../sim/game';
+import { cityGrowthTenths } from '../sim/tick';
 import { MILLI, TIER_NAME, whole, type CityState, type SimState } from '../sim/types';
 import { num } from './format';
 
@@ -110,6 +119,8 @@ export function SelectionPanel(props: SelectionPanelProps): JSX.Element {
 
           <TileFacts tile={tile} state={state} world={world} city={city} />
 
+          {city && <CityProgress city={city} />}
+
           {isPlayers && TERRAIN_PROFILE[tile.terrain].buildable && (
             <ImprovementSection tile={tile} game={game} state={state} world={world} />
           )}
@@ -171,6 +182,7 @@ function TileFacts({
         <>
           <Row label="Settlement" value={TIER_NAME[city.tier]} />
           <Row label="Population" value={num(city.populationMilli / MILLI)} />
+          <Row label="Growth" value={growthText(state, city)} />
           <Row
             label="Housing"
             value={buildings.housingLevel > 0 ? `Level ${buildings.housingLevel}` : 'None'}
@@ -189,6 +201,84 @@ function TileFacts({
       )}
     </>
   );
+}
+
+function growthText(state: SimState, city: CityState): string {
+  const tenths = cityGrowthTenths(state, city);
+  const people = Math.floor((city.populationMilli * tenths) / 1000 / MILLI);
+  return `+${(tenths / 10).toFixed(1)}% · ${num(people)} / month`;
+}
+
+/**
+ * Live progress on everything this settlement is producing.
+ *
+ * Only the head of each queue is actually advancing, so it gets the bar; the rest are listed
+ * as waiting. Showing all three queues here answers "what is this city doing?" without
+ * needing to open another tab.
+ */
+function CityProgress({ city }: { city: CityState }): JSX.Element | null {
+  const lines: { heading: string; items: { label: string; done: number; total: number }[] }[] = [
+    {
+      heading: 'Building',
+      items: city.queue.map((order) => ({
+        label:
+          order.kind === 'building'
+            ? (buildingById(order.id)?.name ?? labelOf(order.id))
+            : `Upgrade to ${TIER_NAME[order.targetTier]}`,
+        done: totalMonths(order) - order.monthsRemaining,
+        total: totalMonths(order),
+      })),
+    },
+    {
+      heading: 'Recruiting',
+      items: city.recruitQueue.map((order) => ({
+        label: unitById(order.id)?.name ?? order.id,
+        done: (unitById(order.id)?.months ?? 0) - order.monthsRemaining,
+        total: unitById(order.id)?.months ?? 0,
+      })),
+    },
+    {
+      heading: 'Shipyard',
+      items: city.shipQueue.map((order) => ({
+        label: shipById(order.id)?.name ?? order.id,
+        done: (shipById(order.id)?.months ?? 0) - order.monthsRemaining,
+        total: shipById(order.id)?.months ?? 0,
+      })),
+    },
+  ].filter((line) => line.items.length > 0);
+
+  if (lines.length === 0) return null;
+
+  return (
+    <>
+      {lines.map((line) => (
+        <div className="panel__section" key={line.heading}>
+          <div className="panel__heading">{line.heading}</div>
+          {line.items.map((item, position) => (
+            <div className="bar-item" key={`${item.label}-${position}`}>
+              <div className="bar-item__top">
+                <span className="bar-item__label">{item.label}</span>
+                <span className="panel__muted">
+                  {position === 0 ? `${item.total - item.done} mo` : 'waiting'}
+                </span>
+              </div>
+              <div className="meter">
+                <div
+                  className={`meter__fill${position > 0 ? ' meter__fill--idle' : ''}`}
+                  style={{ width: `${item.total > 0 ? (item.done / item.total) * 100 : 0}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </>
+  );
+}
+
+function totalMonths(order: CityState['queue'][number]): number {
+  if (order.kind === 'building') return buildingById(order.id)?.months ?? 1;
+  return settlementUpgradeTo(order.targetTier)?.months ?? 1;
 }
 
 function ImprovementSection({
@@ -295,6 +385,8 @@ function CityBuildings({
   const options = buildOptions(world, city);
   const upgrade = settlementUpgradeTo(city.tier + 1);
   const upgradeQueued = city.queue.some((order) => order.kind === 'settlement');
+  const recruitable = recruitableUnits(city.tier, city.buildings);
+  const ships = buildableShips(city.buildings);
 
   return (
     <>
@@ -359,6 +451,46 @@ function CityBuildings({
         </div>
       ) : (
         <p className="panel__note">Nothing further can be built at this settlement tier.</p>
+      )}
+
+      {recruitable.length > 0 && (
+        <div className="panel__section">
+          <div className="panel__heading">Recruit</div>
+          {recruitable.map((unit) => (
+            <button
+              key={unit.id}
+              type="button"
+              className="action"
+              disabled={!canAfford(state, city.ownerIndex, unit.cost)}
+              onClick={() => game.command((s) => queueUnit(s, city, unit.id))}
+            >
+              <span>{unit.name}</span>
+              <span className="action__cost">
+                {costText(unit.cost)} · {unit.months} mo · {unit.upkeep}g/mo
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {ships.length > 0 && (
+        <div className="panel__section">
+          <div className="panel__heading">Dock</div>
+          {ships.map((ship) => (
+            <button
+              key={ship.id}
+              type="button"
+              className="action"
+              disabled={!canAfford(state, city.ownerIndex, ship.cost)}
+              onClick={() => game.command((s) => queueShip(s, city, ship.id))}
+            >
+              <span>{ship.name}</span>
+              <span className="action__cost">
+                {costText(ship.cost)} · {ship.months} mo · {ship.upkeep}g/mo
+              </span>
+            </button>
+          ))}
+        </div>
       )}
 
       {city.buildings.length > 0 && (

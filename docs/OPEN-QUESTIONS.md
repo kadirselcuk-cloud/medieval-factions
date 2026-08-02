@@ -75,6 +75,21 @@ Nothing here blocks starting the build. Each item is due before the phase that n
 - **Do enemy armies or borders block movement**, or can armies march through freely?
 - **Strategic speeds.** — `PROPOSED`. See [CONTENT.md](CONTENT.md) §3.
 
+## Raised by 0.6.0
+
+- **What happens when a treasury runs dry?** — `OPEN`. Upkeep can exceed income; gold is
+  currently clamped at zero and nothing else happens. Should units desert, disband, or should
+  settlements grow unruly?
+- **Ship statistics.** — `OPEN`, still. Costs and upkeep are owner-authored; HP, damage, crew
+  size and build times are **[GEN]** (6 / 8 / 12 / 18 months). Ships also cost no wood at
+  present, which sits oddly beside a Dock costing 80.
+- **Do units draw from a settlement's population?** — `OPEN`, still, and now visible: a Light
+  Infantry unit is 100 soldiers trained out of a 1,000-person village at no demographic cost.
+- **Where does a garrison live?** — units currently accumulate in the settlement that trained
+  them. Armies in 0.7.0 will need to form from and move between garrisons.
+- **The owner's starting unit** — one unit of the lowest type at campaign start. Deferred
+  again, to land with armies rather than as an untouchable entry in a garrison.
+
 ## Minor, any time
 
 - **Day phase order.** — `PROPOSED`. Owner listed `1 Night, 2 Morning, 3 Noon, 4 Evening`, so

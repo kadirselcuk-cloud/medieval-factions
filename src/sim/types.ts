@@ -42,6 +42,12 @@ export type ConstructionOrder =
   | { kind: 'building'; id: string; monthsRemaining: number }
   | { kind: 'settlement'; targetTier: SettlementTier; monthsRemaining: number };
 
+/** A unit or ship being trained. */
+export interface ProductionOrder {
+  id: string;
+  monthsRemaining: number;
+}
+
 export interface CityState {
   /** Index into World.cities. */
   readonly cityIndex: number;
@@ -53,9 +59,33 @@ export interface CityState {
   populationMilli: number;
   /** Ids of completed buildings. */
   buildings: string[];
-  /** Only the head of the queue makes progress. Buildings and units queue separately. */
+  /**
+   * Three independent queues. Only the head of each advances, but they advance in parallel —
+   * building a barracks never blocks training, as long as the prerequisites already stand.
+   */
   queue: ConstructionOrder[];
+  recruitQueue: ProductionOrder[];
+  shipQueue: ProductionOrder[];
+  /** Completed units stationed here, by unit id. Armies form from these in 0.6.0. */
+  garrison: Record<string, number>;
+  /** Completed ships moored here, by ship id. */
+  fleet: Record<string, number>;
 }
+
+export type EventKind = 'building' | 'settlement' | 'unit' | 'ship' | 'improvement';
+
+/** A thing that finished. Kept in state so the log survives a save. */
+export interface GameEvent {
+  tick: number;
+  kind: EventKind;
+  text: string;
+  /** Where it happened, so a notification can be clicked through to the map. */
+  tileIndex: number;
+  factionIndex: number;
+}
+
+/** Only the most recent events are kept — this is a notification feed, not an audit trail. */
+export const MAX_EVENTS = 40;
 
 /** Tile improvement kinds, as stored in SimState.improvementKind. -1 means none. */
 export const IMPROVEMENT_KINDS = ['farm', 'mine', 'sawmill'] as const;
@@ -83,6 +113,9 @@ export interface SimState {
   improvementMonths: Uint8Array;
   /** Level being built toward while work is in progress. */
   improvementTarget: Uint8Array;
+
+  /** Newest last. Trimmed to MAX_EVENTS. */
+  events: GameEvent[];
 }
 
 export function emptyLedger(): ResourceLedger {

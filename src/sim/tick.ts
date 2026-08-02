@@ -3,7 +3,7 @@ import type { World } from '../data/world';
 import { isMonthBoundary, TICKS_PER_MONTH } from './calendar';
 import { advanceConstruction } from './construction';
 import { recomputeIncome } from './state';
-import { MILLI, RESOURCES, type SimState } from './types';
+import { MILLI, RESOURCES, type CityState, type SimState } from './types';
 
 /**
  * Advance the simulation by exactly one tick.
@@ -17,10 +17,29 @@ export function advance(state: SimState, world: World): void {
   accrueIncome(state);
 
   if (isMonthBoundary(state.tick)) {
-    advanceConstruction(state);
+    advanceConstruction(state, world);
     growPopulation(state);
     recomputeIncome(state, world);
   }
+}
+
+/**
+ * A settlement's monthly growth rate, in tenths of a percent.
+ *
+ * Exported so the city panel can show the same number the simulation uses, rather than a
+ * second implementation that drifts from it.
+ */
+export function cityGrowthTenths(state: SimState, city: CityState): number {
+  const owner = state.factions[city.ownerIndex];
+  if (!owner) return 0;
+  const buildings = summariseBuildings(city.buildings);
+  return (
+    1 +
+    wealthGrowthTenths(Math.floor(owner.stock.gold / MILLI)) +
+    city.tier +
+    buildings.housingLevel +
+    buildings.growthTenths
+  );
 }
 
 export function advanceBy(state: SimState, world: World, ticks: number): void {
@@ -43,7 +62,9 @@ function accrueIncome(state: SimState): void {
       const carry = faction.carry[resource] + monthly * MILLI;
       const gained = Math.floor(carry / TICKS_PER_MONTH);
       faction.carry[resource] = carry - gained * TICKS_PER_MONTH;
-      faction.stock[resource] += gained;
+      // Upkeep can drive income negative. A faction cannot go into debt — it simply runs
+      // dry, which is a visible failure rather than a hidden one. [GEN]
+      faction.stock[resource] = Math.max(0, faction.stock[resource] + gained);
     }
   }
 }
@@ -73,17 +94,8 @@ export function wealthGrowthTenths(goldWhole: number): number {
  */
 function growPopulation(state: SimState): void {
   for (const city of state.cities) {
-    const owner = state.factions[city.ownerIndex];
-    if (!owner) continue;
-
-    const buildings = summariseBuildings(city.buildings);
-    const rateTenthsOfPercent =
-      1 +
-      wealthGrowthTenths(Math.floor(owner.stock.gold / MILLI)) +
-      city.tier +
-      buildings.housingLevel +
-      buildings.growthTenths;
-
-    city.populationMilli += Math.floor((city.populationMilli * rateTenthsOfPercent) / 1000);
+    city.populationMilli += Math.floor(
+      (city.populationMilli * cityGrowthTenths(state, city)) / 1000,
+    );
   }
 }

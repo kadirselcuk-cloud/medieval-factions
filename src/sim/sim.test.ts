@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildingsForTier, loadBuildings } from '../data/buildings';
 import { loadFactions } from '../data/factions';
+import { BASE_TILE_GOLD } from '../data/improvements';
 import { loadEurope1350 } from '../data/maps';
 import { calendarAt, TICKS_PER_MONTH } from './calendar';
 import { createInitialState, STARTING_GOLD, STARTING_POPULATION } from './state';
@@ -88,7 +89,11 @@ describe('economy', () => {
     const state = newState();
     const player = state.factions[state.playerFactionIndex]!;
     const monthly = player.monthlyIncome.gold;
-    expect(monthly).toBe(10); // 1,000 population ÷ 100
+
+    // 1,000 population yields 10, and every held land tile yields its base gold on top.
+    const held = [...state.tileOwner].filter((o) => o === state.playerFactionIndex).length;
+    expect(monthly).toBe(10 + held * BASE_TILE_GOLD);
+    expect(held).toBeGreaterThan(1);
 
     const before = player.stock.gold;
     advanceBy(state, world, TICKS_PER_MONTH);

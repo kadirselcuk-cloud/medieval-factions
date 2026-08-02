@@ -8,7 +8,7 @@ import {
   tileIndex,
   type World,
 } from '../data/world';
-import { improvementAt } from './construction';
+import { improvementAt, totalUpkeep } from './construction';
 import {
   emptyLedger,
   MILLI,
@@ -84,6 +84,10 @@ export function createInitialState(
       // village grows at 0.2%/month until it puts up Wooden Houses.
       buildings: [],
       queue: [],
+      recruitQueue: [],
+      shipQueue: [],
+      garrison: {},
+      fleet: {},
     };
   });
 
@@ -100,6 +104,7 @@ export function createInitialState(
     improvementLevel: new Uint8Array(tileCount),
     improvementMonths: new Uint8Array(tileCount),
     improvementTarget: new Uint8Array(tileCount),
+    events: [],
   };
 
   recomputeIncome(state, world);
@@ -174,5 +179,10 @@ export function recomputeIncome(state: SimState, world: World): void {
     faction.monthlyIncome.wood += output.wood;
     faction.monthlyIncome.iron += output.iron;
     faction.monthlyIncome.stone += output.stone;
+  }
+
+  // Upkeep is netted off income, so the top bar shows what a faction actually banks.
+  for (const faction of state.factions) {
+    faction.monthlyIncome.gold -= totalUpkeep(state, faction.index);
   }
 }

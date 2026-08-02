@@ -13,6 +13,47 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.6.0] — 2026-08-02
+
+**Recruitment, shipyards, notifications.** Three production queues, and the game finally
+tells you when something finishes.
+
+### Added
+- `data/units.json` — the nine-unit land roster with owner-authored costs, upkeep, per-soldier
+  HP and damage, sizes and build times, plus the four ships. Combat modifiers are carried now
+  even though nothing reads them until 0.7.0, so the battle model will not need a migration.
+- **Recruitment.** Units train in their own queue, gated by settlement tier and standing
+  buildings, and land in the settlement's garrison.
+- **Shipyard.** Ships build in a third queue, unlocked by the naval line — Dock gives
+  Transport and Light Ship, Port adds Heavy Ship, Shipyard adds Flagship.
+- **Three queues run in parallel.** A city can raise walls, train spearmen and lay a keel in
+  the same month; only the head of each queue advances.
+- **Upkeep**, netted off monthly income so the top bar shows what a faction actually banks. A
+  treasury cannot go negative — it runs dry, which is a visible failure rather than a hidden
+  one. **[GEN]**
+- **Progress bars** in the city Info tab for Building, Recruiting and Shipyard, with the head
+  of each queue filling and the rest marked as waiting.
+- **Notifications** in the middle of the bottom bar when a building, unit, ship, improvement
+  or settlement upgrade completes. They live in simulation state, so they survive a save, and
+  they expire on the tick counter rather than wall-clock — one in-game week, the same duration
+  at 1× and at 10×. Clicking one selects and centres the map on where it happened.
+- **Growth per month** in the city Info tab, as a percentage and a headcount, read from the
+  same function the simulation uses rather than a second implementation that would drift.
+
+### Changed
+- **Every held land tile now yields 10 gold per month**, improved or not. Territory pays for
+  itself from the month it is taken rather than only after twelve months of construction.
+  Flat, and not scaled by terrain — this is the spoils of holding ground, not what it grows.
+  **[GEN]**
+
+### Fixed
+- **Dialog backdrop.** At 72% opacity the top-bar icons read through an open menu and looked
+  like they were floating on top of it. The backdrop is now 94% with a blur, and the four
+  layers — map panel, bars, overlay, rotate gate — have explicit z-indexes declared in one
+  place so a new floating element cannot land on the wrong side of a dialog.
+
+---
+
 ## [0.5.0] — 2026-08-02
 
 **Economy tuning and the realm UI.**

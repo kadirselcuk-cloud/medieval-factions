@@ -3,13 +3,14 @@ import { TERRAIN_LABEL } from '../data/world';
 import type { TileInfo } from '../render/MapRenderer';
 import { calendarAt } from '../sim/calendar';
 import { SPEEDS, type Speed } from '../sim/game';
-import type { SimState } from '../sim/types';
+import type { GameEvent, SimState } from '../sim/types';
 
 interface BottomBarProps {
   state: SimState;
   speed: Speed;
   autoPaused: boolean;
   onSpeedChange: (speed: Speed) => void;
+  onSelectEvent: (tileIndex: number) => void;
   hovered: TileInfo | null;
   zoom: number;
   onZoomIn: () => void;
@@ -42,11 +43,65 @@ function describe(tile: TileInfo | null): JSX.Element {
   );
 }
 
+const EVENT_ICON: Record<GameEvent['kind'], string> = {
+  building: '⚒',
+  settlement: '⌂',
+  unit: '⚔',
+  ship: '⛵',
+  improvement: '✦',
+};
+
+/** How long a completion stays on screen, in ticks — one in-game week. */
+const NOTIFICATION_TICKS = 28;
+
+/**
+ * Recent completions, newest first.
+ *
+ * Driven by the tick counter rather than wall-clock time, so notifications last the same
+ * in-game duration at every speed instead of blinking past at 10x.
+ */
+function Notifications({
+  state,
+  onSelect,
+}: {
+  state: SimState;
+  onSelect: (tileIndex: number) => void;
+}): JSX.Element {
+  const recent = state.events
+    .filter(
+      (event) =>
+        event.factionIndex === state.playerFactionIndex &&
+        state.tick - event.tick < NOTIFICATION_TICKS,
+    )
+    .slice(-3)
+    .reverse();
+
+  return (
+    <div className="notifications" aria-live="polite">
+      {recent.map((event) => (
+        <button
+          type="button"
+          className="notification"
+          key={`${event.tick}-${event.text}`}
+          onClick={() => onSelect(event.tileIndex)}
+          title="Show on map"
+        >
+          <span className="notification__icon" aria-hidden="true">
+            {EVENT_ICON[event.kind]}
+          </span>
+          <span className="notification__text">{event.text}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function BottomBar({
   state,
   speed,
   autoPaused,
   onSpeedChange,
+  onSelectEvent,
   hovered,
   zoom,
   onZoomIn,
@@ -79,6 +134,8 @@ export function BottomBar({
           {autoPaused ? 'Paused — tab inactive' : `${date.monthName} ${date.year}`}
         </span>
       </div>
+
+      <Notifications state={state} onSelect={onSelectEvent} />
 
       <div className="readout">{describe(hovered)}</div>
 

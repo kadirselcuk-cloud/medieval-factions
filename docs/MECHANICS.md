@@ -154,6 +154,10 @@ whether recruiting consumes population are still **[OPEN]**.
 - A **city tile is also a tile**: a settlement carries an improvement of its own alongside its
   city buildings, under the same rules.
 
+**Every held land tile pays 10 gold/month on its own**, improved or not — territory pays for
+itself from the month it is taken. Flat, not scaled by terrain: it is the spoils of holding
+ground, not what the ground grows. Improvements add on top. **[GEN]**
+
 | Improvement | Produces | L1 | L2 | L3 | L4 |
 |---|---|---|---|---|---|
 | Farm | gold | 10 | 20 | 30 | 40 |
@@ -204,9 +208,19 @@ add 2, an ordinary mine adds 1.
 
 ### Construction
 
-Two independent queues per settlement. **Buildings and units do not block each other**: if a
-unit's prerequisite buildings are already finished, it can be trained while construction
-continues.
+**Three independent queues per settlement** — buildings, recruitment and ships. Only the head
+of each advances, but the three advance in parallel: a city can raise walls, train spearmen and
+lay a keel in the same month. If a unit's prerequisite buildings already stand, it can be
+trained while other construction continues.
+
+Ships need the naval line: Dock gives Transport and Light Ship, Port adds Heavy Ship, Shipyard
+adds Flagship.
+
+### Upkeep
+
+Every unit and ship costs gold per month, netted off income so the treasury figure is what a
+faction actually banks. **A treasury cannot go negative** — it runs dry at zero. What should
+happen at that point (disbanding, desertion, unrest) is **[OPEN]**. **[GEN]**
 
 | Work | Duration |
 |---|---|

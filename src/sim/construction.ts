@@ -10,10 +10,19 @@ import type { ImprovementKind } from '../data/terrain';
 import { TERRAIN_PROFILE } from '../data/terrain';
 import { adjacentWaterCount, terrainAt, tileIndex, type World } from '../data/world';
 import {
+  buildableShips,
+  recruitableUnits,
+  shipById,
+  unitById,
+} from '../data/units';
+import {
   IMPROVEMENT_KINDS,
+  MAX_EVENTS,
   MILLI,
   RESOURCES,
+  TIER_NAME,
   type CityState,
+  type EventKind,
   type SettlementTier,
   type SimState,
 } from './types';
@@ -185,20 +194,120 @@ export function cancelImprovement(state: SimState, index: number): BuildResult {
   return OK;
 }
 
+// ------------------------------------------------- recruitment and shipyards
+
+export function queueUnit(state: SimState, city: CityState, unitId: string): BuildResult {
+  const unit = unitById(unitId);
+  if (!unit) return fail('not-available');
+  if (!recruitableUnits(city.tier, city.buildings).some((u) => u.id === unitId)) {
+    return fail('not-available');
+  }
+  if (!canAfford(state, city.ownerIndex, unit.cost)) return fail('insufficient-resources');
+
+  pay(state, city.ownerIndex, unit.cost);
+  city.recruitQueue.push({ id: unit.id, monthsRemaining: unit.months });
+  return OK;
+}
+
+export function queueShip(state: SimState, city: CityState, shipId: string): BuildResult {
+  const ship = shipById(shipId);
+  if (!ship) return fail('not-available');
+  if (!buildableShips(city.buildings).some((s) => s.id === shipId)) return fail('not-available');
+  if (!canAfford(state, city.ownerIndex, ship.cost)) return fail('insufficient-resources');
+
+  pay(state, city.ownerIndex, ship.cost);
+  city.shipQueue.push({ id: ship.id, monthsRemaining: ship.months });
+  return OK;
+}
+
+export function cancelProduction(
+  state: SimState,
+  city: CityState,
+  which: 'recruit' | 'ship',
+  position: number,
+): BuildResult {
+  const queue = which === 'recruit' ? city.recruitQueue : city.shipQueue;
+  const order = queue[position];
+  if (!order) return fail('not-available');
+
+  const cost = which === 'recruit' ? unitById(order.id)?.cost : shipById(order.id)?.cost;
+  if (cost) refund(state, city.ownerIndex, cost);
+  queue.splice(position, 1);
+  return OK;
+}
+
+/** Gold per month owed to everything a faction has standing. */
+export function totalUpkeep(state: SimState, factionIndex: number): number {
+  let upkeep = 0;
+  for (const city of state.cities) {
+    if (city.ownerIndex !== factionIndex) continue;
+    for (const [id, count] of Object.entries(city.garrison)) {
+      upkeep += (unitById(id)?.upkeep ?? 0) * count;
+    }
+    for (const [id, count] of Object.entries(city.fleet)) {
+      upkeep += (shipById(id)?.upkeep ?? 0) * count;
+    }
+  }
+  return upkeep;
+}
+
 // ------------------------------------------------------------------- progress
 
-/** Called once per month rollover. Only the head of each queue makes progress. */
-export function advanceConstruction(state: SimState): void {
+function record(state: SimState, city: CityState, kind: EventKind, text: string): void {
+  state.events.push({
+    tick: state.tick,
+    kind,
+    text,
+    tileIndex: city.tileIndex,
+    factionIndex: city.ownerIndex,
+  });
+  if (state.events.length > MAX_EVENTS) state.events.splice(0, state.events.length - MAX_EVENTS);
+}
+
+/**
+ * Called once per month rollover.
+ *
+ * Only the head of each queue advances, but the three queues advance in parallel — a city can
+ * raise walls and train spearmen in the same month.
+ */
+export function advanceConstruction(state: SimState, world: World): void {
   for (const city of state.cities) {
+    const name = world.cities[city.cityIndex]?.name ?? 'a settlement';
+
     const order = city.queue[0];
-    if (!order) continue;
+    if (order) {
+      order.monthsRemaining -= 1;
+      if (order.monthsRemaining <= 0) {
+        if (order.kind === 'building') {
+          city.buildings.push(order.id);
+          record(state, city, 'building', `${buildingById(order.id)?.name ?? order.id} completed in ${name}`);
+        } else {
+          city.tier = order.targetTier;
+          record(state, city, 'settlement', `${name} is now a ${TIER_NAME[order.targetTier]}`);
+        }
+        city.queue.shift();
+      }
+    }
 
-    order.monthsRemaining -= 1;
-    if (order.monthsRemaining > 0) continue;
+    const recruit = city.recruitQueue[0];
+    if (recruit) {
+      recruit.monthsRemaining -= 1;
+      if (recruit.monthsRemaining <= 0) {
+        city.garrison[recruit.id] = (city.garrison[recruit.id] ?? 0) + 1;
+        record(state, city, 'unit', `${unitById(recruit.id)?.name ?? recruit.id} ready in ${name}`);
+        city.recruitQueue.shift();
+      }
+    }
 
-    if (order.kind === 'building') city.buildings.push(order.id);
-    else city.tier = order.targetTier;
-    city.queue.shift();
+    const ship = city.shipQueue[0];
+    if (ship) {
+      ship.monthsRemaining -= 1;
+      if (ship.monthsRemaining <= 0) {
+        city.fleet[ship.id] = (city.fleet[ship.id] ?? 0) + 1;
+        record(state, city, 'ship', `${shipById(ship.id)?.name ?? ship.id} launched at ${name}`);
+        city.shipQueue.shift();
+      }
+    }
   }
 
   for (let index = 0; index < state.improvementMonths.length; index++) {
@@ -208,8 +317,24 @@ export function advanceConstruction(state: SimState): void {
     const next = remaining - 1;
     state.improvementMonths[index] = next;
     if (next === 0) {
-      state.improvementLevel[index] = state.improvementTarget[index] ?? 0;
+      const level = state.improvementTarget[index] ?? 0;
+      state.improvementLevel[index] = level;
       state.improvementTarget[index] = 0;
+
+      const owner = state.tileOwner[index] ?? -1;
+      const kind = improvementAt(state, index);
+      if (owner >= 0 && kind) {
+        state.events.push({
+          tick: state.tick,
+          kind: 'improvement',
+          text: `${kind[0]?.toUpperCase()}${kind.slice(1)} level ${level} finished at ${index % world.width}, ${Math.floor(index / world.width)}`,
+          tileIndex: index,
+          factionIndex: owner,
+        });
+        if (state.events.length > MAX_EVENTS) {
+          state.events.splice(0, state.events.length - MAX_EVENTS);
+        }
+      }
     }
   }
 }

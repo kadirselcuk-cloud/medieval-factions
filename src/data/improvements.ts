@@ -42,6 +42,7 @@ const fileSchema = z.object({
   maxLevel: z.number().int().min(1),
   buildMonths: z.array(z.number().int().nonnegative()),
   demolishMonths: z.number().int().nonnegative(),
+  baseTileGold: z.number().int().nonnegative(),
   kinds: z.object({
     farm: kindSchema,
     sawmill: kindSchema,
@@ -80,6 +81,15 @@ const DATA = load();
 
 export const MAX_IMPROVEMENT_LEVEL = DATA.maxLevel;
 export const DEMOLISH_MONTHS = DATA.demolishMonths;
+
+/**
+ * Gold per month for holding a land tile, before any improvement.
+ *
+ * Territory pays for itself, so taking ground is worth something the month it happens rather
+ * than only after twelve months of construction. Flat, and not scaled by terrain — this is
+ * the spoils of holding ground, not what the ground grows. **[GEN]**
+ */
+export const BASE_TILE_GOLD = DATA.baseTileGold;
 
 /** Months to build or upgrade to the given level. */
 export function improvementMonths(level: number): number {
@@ -121,28 +131,42 @@ export function tileOutput(options: {
   const { terrain, improvement, node } = options;
   const profile = TERRAIN_PROFILE[terrain];
   const level = clampLevel(options.level);
-
-  // An unimproved node still pays its token yield; an unimproved plain tile pays nothing.
-  if (improvement === null) {
-    return node === null ? { ...NO_OUTPUT } : nodeOutput(node, 0, profile.output.mine);
-  }
   if (!profile.buildable) return { ...NO_OUTPUT };
+
+  // Every held land tile pays its base gold, improved or not.
+  const base: TileOutput = { ...NO_OUTPUT, gold: BASE_TILE_GOLD };
+
+  if (improvement === null) {
+    return node === null ? base : add(base, nodeOutput(node, 0, profile.output.mine));
+  }
 
   switch (improvement) {
     case 'farm':
-      return { ...NO_OUTPUT, gold: scale(DATA.kinds.farm.yield[level] ?? 0, profile.output.farm) };
+      return add(base, {
+        ...NO_OUTPUT,
+        gold: scale(DATA.kinds.farm.yield[level] ?? 0, profile.output.farm),
+      });
     case 'sawmill':
-      return {
+      return add(base, {
         ...NO_OUTPUT,
         wood: scale(DATA.kinds.sawmill.yield[level] ?? 0, profile.output.sawmill),
-      };
+      });
     case 'mine': {
-      if (node !== null) return nodeOutput(node, level, profile.output.mine);
+      if (node !== null) return add(base, nodeOutput(node, level, profile.output.mine));
       // A mine on ordinary ground produces both metals.
       const amount = scale(DATA.kinds.mine.yield[level] ?? 0, profile.output.mine);
-      return { ...NO_OUTPUT, iron: amount, stone: amount };
+      return add(base, { ...NO_OUTPUT, iron: amount, stone: amount });
     }
   }
+}
+
+function add(a: TileOutput, b: TileOutput): TileOutput {
+  return {
+    gold: a.gold + b.gold,
+    wood: a.wood + b.wood,
+    iron: a.iron + b.iron,
+    stone: a.stone + b.stone,
+  };
 }
 
 function nodeOutput(node: ResourceType, level: number, modifier: number): TileOutput {
