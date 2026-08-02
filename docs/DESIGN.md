@@ -113,3 +113,8 @@ This is the single most important architectural constraint. See [MECHANICS.md](M
 | 47 | While a treasury is in debt, every land unit has a **10% chance per month of deserting**. Ships are exempt | 9 |
 | 48 | Ships cost wood as well as gold — 50 / 100 / 200 / 500 | 9 |
 | 49 | Base tile yield is **per terrain**, not flat: plains 10g +1w, forest 5g +1w, steppe 5g, tundra 2g +1w, desert 2g, mountain 1 iron +1 stone. Not scaled by the terrain modifiers — it already is the terrain's contribution | 9 |
+| 50 | **Borders do not stop a march.** Only a hostile army, a hostile settlement or water does | 10 |
+| 51 | A settlement's **defenders are derived** from its tier and buildings, cost nothing, and can never be mobilised. Every settlement on the map is defended | 10 |
+| 52 | Defender composition: Village 1 light inf; Town +1 sword; City +1 archer; Capitol 1 each of light/spear/sword/archer/light cav. Barracks, Archery Range, Stables and Town Hall each add one | 10 |
+| 53 | A **garrison** is what the faction recruited, and is the only thing an army musters from. Standing down returns units to it intact; disbanding in the field loses them | 10 |
+| 54 | Armies move **orthogonally**, and two friendly armies meeting on a tile merge | 10 |

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type JSX } from 'react';
 import type { World } from '../data/world';
-import { MapRenderer, type TerritoryView, type TileInfo } from '../render/MapRenderer';
+import { MapRenderer, type ArmyView, type TerritoryView, type TileInfo } from '../render/MapRenderer';
 
 interface MapViewProps {
   world: World;
   territory: TerritoryView | null;
+  armies: ArmyView | null;
   selection: number | null;
   onHover: (tile: TileInfo | null) => void;
   onSelect: (tile: TileInfo | null) => void;
@@ -15,6 +16,7 @@ interface MapViewProps {
 export function MapView({
   world,
   territory,
+  armies,
   selection,
   onHover,
   onSelect,
@@ -50,6 +52,10 @@ export function MapView({
   useEffect(() => {
     renderer?.setTerritory(territory);
   }, [renderer, territory]);
+
+  useEffect(() => {
+    renderer?.setArmies(armies);
+  }, [renderer, armies]);
 
   useEffect(() => {
     renderer?.setSelection(selection);

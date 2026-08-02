@@ -8,7 +8,8 @@ import type { SimState } from './types';
  * is nothing to reconstruct, and a round trip is exact by construction.
  */
 
-export const SAVE_VERSION = 1;
+/** 1 → 2: field armies. A v1 save has none, and its factions have never left home. */
+export const SAVE_VERSION = 2;
 
 const DB_NAME = 'medieval-factions';
 const DB_VERSION = 1;
@@ -53,6 +54,8 @@ export function serialise(state: SimState): SerialisedState {
     playerFactionIndex: state.playerFactionIndex,
     factions: structuredClone(state.factions),
     cities: structuredClone(state.cities),
+    armies: structuredClone(state.armies),
+    nextArmyId: state.nextArmyId,
     events: structuredClone(state.events),
     tileOwner: Array.from(state.tileOwner),
     improvementKind: Array.from(state.improvementKind),
@@ -70,6 +73,8 @@ export function deserialise(data: SerialisedState): SimState {
     playerFactionIndex: data.playerFactionIndex,
     factions: structuredClone(data.factions),
     cities: structuredClone(data.cities),
+    armies: structuredClone(data.armies ?? []),
+    nextArmyId: data.nextArmyId ?? 1,
     events: structuredClone(data.events ?? []),
     tileOwner: Int8Array.from(data.tileOwner),
     improvementKind: Int8Array.from(data.improvementKind),
@@ -82,8 +87,8 @@ export function deserialise(data: SerialisedState): SimState {
 /**
  * Bring an older save up to the current schema.
  *
- * Nothing to do yet — but the seam exists from the first save that was ever written, because
- * retrofitting migration onto saves already in the wild is not possible.
+ * Each step is written against the shape of the version *before* it, never against the current
+ * one, so adding a version 3 never silently changes what a version 1 save loads as.
  */
 export function migrate(file: SaveFile): SaveFile {
   if (file.version === SAVE_VERSION) return file;
@@ -92,7 +97,17 @@ export function migrate(file: SaveFile): SaveFile {
       `Save was written by a newer version of the game (save v${file.version}, game v${SAVE_VERSION}).`,
     );
   }
-  return { ...file, version: SAVE_VERSION };
+
+  const state = { ...file.state };
+
+  // v1 predates field armies. The campaign carries on with none in the field, and its cities
+  // keep the units they had — those were always garrison, which is where they still belong.
+  if (file.version < 2) {
+    state.armies = state.armies ?? [];
+    state.nextArmyId = state.nextArmyId ?? 1;
+  }
+
+  return { ...file, version: SAVE_VERSION, state };
 }
 
 // ---------------------------------------------------------------- IndexedDB

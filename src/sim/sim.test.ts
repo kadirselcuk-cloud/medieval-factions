@@ -99,7 +99,8 @@ describe('economy', () => {
       held++;
       tileGold += baseTileYield(terrainAt(world, index % world.width, Math.floor(index / world.width))).gold;
     });
-    expect(monthly).toBe(10 + tileGold);
+    // Less the starting Light Infantry's 10 gold of upkeep.
+    expect(monthly).toBe(10 + tileGold - 10);
     expect(held).toBeGreaterThan(1);
 
     const before = player.stock.gold;

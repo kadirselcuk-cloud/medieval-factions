@@ -22,6 +22,15 @@ export const STARTING_GOLD = 250;
 export const STARTING_POPULATION = 1000;
 
 /**
+ * The owner's opening unit: "start with 1 unit of lowest army".
+ *
+ * It lands in the capital's garrison rather than as an army already in the field, so the first
+ * decision of a campaign is whether to march it out — and so it is visibly distinct from the
+ * settlement's own defenders, which cost nothing and can never leave.
+ */
+export const STARTING_UNIT = 'light_infantry';
+
+/**
  * Tiles claimed around a starting capital. The owner specified "the 4 tiles around it",
  * orthogonally. Water is skipped: territory is a land concept until naval exists, and an
  * inland-sea claim would give Bursa or Constantinople a free stretch of open water. [GEN]
@@ -86,7 +95,9 @@ export function createInitialState(
       queue: [],
       recruitQueue: [],
       shipQueue: [],
-      garrison: {},
+      // The neutral Independents hold 47 cities; handing each one a free unit would arm them
+      // to the teeth. Their settlements defend themselves like everyone else's.
+      garrison: ownerIndex === neutralIndex ? {} : { [STARTING_UNIT]: 1 },
       fleet: {},
     };
   });
@@ -99,6 +110,8 @@ export function createInitialState(
     playerFactionIndex,
     factions,
     cities,
+    armies: [],
+    nextArmyId: 1,
     tileOwner,
     improvementKind: new Int8Array(tileCount).fill(-1),
     improvementLevel: new Uint8Array(tileCount),

@@ -11,6 +11,19 @@ import { TERRAIN_PROFILE, type ImprovementKind } from '../data/terrain';
 import { buildableShips, recruitableUnits, shipById, unitById } from '../data/units';
 import { adjacentWaterCount, TERRAIN_LABEL, type TileInfo, type World } from '../data/world';
 import {
+  armyAt,
+  armySpeed,
+  defenceOf,
+  disband,
+  mobilise,
+  stackSize,
+  stackSoldiers,
+  stackUpkeep,
+  standDown,
+} from '../sim/armies';
+import { calendarAt } from '../sim/calendar';
+import { halt, SEASON_MOVEMENT } from '../sim/movement';
+import {
   buildOptions,
   cancelImprovement,
   cancelOrder,
@@ -25,7 +38,15 @@ import {
 } from '../sim/construction';
 import type { Game } from '../sim/game';
 import { cityGrowthTenths } from '../sim/tick';
-import { MILLI, TIER_NAME, whole, type CityState, type SimState } from '../sim/types';
+import {
+  MAX_ARMY_UNITS,
+  MILLI,
+  TIER_NAME,
+  whole,
+  type ArmyState,
+  type CityState,
+  type SimState,
+} from '../sim/types';
 import { num } from './format';
 
 interface SelectionPanelProps {
@@ -34,6 +55,8 @@ interface SelectionPanelProps {
   state: SimState;
   world: World;
   roster: readonly Faction[];
+  /** Hands the map a march order to collect a destination for. */
+  onMarch: (armyId: number) => void;
   onClose: () => void;
 }
 
@@ -70,7 +93,7 @@ function Row({ label, value }: { label: string; value: string }): JSX.Element {
 }
 
 export function SelectionPanel(props: SelectionPanelProps): JSX.Element {
-  const { tile, game, state, world, roster, onClose } = props;
+  const { tile, game, state, world, roster, onMarch, onClose } = props;
   const [tab, setTab] = useState<Tab>('info');
 
   const ownerIndex = state.tileOwner[tile.index] ?? -1;
@@ -80,6 +103,11 @@ export function SelectionPanel(props: SelectionPanelProps): JSX.Element {
   const cityFeature = tile.feature?.kind === 'city' ? tile.feature : undefined;
   const city = cityFeature ? state.cities.find((c) => c.tileIndex === tile.index) : undefined;
   const tabbed = Boolean(city && isPlayers);
+
+  // An army is selected by selecting the ground it stands on. Ownership of the tile and of the
+  // army can differ the moment fighting exists, so the panel asks the army who it belongs to.
+  const army = armyAt(state, tile.index);
+  const playersArmy = army && army.ownerIndex === state.playerFactionIndex ? army : undefined;
 
   return (
     <aside className={`panel${isPlayers ? ' panel--owned' : ''}`}>
@@ -129,7 +157,10 @@ export function SelectionPanel(props: SelectionPanelProps): JSX.Element {
           {/* Info reports; it never acts. Every button lives in a tab of its own. */}
           <ProgressLines city={city} tile={tile} state={state} />
 
-          {/* A tile with no city has no tabs, so its actions belong here. */}
+          {/* A tile with no city has no tabs, so its army and its actions belong here. */}
+          {!tabbed && playersArmy && (
+            <ArmyCard army={playersArmy} game={game} state={state} world={world} onMarch={onMarch} />
+          )}
           {!tabbed && isPlayers && TERRAIN_PROFILE[tile.terrain].buildable && (
             <ImprovementSection tile={tile} game={game} state={state} world={world} />
           )}
@@ -154,7 +185,10 @@ export function SelectionPanel(props: SelectionPanelProps): JSX.Element {
 
       {tabbed && tab === 'armies' && city && (
         <div className="panel__body">
-          <Garrison city={city} />
+          {playersArmy && (
+            <ArmyCard army={playersArmy} game={game} state={state} world={world} onMarch={onMarch} />
+          )}
+          <Garrison city={city} game={game} world={world} />
         </div>
       )}
     </aside>
@@ -337,35 +371,82 @@ function ProgressLines({
   );
 }
 
-function Garrison({ city }: { city: CityState }): JSX.Element {
+/**
+ * A settlement's three quite different bodies of troops.
+ *
+ * Defenders are free, immobile and derived from the settlement itself. The garrison is what
+ * the faction paid to recruit, and the only thing an army can be mustered from. The fleet sits
+ * in harbour until naval lands.
+ */
+function Garrison({
+  city,
+  game,
+  world,
+}: {
+  city: CityState;
+  game: Game;
+  world: World;
+}): JSX.Element {
+  const defenders = Object.entries(defenceOf(city)).filter(([, count]) => count > 0);
   const units = Object.entries(city.garrison).filter(([, count]) => count > 0);
   const ships = Object.entries(city.fleet).filter(([, count]) => count > 0);
 
-  if (units.length === 0 && ships.length === 0) {
-    return (
-      <p className="panel__note">
-        Nothing is stationed here. Train units in the Buildings tab; they muster into this
-        garrison. Marching them out arrives with armies in 0.7.0.
-      </p>
-    );
-  }
+  const muster = (picks: Record<string, number>) => {
+    game.command((s) => mobilise(s, world, city, picks));
+  };
 
   return (
     <>
-      {units.length > 0 && (
-        <div className="panel__section panel__section--first">
-          <div className="panel__heading">Garrison</div>
-          {units.map(([id, count]) => (
-            <div className="panel__row" key={id}>
-              <span className="panel__label">{unitById(id)?.name ?? id}</span>
-              <span className="panel__value">
-                ×{count}
-                <span className="panel__muted"> · {(unitById(id)?.upkeep ?? 0) * count}g/mo</span>
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="panel__section panel__section--first">
+        <div className="panel__heading">Defenders</div>
+        {defenders.map(([id, count]) => (
+          <div className="panel__row" key={id}>
+            <span className="panel__label">{unitById(id)?.name ?? id}</span>
+            <span className="panel__value">×{count}</span>
+          </div>
+        ))}
+        <p className="panel__note">
+          Free, and they never leave. A settlement's tier and its Barracks, Archery Range,
+          Stables and Town Hall decide who stands on the walls.
+        </p>
+      </div>
+
+      <div className="panel__section">
+        <div className="panel__heading">Garrison</div>
+        {units.length === 0 ? (
+          <p className="panel__note">
+            Nothing recruited here yet. Units trained in the Buildings tab muster into this
+            garrison, and an army is raised from it.
+          </p>
+        ) : (
+          <>
+            {units.map(([id, count]) => (
+              <div className="panel__row" key={id}>
+                <span className="panel__label">{unitById(id)?.name ?? id}</span>
+                <span className="panel__value">
+                  ×{count}
+                  <span className="panel__muted"> · {(unitById(id)?.upkeep ?? 0) * count}g/mo</span>
+                  <button
+                    type="button"
+                    className="panel__mini"
+                    onClick={() => muster({ [id]: 1 })}
+                    title="Move one unit into the army on this tile"
+                  >
+                    Muster
+                  </button>
+                </span>
+              </div>
+            ))}
+            <button
+              type="button"
+              className="action"
+              onClick={() => muster(Object.fromEntries(units))}
+            >
+              Muster the whole garrison
+            </button>
+          </>
+        )}
+      </div>
 
       {ships.length > 0 && (
         <div className="panel__section">
@@ -382,6 +463,95 @@ function Garrison({ city }: { city: CityState }): JSX.Element {
         </div>
       )}
     </>
+  );
+}
+
+/** A field army: what it is made of, where it is going, and the orders it can be given. */
+function ArmyCard({
+  army,
+  game,
+  state,
+  world,
+  onMarch,
+}: {
+  army: ArmyState;
+  game: Game;
+  state: SimState;
+  world: World;
+  onMarch: (armyId: number) => void;
+}): JSX.Element {
+  const units = Object.entries(army.units).filter(([, count]) => count > 0);
+  const speed = armySpeed(army);
+  const onOwnSettlement = state.cities.some(
+    (c) => c.tileIndex === army.tileIndex && c.ownerIndex === army.ownerIndex,
+  );
+
+  const winter = calendarAt(state.tick).season === 'winter';
+  const effective = (speed * (SEASON_MOVEMENT[calendarAt(state.tick).season] ?? 100)) / 100;
+
+  return (
+    <div className="panel__section panel__section--first">
+      <div className="panel__heading">Army</div>
+
+      {units.map(([id, count]) => (
+        <div className="panel__row" key={id}>
+          <span className="panel__label">{unitById(id)?.name ?? id}</span>
+          <span className="panel__value">
+            ×{count}
+            <span className="panel__muted"> · {(unitById(id)?.upkeep ?? 0) * count}g/mo</span>
+          </span>
+        </div>
+      ))}
+
+      <Row label="Strength" value={`${stackSize(army.units)} / ${MAX_ARMY_UNITS} units`} />
+      <Row label="Soldiers" value={num(stackSoldiers(army.units))} />
+      <Row label="Upkeep" value={`${num(stackUpkeep(army.units))} g/month`} />
+      <Row
+        label="Speed"
+        value={
+          winter
+            ? `${effective} tiles/month · ${speed} in fair weather`
+            : `${speed} tiles/month`
+        }
+      />
+      <Row
+        label="Orders"
+        value={army.path.length > 0 ? `Marching · ${army.path.length} tiles to go` : 'Holding'}
+      />
+
+      <div className="army-orders">
+        <button type="button" className="action" onClick={() => onMarch(army.id)}>
+          March…
+        </button>
+        {army.path.length > 0 && (
+          <button
+            type="button"
+            className="action"
+            onClick={() => game.command((s) => halt(s, army.id))}
+          >
+            Halt
+          </button>
+        )}
+        {onOwnSettlement && (
+          <button
+            type="button"
+            className="action"
+            onClick={() => game.command((s) => standDown(s, world, army.id))}
+            title="Return every unit to this settlement's garrison"
+          >
+            Stand down
+          </button>
+        )}
+        <button
+          type="button"
+          className="action action--danger"
+          onClick={() => game.command((s) => disband(s, army.id))}
+          title="Disband in the field — the units are lost"
+        >
+          Disband
+        </button>
+      </div>
+    </div>
   );
 }
 

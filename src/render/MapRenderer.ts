@@ -29,6 +29,32 @@ export interface TerritoryView {
   colors: readonly string[];
 }
 
+/**
+ * Armies as the map needs them — position, size, owner, and where they are headed.
+ *
+ * Deliberately not the simulation's `ArmyState`: the renderer knows nothing about units,
+ * upkeep or the tick, and keeping it that way is what stops drawing code from creeping into
+ * the simulation.
+ */
+export interface ArmyMarker {
+  id: number;
+  tileIndex: number;
+  ownerIndex: number;
+  /** Units under arms, for the badge. */
+  size: number;
+  /** Tiles still to walk, in order. Drawn only for the selected army. */
+  path: readonly number[];
+}
+
+export interface ArmyView {
+  markers: readonly ArmyMarker[];
+  colors: readonly string[];
+  /** The army whose route is drawn, if any. */
+  selectedId: number | null;
+  /** The army waiting for a destination click, if any — its route preview follows the cursor. */
+  marchingId: number | null;
+}
+
 /** A drag beyond this many pixels is a pan, not a click. */
 const CLICK_SLOP = 5;
 
@@ -64,6 +90,7 @@ export class MapRenderer {
   private hasFitOnce = false;
 
   private territory: TerritoryView | null = null;
+  private armies: ArmyView | null = null;
   private selectedIndex: number | null = null;
   private pressOrigin: { x: number; y: number } | null = null;
   private pressMoved = false;
@@ -116,6 +143,12 @@ export class MapRenderer {
   /** Ownership overlay. The array is read live each frame, so mutating it in place is fine. */
   setTerritory(territory: TerritoryView | null): void {
     this.territory = territory;
+    this.dirty = true;
+  }
+
+  /** Field armies. Rebuilt each time the simulation changes, so it is replaced wholesale. */
+  setArmies(armies: ArmyView | null): void {
+    this.armies = armies;
     this.dirty = true;
   }
 
@@ -196,7 +229,81 @@ export class MapRenderer {
     if (this.territory) this.drawTerritory(x0, y0, x1, y1, origin, zoom, this.territory);
     if (zoom >= SHOW_GRID_AT) this.drawGrid(x0, y0, x1, y1, origin, zoom);
     this.drawFeatures(x0, y0, x1, y1, zoom);
+    if (this.armies) this.drawArmies(zoom, this.armies);
     this.drawSelection(zoom);
+  }
+
+  /**
+   * Armies, and the route the selected one is walking.
+   *
+   * Drawn above cities and offset up-left of tile centre, so an army sitting in a settlement
+   * reads as two things rather than covering one with the other.
+   */
+  private drawArmies(zoom: number, armies: ArmyView): void {
+    const { ctx, world, camera, viewW, viewH } = this;
+
+    const centre = (index: number) =>
+      camera.worldToScreen(
+        (index % world.width) + 0.5,
+        Math.floor(index / world.width) + 0.5,
+        viewW,
+        viewH,
+      );
+
+    // The route first, so the marker sits on top of its own line.
+    const routed = armies.markers.find(
+      (marker) => marker.id === (armies.marchingId ?? armies.selectedId),
+    );
+    if (routed && routed.path.length > 0) {
+      const start = centre(routed.tileIndex);
+      ctx.save();
+      ctx.setLineDash([Math.max(3, zoom * 0.3), Math.max(3, zoom * 0.22)]);
+      ctx.lineWidth = Math.max(1.5, zoom * 0.09);
+      ctx.strokeStyle = '#ffe9a8';
+      ctx.beginPath();
+      ctx.moveTo(start.x, start.y);
+      for (const step of routed.path) {
+        const p = centre(step);
+        ctx.lineTo(p.x, p.y);
+      }
+      ctx.stroke();
+      ctx.restore();
+
+      const last = routed.path[routed.path.length - 1];
+      if (last !== undefined) {
+        const p = centre(last);
+        const r = Math.max(3, zoom * 0.2);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.strokeStyle = '#ffe9a8';
+        ctx.lineWidth = Math.max(1.5, zoom * 0.08);
+        ctx.stroke();
+      }
+    }
+
+    const w = Math.max(9, zoom * 0.62);
+    const h = Math.max(7, zoom * 0.48);
+    for (const marker of armies.markers) {
+      const x = marker.tileIndex % world.width;
+      const y = Math.floor(marker.tileIndex / world.width);
+      const p = camera.worldToScreen(x + 0.28, y + 0.28, viewW, viewH);
+
+      ctx.beginPath();
+      ctx.rect(p.x - w / 2, p.y - h / 2, w, h);
+      ctx.fillStyle = armies.colors[marker.ownerIndex] ?? CITY_FILL;
+      ctx.fill();
+      ctx.lineWidth = marker.id === armies.selectedId ? Math.max(2, zoom * 0.1) : Math.max(1, zoom * 0.05);
+      ctx.strokeStyle = marker.id === armies.selectedId ? '#ffe9a8' : CITY_STROKE;
+      ctx.stroke();
+
+      if (zoom >= SHOW_GRID_AT) {
+        ctx.fillStyle = CITY_STROKE;
+        ctx.font = `700 ${Math.round(h * 0.8)}px ui-sans-serif, system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(String(marker.size), p.x, p.y + 0.5);
+      }
+    }
   }
 
   /**

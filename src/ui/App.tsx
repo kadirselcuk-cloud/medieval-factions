@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'rea
 import { loadFactions, playableFactions, type Faction } from '../data/factions';
 import { loadEurope1350 } from '../data/maps';
 import { describeTile, type World } from '../data/world';
-import type { MapRenderer, TerritoryView, TileInfo } from '../render/MapRenderer';
+import type { ArmyView, MapRenderer, TerritoryView, TileInfo } from '../render/MapRenderer';
+import { stackSize } from '../sim/armies';
 import { Game, type Speed } from '../sim/game';
+import { orderMove } from '../sim/movement';
 import { BottomBar } from './BottomBar';
 import { MapView } from './MapView';
 import { RosterMenu, type RosterKind } from './RosterMenu';
@@ -72,10 +74,54 @@ function Campaign({
   const [zoom, setZoom] = useState(16);
   const [menuOpen, setMenuOpen] = useState(false);
   const [rosterKind, setRoster] = useState<RosterKind | null>(null);
+  /** The army waiting for a destination click, if the player has pressed March. */
+  const [marchingId, setMarching] = useState<number | null>(null);
 
   const territory = useMemo<TerritoryView>(
     () => ({ owner: state.tileOwner, colors: roster.map((f) => f.color) }),
     [state.tileOwner, roster],
+  );
+
+  const selectedArmyId = selected
+    ? (state.armies.find((army) => army.tileIndex === selected.index)?.id ?? null)
+    : null;
+
+  const armies = useMemo<ArmyView>(
+    () => ({
+      markers: state.armies.map((army) => ({
+        id: army.id,
+        tileIndex: army.tileIndex,
+        ownerIndex: army.ownerIndex,
+        size: stackSize(army.units),
+        path: army.path,
+      })),
+      colors: roster.map((f) => f.color),
+      selectedId: selectedArmyId,
+      marchingId,
+    }),
+    // Keyed on the simulation's version counter, not on `state`, which is mutated in place and
+    // never changes identity. This is also what keeps the canvas repainting while armies march:
+    // handing the renderer a fresh view is what marks it dirty.
+    [game.version, state, roster, selectedArmyId, marchingId],
+  );
+
+  /**
+   * A map click is either a selection or a march order.
+   *
+   * Once March is pressed the next click on the map is the destination, and nothing else —
+   * which is why the order is issued here rather than inside the panel that started it.
+   */
+  const handleMapSelect = useCallback(
+    (tile: TileInfo | null) => {
+      if (marchingId !== null && tile) {
+        const result = game.command((s) => orderMove(s, world, marchingId, tile.index));
+        setMarching(null);
+        if (!result.ok) return;
+        return;
+      }
+      setSelected(tile);
+    },
+    [game, world, marchingId],
   );
 
   const handleReady = useCallback((renderer: MapRenderer | null) => {
@@ -92,6 +138,7 @@ function Campaign({
       } else if (event.key === 'Escape') {
         setMenuOpen(false);
         setRoster(null);
+        setMarching(null);
         setSelected(null);
       }
     };
@@ -112,12 +159,18 @@ function Campaign({
         <MapView
           world={world}
           territory={territory}
+          armies={armies}
           selection={selected?.index ?? null}
           onHover={setHovered}
-          onSelect={setSelected}
+          onSelect={handleMapSelect}
           onZoomChange={setZoom}
           onReady={handleReady}
         />
+        {marchingId !== null && (
+          <div className="march-hint">
+            Click a tile to march to. <button onClick={() => setMarching(null)}>Cancel</button>
+          </div>
+        )}
         {selected && (
           <SelectionPanel
             key={selected.index}
@@ -126,6 +179,7 @@ function Campaign({
             state={state}
             world={world}
             roster={roster}
+            onMarch={setMarching}
             onClose={() => setSelected(null)}
           />
         )}

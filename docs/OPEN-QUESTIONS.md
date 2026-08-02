@@ -18,8 +18,6 @@ Nothing here blocks starting the build. Each item is due before the phase that n
   at a 3× unit advantage, what happens? Draw and both withdraw? Attacker retreats? Higher
   remaining soldier count wins?
 - **Damage formula constants.** — `PROPOSED`. See [MECHANICS.md](MECHANICS.md) §6. Approve or tune.
-- **Independents garrisons.** — `PROPOSED`. Scaled by tier, e.g. Village 2 units, Town 4,
-  City 6, Capitol 8, of tier-appropriate types. Confirm the numbers.
 - **Battle speeds.** — `PROPOSED`. See [CONTENT.md](CONTENT.md) §3.
 
 ## Due before naval (build phase 0.8.0)
@@ -67,13 +65,27 @@ Nothing here blocks starting the build. Each item is due before the phase that n
   modifier scales that node's yield?
 - **Fortification bonuses.** — `PROPOSED`. See [CONTENT.md](CONTENT.md) §2.
 
-## Due before movement (build phase 0.5.0)
+## Raised by armies (0.7.0)
+
+- **Can an army besiege or blockade?** — `OPEN`. A hostile settlement currently stops a march
+  dead. Standing next to one presumably ought to do *something* — cut its income, starve its
+  population — but nothing was specified.
+- **Should defenders grow with population**, or is a Village's single unit the same whether it
+  holds 1,000 people or 40,000?
+- **Can an army be split?** — `OPEN`. It can merge and stand down, but there is no way to
+  detach part of a stack in the field.
+- **What happens to an army when the settlement behind it falls?** — `OPEN`, and due with
+  conquest.
+- **Do armies reduce the ground they cross?** — `OPEN`. Foraging, attrition in desert or
+  winter, or nothing at all.
+
+## Roads — no phase yet
 
 - **Road tiers on Desert / Tundra / Mountain.** — `OPEN`. Plains and Steppe allow
   path/paved/stone; Forest allows path/paved. The other three just say "Roads".
 - **What roads do.** — `OPEN`. A movement bonus presumably, but no numbers. Cost per tile?
-- **Do enemy armies or borders block movement**, or can armies march through freely?
-- **Strategic speeds.** — `PROPOSED`. See [CONTENT.md](CONTENT.md) §3.
+- **Strategic speeds.** — `PROPOSED`. See [CONTENT.md](CONTENT.md) §3. Now live, and felt:
+  infantry crosses 4 tiles a month, 2.4 in winter.
 
 ## Raised by 0.6.0
 
@@ -86,10 +98,6 @@ Nothing here blocks starting the build. Each item is due before the phase that n
   itself running away.
 - **Do units draw from a settlement's population?** — `OPEN`, still, and now visible: a Light
   Infantry unit is 100 soldiers trained out of a 1,000-person village at no demographic cost.
-- **Where does a garrison live?** — units currently accumulate in the settlement that trained
-  them. Armies in 0.7.0 will need to form from and move between garrisons.
-- **The owner's starting unit** — one unit of the lowest type at campaign start. Deferred
-  again, to land with armies rather than as an untouchable entry in a garrison.
 
 ## Minor, any time
 

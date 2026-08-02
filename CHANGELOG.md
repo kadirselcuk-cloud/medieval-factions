@@ -13,6 +13,52 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.7.0] — 2026-08-02
+
+**Armies.** Units stop being inventory and start being a map presence.
+
+### Added
+
+- **Field armies.** Muster units out of a settlement's garrison into an army standing on its
+  tile, up to 20 units. Two friendly armies meeting on a tile merge. An army can stand down
+  into a friendly settlement's garrison intact, or disband in the field and lose its units.
+- **Movement.** Order a march and the army walks it tile by tile, A* over terrain cost, at the
+  speed of its slowest unit. Entering a tile **claims it** — territory grows by presence and
+  nothing else. Income is recomputed the moment ground changes hands rather than at the next
+  month boundary.
+- **Winter bites.** Seasonal movement is live: −40% in December through February, so infantry
+  that crosses four tiles a month manages 2.4.
+- **Settlement defenders.** Every settlement on the map, including all 47 the Independents
+  hold, now defends itself with units derived from its tier and its buildings. They cost
+  nothing, draw no upkeep, never desert, and can never be mobilised — Village 1, Town 2,
+  City 3, Capitol 5, plus one for each of Barracks, Archery Range, Stables and Town Hall.
+  A fully built Capitol fields nine.
+- **The starting unit**, owed since the design interview: every playable faction opens with one
+  Light Infantry in its capital's garrison. The Independents get none.
+- Armies are drawn on the map with a unit-count badge in their faction's colour, and the
+  selected army's route is drawn as a dashed line to a ringed destination.
+- The **Armies roster** in the top bar lists every army in the field with its strength,
+  soldiers, upkeep and orders, and selects it on the map.
+- A settlement's **Armies tab** now separates Defenders, Garrison and Fleet, with per-unit and
+  whole-garrison muster.
+
+### Changed
+
+- Upkeep now counts units in the field, exactly as it counts units in barracks.
+- Desertion reaches field armies too, in a fixed iteration order so a save still replays
+  exactly. An army that loses its last unit ceases to exist. Defenders are exempt: they draw
+  no pay, so there is no wage for a bankrupt realm to miss.
+- Saves are **version 2**. A version 1 save loads with no armies in the field and its cities'
+  units left where they were — those were always garrison.
+- The map now repaints as the simulation ticks. It previously only redrew on interaction, which
+  no one could see until something on it started moving.
+
+### Known limits
+
+- **Nothing can be conquered yet.** Every settlement is defended and combat does not exist, so
+  a hostile settlement stops a march dead. Conquest lands with combat in 0.8.0.
+- The 12 rival factions still do nothing — they never muster, march or take ground.
+
 ## [0.6.4] — 2026-08-02
 
 **Milan out of the Alps.** The Italian capital was walled in by mountain on all four sides,

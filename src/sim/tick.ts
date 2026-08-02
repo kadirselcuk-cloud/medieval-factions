@@ -1,11 +1,13 @@
 import { summariseBuildings } from '../data/buildings';
 import { unitById } from '../data/units';
 import type { World } from '../data/world';
+import { removeArmy } from './armies';
 import { isMonthBoundary, TICKS_PER_MONTH } from './calendar';
 import { advanceConstruction } from './construction';
+import { pushEvent } from './events';
+import { advanceArmies } from './movement';
 import { recomputeIncome } from './state';
 import {
-  MAX_EVENTS,
   MILLI,
   nextRandom,
   RESOURCES,
@@ -26,6 +28,7 @@ export function advance(state: SimState, world: World): void {
   state.tick += 1;
 
   accrueIncome(state);
+  advanceArmies(state, world);
 
   if (isMonthBoundary(state.tick)) {
     advanceConstruction(state, world);
@@ -41,8 +44,10 @@ export const DESERTION_CHANCE = 0.1;
 /**
  * Troops a faction cannot pay start walking home.
  *
- * Iteration order is fixed — cities by index, garrison ids sorted — because the RNG is drawn
- * per unit and the whole simulation has to stay reproducible from a save.
+ * Iteration order is fixed — cities by index then armies by id, unit ids sorted within each —
+ * because the RNG is drawn per unit and the whole simulation has to stay reproducible from a
+ * save. A settlement's own defenders are exempt: they cost nothing, so there is no wage to
+ * miss, and a bankrupt realm should not have its walls quietly opened.
  */
 function desertUnpaidTroops(state: SimState, world: World): void {
   for (const faction of state.factions) {
@@ -50,33 +55,45 @@ function desertUnpaidTroops(state: SimState, world: World): void {
 
     for (const city of state.cities) {
       if (city.ownerIndex !== faction.index) continue;
-
-      for (const id of Object.keys(city.garrison).sort()) {
-        const count = city.garrison[id] ?? 0;
-        let lost = 0;
-        for (let i = 0; i < count; i++) {
-          if (nextRandom(state) < DESERTION_CHANCE) lost += 1;
-        }
-        if (lost === 0) continue;
-
-        const left = count - lost;
-        if (left > 0) city.garrison[id] = left;
-        else delete city.garrison[id];
-
-        const name = unitById(id)?.name ?? id;
-        const where = world.cities[city.cityIndex]?.name ?? 'the field';
-        state.events.push({
-          tick: state.tick,
-          kind: 'desertion',
-          text: `${lost} × ${name} deserted at ${where} — the treasury is empty`,
-          tileIndex: city.tileIndex,
-          factionIndex: faction.index,
-        });
-        if (state.events.length > MAX_EVENTS) {
-          state.events.splice(0, state.events.length - MAX_EVENTS);
-        }
-      }
+      const where = world.cities[city.cityIndex]?.name ?? 'a settlement';
+      desertFrom(state, city.garrison, faction.index, city.tileIndex, where);
     }
+
+    for (const army of [...state.armies].sort((a, b) => a.id - b.id)) {
+      if (army.ownerIndex !== faction.index) continue;
+      desertFrom(state, army.units, faction.index, army.tileIndex, 'the field');
+      // An army that has lost every last man is not an army.
+      if (Object.keys(army.units).length === 0) removeArmy(state, army.id);
+    }
+  }
+}
+
+/** Roll desertion over one stack of units, in a fixed order. Returns nothing — it mutates. */
+function desertFrom(
+  state: SimState,
+  stack: Record<string, number>,
+  factionIndex: number,
+  tileIndex: number,
+  where: string,
+): void {
+  for (const id of Object.keys(stack).sort()) {
+    const count = stack[id] ?? 0;
+    let lost = 0;
+    for (let i = 0; i < count; i++) {
+      if (nextRandom(state) < DESERTION_CHANCE) lost += 1;
+    }
+    if (lost === 0) continue;
+
+    const left = count - lost;
+    if (left > 0) stack[id] = left;
+    else delete stack[id];
+
+    pushEvent(state, {
+      kind: 'desertion',
+      text: `${lost} × ${unitById(id)?.name ?? id} deserted at ${where} — the treasury is empty`,
+      tileIndex,
+      factionIndex,
+    });
   }
 }
 

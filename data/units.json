@@ -148,6 +148,23 @@
     }
   ],
 
+  "_defence": "Owner-authored. Every settlement defends itself with units it does not pay for and cannot mobilise - tier gives a baseline, and four buildings each add one more. This is what makes a city something you have to fight for rather than walk into.",
+  "defence": {
+    "byTier": {
+      "1": ["light_infantry"],
+      "2": ["light_infantry", "sword_infantry"],
+      "3": ["light_infantry", "sword_infantry", "archer"],
+      "4": ["light_infantry", "spear_infantry", "sword_infantry", "archer", "light_cavalry"]
+    },
+    "_byBuilding": "The unit each building trains. Town Hall is not a military building, so it musters militia. [GEN] mapping - the owner named the buildings, not the units they add.",
+    "byBuilding": {
+      "barracks": "sword_infantry",
+      "archery_range": "archer",
+      "stables": "light_cavalry",
+      "town_hall": "light_infantry"
+    }
+  },
+
   "ships": [
     {
       "id": "transport",

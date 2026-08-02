@@ -657,6 +657,76 @@ body {
   font-size: 11px;
 }
 
+.action--danger {
+  border-color: #6b3a33;
+  color: #e5a89f;
+}
+
+/* Army orders sit in a row: there are several, and each is short. */
+.army-orders {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 9px;
+}
+
+.army-orders .action {
+  width: auto;
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
+.army-orders .action + .action {
+  margin-top: 0;
+}
+
+/* Inline "Muster" beside a garrison row. */
+.panel__mini {
+  margin-left: 7px;
+  padding: 1px 6px;
+  border: 1px solid var(--panel-line);
+  border-radius: 4px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.panel__mini:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Shown while the map is waiting for a march destination. */
+.march-hint {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  background: rgba(20, 16, 10, 0.92);
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.march-hint button {
+  padding: 2px 8px;
+  border: 1px solid var(--panel-line);
+  border-radius: 4px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
 .action--file {
   position: relative;
   overflow: hidden;

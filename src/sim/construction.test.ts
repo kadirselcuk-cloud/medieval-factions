@@ -242,7 +242,8 @@ describe('recruitment and shipyards', () => {
     expect(queueUnit(state, paris, 'light_infantry')).toEqual({ ok: true });
     advanceBy(state, world, TICKS_PER_MONTH * 4);
 
-    expect(paris.garrison['light_infantry']).toBe(1);
+    // Two: the unit just trained, plus the one every faction opens the campaign with.
+    expect(paris.garrison['light_infantry']).toBe(2);
     expect(paris.recruitQueue).toEqual([]);
     expect(state.events.some((e) => e.kind === 'unit' && e.text.includes('Paris'))).toBe(true);
   });
@@ -253,7 +254,7 @@ describe('recruitment and shipyards', () => {
     queueUnit(state, paris, 'light_infantry'); // 4 months
 
     advanceBy(state, world, TICKS_PER_MONTH * 4);
-    expect(paris.garrison['light_infantry']).toBe(1);
+    expect(paris.garrison['light_infantry']).toBe(2); // trained, plus the starting unit
     expect(paris.queue[0]?.monthsRemaining).toBe(8);
   });
 
@@ -274,8 +275,10 @@ describe('recruitment and shipyards', () => {
 
   it('charges upkeep against monthly income', () => {
     enrich();
+    paris.garrison = {}; // clear the starting unit, so the sum below is only what this test adds
     recomputeIncome(state, world);
     const before = state.factions[FRANKS]!.monthlyIncome.gold;
+    expect(totalUpkeep(state, FRANKS)).toBe(0);
 
     paris.garrison['light_infantry'] = 3; // 10 gold each
     recomputeIncome(state, world);

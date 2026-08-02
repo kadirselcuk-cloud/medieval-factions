@@ -1,5 +1,6 @@
 import type { JSX } from 'react';
 import { describeTile, type TileInfo, type World } from '../data/world';
+import { armiesOf, stackSize, stackSoldiers, stackUpkeep } from '../sim/armies';
 import { TIER_NAME, MILLI, type SimState } from '../sim/types';
 import { num } from './format';
 
@@ -33,6 +34,8 @@ export function RosterMenu({
   onClose,
 }: RosterMenuProps): JSX.Element {
   const owned = state.cities.filter((city) => city.ownerIndex === state.playerFactionIndex);
+  const armies = armiesOf(state, state.playerFactionIndex);
+  const count = kind === 'cities' ? owned.length : kind === 'armies' ? armies.length : 0;
 
   return (
     <div className="overlay" role="dialog" aria-label={ROSTER_LABEL[kind]}>
@@ -40,7 +43,7 @@ export function RosterMenu({
         <header className="overlay__header">
           <h2>
             {ROSTER_ICON[kind]} {ROSTER_LABEL[kind]}
-            {kind === 'cities' && <span className="panel__muted"> · {owned.length}</span>}
+            {kind !== 'navies' && <span className="panel__muted"> · {count}</span>}
           </h2>
           <button type="button" className="panel__close" onClick={onClose} title="Close">
             ✕
@@ -48,16 +51,53 @@ export function RosterMenu({
         </header>
 
         <div className="overlay__list">
-          {kind !== 'cities' && (
+          {kind === 'navies' && (
             <p className="panel__note">
-              {ROSTER_LABEL[kind]} arrive in 0.6.0, together with recruitment and your starting
-              unit. Nothing to list yet.
+              Fleets put to sea in a later phase. Ships built so far are moored in their home
+              settlement, under its Armies tab.
             </p>
           )}
 
           {kind === 'cities' && owned.length === 0 && (
             <p className="panel__note">You hold no settlements.</p>
           )}
+
+          {kind === 'armies' && armies.length === 0 && (
+            <p className="panel__note">
+              No army is in the field. Muster one from a settlement's garrison, in its Armies tab.
+            </p>
+          )}
+
+          {kind === 'armies' &&
+            armies.map((army) => {
+              const x = army.tileIndex % world.width;
+              const y = Math.floor(army.tileIndex / world.width);
+              const here = world.cities.find((c) => c.index === army.tileIndex);
+              return (
+                <button
+                  type="button"
+                  className="save-row save-row--button"
+                  key={army.id}
+                  onClick={() => {
+                    onSelect(describeTile(world, x, y));
+                    onClose();
+                  }}
+                >
+                  <span className="save-row__main">
+                    <span className="save-row__name">
+                      {stackSize(army.units)} units{here ? ` at ${here.name}` : ''}
+                    </span>
+                    <span className="panel__muted">
+                      {num(stackSoldiers(army.units))} soldiers · {stackUpkeep(army.units)} g/mo
+                      {army.path.length > 0 ? ` · marching, ${army.path.length} tiles` : ' · holding'}
+                    </span>
+                  </span>
+                  <span className="panel__muted">
+                    {x}, {y}
+                  </span>
+                </button>
+              );
+            })}
 
           {kind === 'cities' &&
             owned.map((city) => {

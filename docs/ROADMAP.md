@@ -16,18 +16,22 @@ Outstanding commitments and slipped work are tracked separately in [OWED.md](OWE
 | 0.3.0 | World state | 14 factions, territory, ownership, selection panel | ⚠️ shipped without saves |
 | 0.4.0 | Cities & production | Settlement upgrades, buildings, tile improvements, **save/load** | ✅ shipped without recruitment |
 | 0.5.0 | Economy & realm UI | Fishery line, wood scarcity, tabbed city panel, cities/armies/navies rosters | ✅ shipped |
-| 0.6.0 | Armies & movement | Army entities, recruitment, the starting unit, A* over terrain cost, territory claimed by presence, seasonal penalties, balance debug panel | next |
-| 0.7.0 | Combat & conquest | Auto-resolve per the owner's algorithm, watchable battle viewer, city capture, victory | |
-| 0.8.0 | AI | The 12 rival factions actually play — economy, expansion, army composition, war | |
-| 0.9.0 | Naval | Four ship types, transports, embarkation; unblocks Britons and Moors | |
-| 0.10.0 | Identity & polish | Per-faction unit names, faction bonuses, 10 elite units, asset manifest, balance pass | |
+| 0.6.x | Debt & terrain | Negative treasuries, desertion, per-terrain tile yields, map revisions | ✅ shipped |
+| 0.7.0 | Armies & movement | Army entities, city defenders, the starting unit, A* over terrain cost, territory claimed by presence, seasonal penalties | ✅ shipped without the balance debug panel |
+| 0.8.0 | Combat & conquest | Auto-resolve per the owner's algorithm, watchable battle viewer, city capture, victory | next |
+| 0.9.0 | AI | The 12 rival factions actually play — economy, expansion, army composition, war | |
+| 0.10.0 | Naval | Four ship types, transports, embarkation; unblocks Britons and Moors | |
+| 0.11.0 | Identity & polish | Per-faction unit names, faction bonuses, 10 elite units, asset manifest, balance pass | |
 | 1.0.0 | Release | Capacitor wrap for Android/iOS, ad and premium hooks wired but inert, phone performance pass | |
 | 2.0.0 | Phase B | Tactical battle map — regiment-level units, move/attack/hold orders | |
 
-Recruitment moved out of 0.4.0 into 0.6.0 so it lands beside armies — units with nowhere to
-stand are inventory, not gameplay.
+Version numbers ran ahead of the phase plan during the 0.6.x economy work, so the phases were
+renumbered rather than the versions rewound. The order is unchanged.
 
-Phase B plugs into the battle prompt built in 0.6.0. It is deliberately the last thing built:
+Recruitment shipped in 0.5.0 but had nowhere to go until armies landed in 0.7.0 — units with
+nowhere to stand are inventory, not gameplay.
+
+Phase B plugs into the battle prompt built in 0.8.0. It is deliberately the last thing built:
 it is the largest technical risk in the project and the strategic layer must be finished first.
 
 ## Stack

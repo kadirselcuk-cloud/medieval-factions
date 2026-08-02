@@ -15,9 +15,9 @@ import {
   shipById,
   unitById,
 } from '../data/units';
+import { pushEvent } from './events';
 import {
   IMPROVEMENT_KINDS,
-  MAX_EVENTS,
   MILLI,
   RESOURCES,
   TIER_NAME,
@@ -236,7 +236,12 @@ export function cancelProduction(
   return OK;
 }
 
-/** Gold per month owed to everything a faction has standing. */
+/**
+ * Gold per month owed to everything a faction has standing.
+ *
+ * Garrisons, fleets and field armies all draw pay. A settlement's own defenders do not: they
+ * are part of the settlement, not troops the faction raised.
+ */
 export function totalUpkeep(state: SimState, factionIndex: number): number {
   let upkeep = 0;
   for (const city of state.cities) {
@@ -248,20 +253,19 @@ export function totalUpkeep(state: SimState, factionIndex: number): number {
       upkeep += (shipById(id)?.upkeep ?? 0) * count;
     }
   }
+  for (const army of state.armies) {
+    if (army.ownerIndex !== factionIndex) continue;
+    for (const [id, count] of Object.entries(army.units)) {
+      upkeep += (unitById(id)?.upkeep ?? 0) * count;
+    }
+  }
   return upkeep;
 }
 
 // ------------------------------------------------------------------- progress
 
 function record(state: SimState, city: CityState, kind: EventKind, text: string): void {
-  state.events.push({
-    tick: state.tick,
-    kind,
-    text,
-    tileIndex: city.tileIndex,
-    factionIndex: city.ownerIndex,
-  });
-  if (state.events.length > MAX_EVENTS) state.events.splice(0, state.events.length - MAX_EVENTS);
+  pushEvent(state, { kind, text, tileIndex: city.tileIndex, factionIndex: city.ownerIndex });
 }
 
 /**
@@ -324,16 +328,12 @@ export function advanceConstruction(state: SimState, world: World): void {
       const owner = state.tileOwner[index] ?? -1;
       const kind = improvementAt(state, index);
       if (owner >= 0 && kind) {
-        state.events.push({
-          tick: state.tick,
+        pushEvent(state, {
           kind: 'improvement',
           text: `${kind[0]?.toUpperCase()}${kind.slice(1)} level ${level} finished at ${index % world.width}, ${Math.floor(index / world.width)}`,
           tileIndex: index,
           factionIndex: owner,
         });
-        if (state.events.length > MAX_EVENTS) {
-          state.events.splice(0, state.events.length - MAX_EVENTS);
-        }
       }
     }
   }

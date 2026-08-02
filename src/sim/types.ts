@@ -66,10 +66,37 @@ export interface CityState {
   queue: ConstructionOrder[];
   recruitQueue: ProductionOrder[];
   shipQueue: ProductionOrder[];
-  /** Completed units stationed here, by unit id. Armies form from these in 0.6.0. */
+  /**
+   * Recruited units stationed here, by unit id — the pool an army mobilises from. It is
+   * separate from the settlement's own defence, which is derived from tier and buildings,
+   * costs nothing and can never leave.
+   */
   garrison: Record<string, number>;
   /** Completed ships moored here, by ship id. */
   fleet: Record<string, number>;
+}
+
+/** docs/MECHANICS.md §3 — one army per tile, up to twenty units. */
+export const MAX_ARMY_UNITS = 20;
+
+/**
+ * A field army.
+ *
+ * Movement is fixed-point. An army banks **march points** each tick and spends them entering
+ * tiles; see `MARCH_PER_TILE` in `movement.ts`. Storing the remainder as an integer rather
+ * than a float is what keeps a march identical across a save and a reload.
+ */
+export interface ArmyState {
+  /** Stable across the campaign, so the UI can hold a selection through a save. */
+  readonly id: number;
+  ownerIndex: number;
+  tileIndex: number;
+  /** Units under arms, by unit id. Never empty — an army that loses its last unit is removed. */
+  units: Record<string, number>;
+  /** Tiles still to walk, in order, excluding the tile the army stands on. Empty when idle. */
+  path: number[];
+  /** Banked march points, spent on entering the next tile. */
+  march: number;
 }
 
 export type EventKind =
@@ -78,7 +105,8 @@ export type EventKind =
   | 'unit'
   | 'ship'
   | 'improvement'
-  | 'desertion';
+  | 'desertion'
+  | 'army';
 
 /** A thing that finished. Kept in state so the log survives a save. */
 export interface GameEvent {
@@ -106,6 +134,9 @@ export interface SimState {
   playerFactionIndex: number;
   factions: FactionState[];
   cities: CityState[];
+  armies: ArmyState[];
+  /** Next army id to hand out. Monotonic — ids are never reused, so a stale selection is safe. */
+  nextArmyId: number;
   /** Owning faction index per tile, or -1. Parallel to World.terrain. */
   tileOwner: Int8Array;
 

@@ -50,6 +50,7 @@ const EVENT_ICON: Record<GameEvent['kind'], string> = {
   ship: '⛵',
   improvement: '✦',
   desertion: '⚠',
+  army: '🏳',
 };
 
 /** How long a completion stays on screen, in ticks — one in-game week. */

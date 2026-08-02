@@ -44,10 +44,53 @@ Conquer every other faction. All factions permanently hostile; no diplomacy in v
 - The other **45 cities** belong to a neutral **Independents** faction and are garrisoned.
 
 ### Armies
-- **One army per tile.** No stacking.
+- **One army per tile.** No stacking. Two friendly armies meeting on a tile **merge**.
 - Up to **20 units** per army. A unit is a body of soldiers; size varies by type.
 - Army strategic speed = **its slowest unit**.
-- Movement is tile-by-tile, paid down across the ticks of the month.
+- Movement is tile-by-tile, paid down across the ticks of the month. Armies move
+  **orthogonally**; diagonals would let an army cross √2 tiles for the price of one. **[GEN]**
+- A march is **banked in integer march points**: one tile of open ground costs
+  `120 × 100` points and an army banks `speed × 100` a tick, so the stated speed in tiles per
+  month is exactly what a player gets, at any game speed.
+
+### Garrison, defenders and the field
+
+A settlement holds three separate things, and they behave quite differently.
+
+| | Where it comes from | Costs | Can it leave? |
+|---|---|---|---|
+| **Defenders** | Derived from tier and buildings | Nothing | Never |
+| **Garrison** | Units the faction recruited | Gold up front, then upkeep | Mustered into an army |
+| **Fleet** | Ships the faction built | Gold and wood, then upkeep | Not until naval |
+
+**Defenders** are the reason no settlement can be walked into. Composition is owner-authored:
+
+| Tier | Defenders |
+|---|---|
+| Village | 1 Light Infantry |
+| Town | 1 Light Infantry, 1 Sword & Shield |
+| City | 1 Light Infantry, 1 Sword & Shield, 1 Archer |
+| Capitol | 1 Light Infantry, 1 Spear, 1 Sword & Shield, 1 Archer, 1 Light Cavalry |
+
+Plus **one more for each of Barracks, Archery Range, Stables and Town Hall** — the unit that
+building trains, and militia for the Town Hall. **[GEN]** mapping; the owner named the
+buildings, not the units. A fully built Capitol therefore fields **nine** free defenders.
+
+Because defenders are derived and never stored, a settlement that gains a tier or finishes a
+Barracks is stronger the moment the work completes, and no save can disagree with the rules.
+
+### What stops a march
+
+Borders do not. Open ground is walkable whoever owns it, and entering a tile **claims it**.
+An army is stopped by:
+
+- **water** — until transports exist;
+- **a hostile army**, which will start a battle once combat exists;
+- **a hostile settlement**, which is always defended, so it can never simply be walked into;
+- **a friendly army**, unless the march ends there, in which case the two merge.
+
+Every faction opens the campaign with **one Light Infantry** in its capital's garrison. The
+Independents get none — 47 free units would arm the neutrals better than anyone.
 
 ---
 
