@@ -17,7 +17,8 @@
       "minTier": 1,
       "months": 12,
       "cost": { "gold": 120 },
-      "housingLevel": 1
+      "housingLevel": 1,
+      "growthTenths": 10
     },
     {
       "id": "stone_houses",
@@ -27,7 +28,8 @@
       "minTier": 2,
       "months": 18,
       "cost": { "gold": 350, "wood": 40, "stone": 40 },
-      "housingLevel": 2
+      "housingLevel": 2,
+      "growthTenths": 5
     },
     {
       "id": "villas",
@@ -37,7 +39,8 @@
       "minTier": 3,
       "months": 24,
       "cost": { "gold": 800, "wood": 80, "stone": 100 },
-      "housingLevel": 3
+      "housingLevel": 3,
+      "growthTenths": 2
     },
     {
       "id": "manors",
@@ -47,7 +50,8 @@
       "minTier": 4,
       "months": 30,
       "cost": { "gold": 1600, "wood": 150, "stone": 200 },
-      "housingLevel": 4
+      "housingLevel": 4,
+      "growthTenths": 1
     },
 
     {
@@ -140,7 +144,7 @@
       "minTier": 2,
       "months": 12,
       "cost": { "gold": 500, "wood": 50, "stone": 50 },
-      "growthTenths": 1
+      "growthTenths": 10
     },
     {
       "id": "city_hall",
@@ -150,7 +154,7 @@
       "minTier": 3,
       "months": 18,
       "cost": { "gold": 1200, "wood": 100, "stone": 120 },
-      "growthTenths": 1
+      "growthTenths": 5
     },
     {
       "id": "palace",
@@ -160,7 +164,7 @@
       "minTier": 4,
       "months": 24,
       "cost": { "gold": 3000, "wood": 200, "stone": 300 },
-      "growthTenths": 1
+      "growthTenths": 2
     },
 
     {

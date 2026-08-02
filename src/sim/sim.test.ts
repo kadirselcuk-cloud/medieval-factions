@@ -6,7 +6,7 @@ import { terrainAt } from '../data/world';
 import { loadEurope1350 } from '../data/maps';
 import { calendarAt, TICKS_PER_MONTH } from './calendar';
 import { createInitialState, STARTING_GOLD, STARTING_POPULATION } from './state';
-import { advanceBy, wealthGrowthTenths } from './tick';
+import { advanceBy, cityGrowthTenths, wealthGrowthTenths } from './tick';
 import { MILLI, whole, type SimState } from './types';
 
 const world = loadEurope1350();
@@ -116,9 +116,36 @@ describe('economy', () => {
     expect(city.populationMilli).toBe(STARTING_POPULATION * MILLI);
 
     // A fresh Village has no housing built, so growth is 0.1% base + 0.1% city level = 0.2%.
-    // Putting up Wooden Houses is what takes it to 0.3%.
+    // Putting up Wooden Houses is what takes it to 1.2% — the first step in each of the
+    // housing and hall lines is worth far more than the ones above it.
     advanceBy(state, world, 1);
     expect(city.populationMilli).toBe(1_002_000);
+  });
+
+  // The housing and hall lines are the owner's diminishing ladder: the first building in each
+  // is worth more than every later one put together.
+  it('pays diminishing growth up the housing and hall lines', () => {
+    const state = newState();
+    const city = state.cities.find((c) => c.ownerIndex === state.playerFactionIndex)!;
+
+    const rate = () => cityGrowthTenths(state, city);
+    expect(rate()).toBe(2); // 0.1% base + 0.1% Village
+
+    city.buildings.push('wooden_houses');
+    expect(rate()).toBe(12); // +1.0%
+    city.buildings.push('stone_houses');
+    expect(rate()).toBe(17); // +0.5%
+    city.buildings.push('villas');
+    expect(rate()).toBe(19); // +0.2%
+    city.buildings.push('manors');
+    expect(rate()).toBe(20); // +0.1% [GEN]
+
+    city.buildings.push('town_hall');
+    expect(rate()).toBe(30); // +1.0%
+    city.buildings.push('city_hall');
+    expect(rate()).toBe(35); // +0.5%
+    city.buildings.push('palace');
+    expect(rate()).toBe(37); // +0.2%
   });
 
   it('never loses income to rounding across a year', () => {

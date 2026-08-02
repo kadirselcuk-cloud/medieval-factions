@@ -107,11 +107,13 @@ export function cityGrowthTenths(state: SimState, city: CityState): number {
   const owner = state.factions[city.ownerIndex];
   if (!owner) return 0;
   const buildings = summariseBuildings(city.buildings);
+  // Housing and the hall line both contribute through `growthTenths`, which sums the standing
+  // buildings rather than reading a level — the two lines give diminishing amounts per step,
+  // so what matters is which buildings are up, not how high the chain has climbed.
   return (
     1 +
     wealthGrowthTenths(Math.floor(owner.stock.gold / MILLI)) +
     city.tier +
-    buildings.housingLevel +
     buildings.growthTenths
   );
 }
@@ -167,10 +169,11 @@ export function wealthGrowthTenths(goldWhole: number): number {
  * Monthly population growth (docs/MECHANICS.md §5).
  *
  * Rate is accumulated in tenths of a percent so the whole calculation stays in integers:
- * base 1, plus the treasury bonus, plus city level, plus housing level.
+ * base 1, plus the treasury bonus, plus city level, plus what the housing and hall lines add.
  *
- * Housing level equals the settlement tier: a Town *is* Stone Houses. That keeps the owner's
- * two-term formula meaningful without inventing a fourth housing building for Capitols. [GEN]
+ * Those two lines give **diminishing returns** — +1.0%, +0.5%, +0.2% for each successive
+ * building — so the first house a settlement puts up is worth more than every later one
+ * combined. That is the whole shape of an opening: build housing early or grow at a crawl.
  */
 function growPopulation(state: SimState): void {
   for (const city of state.cities) {

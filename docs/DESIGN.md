@@ -128,3 +128,4 @@ This is the single most important architectural constraint. See [MECHANICS.md](M
 | 62 | Everything buildable is a **square tile, two per row**, opening a detail window that carries the description, the numbers and the order button | 11 |
 | 63 | All icons and flavour text live in `data/art.json`; **no asset path is ever hardcoded** | 11 |
 | 64 | Tabs are Info / Buildings / Armies / Navy. The Land tab is gone — improvements are **Fief Buildings** inside Buildings, beside **City Buildings** | 11 |
+| 65 | Housing and hall lines give **diminishing growth**: +1.0%, then +0.5%, then +0.2% (then +0.1% for the fourth housing step, **[GEN]**). Replaces the old flat +0.1% per level | 11 |

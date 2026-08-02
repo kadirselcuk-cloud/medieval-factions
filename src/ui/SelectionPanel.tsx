@@ -928,9 +928,7 @@ function CityBuildings({
 /** The mechanical effects a building carries, as rows. Derived, so they cannot go stale. */
 function buildingEffects(building: Building): { label: string; value: string }[] {
   const rows: { label: string; value: string }[] = [];
-  if (building.housingLevel > 0) {
-    rows.push({ label: 'Growth', value: `+${(building.housingLevel / 10).toFixed(1)}% a month` });
-  }
+  // Housing and halls both pay through growthTenths, so one row covers either.
   if (building.growthTenths > 0) {
     rows.push({ label: 'Growth', value: `+${(building.growthTenths / 10).toFixed(1)}% a month` });
   }

@@ -13,6 +13,27 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.8.2] — 2026-08-03
+
+### Changed
+
+- **Housing and hall lines now give diminishing growth**: the first building in each is worth
+  **+1.0%** a month, the second **+0.5%**, the third **+0.2%**. Cumulative, so the whole
+  housing line is +1.8% and the whole hall line +1.7%. The fourth housing step, Manors, is
+  **+0.1%** — **[GEN]**, continuing the taper, since three values were given for four
+  buildings.
+- Replaces the old flat +0.1% per housing level and +0.1% per hall. Housing no longer
+  contributes through `housingLevel`; both lines pay through `growthTenths`, so a settlement's
+  growth depends on which buildings stand rather than how high a chain has climbed.
+- **Wooden Houses is now the decisive opening move**: 120 gold takes a Village from 0.2% a
+  month to **1.2%**, six times everything else it has.
+
+### Known limits
+
+- The ceiling rises sharply. A Capitol with every housing and hall building and a million gold
+  banked grows **7.0% a month**, doubling its population every 11 months — and population is
+  still uncapped. See the open question in `docs/OPEN-QUESTIONS.md`.
+
 ## [0.8.1] — 2026-08-03
 
 ### Changed

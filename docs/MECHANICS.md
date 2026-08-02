@@ -150,11 +150,23 @@ Monthly growth rate is the sum of:
 | Base | +0.1% |
 | Treasury | see the wealth table below |
 | City level | +0.1% per level (Village 1 → Capitol 4) |
-| Housing level | +0.1% per level |
-| Hall building | +0.1% each — Town Hall, City Hall, Palace |
+| Housing line | **+1.0%, then +0.5%, then +0.2%, then +0.1%** |
+| Hall line | **+1.0%, then +0.5%, then +0.2%** |
 
-A starting city — Village, Wooden Houses, 250 gold, no hall — grows at
-`0.1 + 0 + 0.1 + 0.1 = 0.3%` per month.
+**Housing and halls give diminishing returns.** The first building in each line is worth far
+more than the ones above it: Wooden Houses adds a full +1.0% a month, Stone Houses only
++0.5% more, Villas +0.2% more, Manors +0.1% more. Same for Town Hall, City Hall and Palace.
+Those are cumulative — a settlement with the whole housing line grows +1.8% from housing
+alone. The fourth housing step is **[GEN]**; the owner specified three values for four
+buildings, and +0.1% continues the taper.
+
+A starting city — Village, nothing built, 250 gold — grows at `0.1 + 0 + 0.1 = 0.2%` per
+month. Putting up Wooden Houses takes it to **1.2%**, which is the single biggest decision in
+an opening.
+
+Ceiling: a Capitol with every housing and hall building and a million gold banked reaches
+**7.0% a month**, which doubles its population every 11 months. Compounding is not capped —
+see the open question on population.
 
 **Every 100 people yields 1 gold per month.** A 1,000-population village is worth 10 gold/month.
 

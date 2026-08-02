@@ -75,11 +75,13 @@ Roughly how long each gate takes, at the growth rates a settlement can realistic
 | Situation | Growth | Gate | Takes |
 |---|---|---|---|
 | Village, nothing built, empty treasury | 0.2%/mo | 1,000 → 2,000 | ~35 years |
-| Village, Wooden Houses, empty treasury | 0.3%/mo | 1,000 → 2,000 | ~22 years |
-| Village, Wooden Houses, 10,000 banked | 1.3%/mo | 1,000 → 2,000 | ~5 years |
-| Village, Wooden Houses, 100,000 banked | 2.3%/mo | 1,000 → 2,000 | ~3 years |
-| Town, Stone Houses + Town Hall, 10,000 banked | 1.6%/mo | 2,000 → 5,000 | ~5 years |
-| City, Villas + City Hall, 100,000 banked | 2.9%/mo | 5,000 → 10,000 | ~2 years |
+| Village, Wooden Houses, empty treasury | 1.2%/mo | 1,000 → 2,000 | ~5 years |
+| Village, Wooden Houses, 10,000 banked | 2.2%/mo | 1,000 → 2,000 | ~3 years |
+| Town, + Stone Houses + Town Hall, 10,000 banked | 3.8%/mo | 2,000 → 5,000 | ~2 years |
+| City, + Villas + City Hall, 100,000 banked | 5.6%/mo | 5,000 → 10,000 | ~1 year |
+
+**Wooden Houses is the single most important opening move**: it is worth six times as much
+growth as everything else a Village has, and it costs 120 gold.
 
 Military buildings: **Spear Quarters, Barracks, Axe Quarters, Archery Range, Stables**.
 The slot limit gates the roster — Heavy Cavalry needs Barracks *and* Stables, so it needs
