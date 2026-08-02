@@ -13,6 +13,26 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.4.1] — 2026-08-02
+
+Fixes a blank page on GitHub Pages.
+
+### Fixed
+- **Built asset paths.** Pages serves the site from `/medieval-factions/`, but Vite defaulted
+  to a root base, so every asset URL resolved one directory too high. `vite.config.ts` now
+  sets the repository base for builds and leaves the dev server on `/`. Override with
+  `VITE_BASE` for a custom domain or the future Capacitor build.
+- **Publishing the wrong thing.** Pages was serving the repository root, whose `index.html`
+  references `/src/main.tsx` — a file that only exists while the Vite dev server is running,
+  which is what produced the 404 and the blank page.
+
+### Added
+- `.github/workflows/deploy.yml` — builds on every push to `main` and publishes `dist/` to
+  Pages. Typecheck and tests run first, so a broken simulation cannot reach the live site.
+- `public/favicon.svg`, replacing the 404 on `favicon.ico`.
+
+---
+
 ## [0.4.0] — 2026-08-02
 
 **Cities and production.** Build things, upgrade settlements, improve tiles, and save.
