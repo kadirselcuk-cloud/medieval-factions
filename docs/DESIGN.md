@@ -131,3 +131,10 @@ This is the single most important architectural constraint. See [MECHANICS.md](M
 | 65 | Housing and hall lines give **diminishing growth**: +1.0%, then +0.5%, then +0.2% (then +0.1% for the fourth housing step, **[GEN]**). Replaces the old flat +0.1% per level | 11 |
 | 66 | The auto-resolve battlefield is **50 tiles across**, so unit ranges (30, 40) are used exactly as written | 11 |
 | 67 | At the 48-turn cap a battle is a **stalemate and both armies withdraw** | 11 |
+| 68 | A battle is a **pure function** of the two stacks, the ground and the RNG, resolved in one call. The player watches a **replay of the log**; only the last 3 battles are kept | 12 |
+| 69 | **Hostile ground is a destination, not a wall.** A march may be aimed at an enemy army or a defended settlement; a route never threads *through* one | 12 |
+| 70 | A settlement fields its **defenders, its garrison and any army on the tile**. The garrison fights, and its survivors go back behind the walls if the city holds. **[GEN]** | 12 |
+| 71 | **Survivors are reformed into whole units** — a formation below half strength is struck off, and a side that held the field keeps at least one unit. **[GEN]** | 12 |
+| 72 | A **captured settlement keeps its people and buildings** and loses its queues, garrison and fleet. The **losing army is destroyed**; there is no retreat | 12 |
+| 73 | A realm is **extinguished** when it holds neither settlement nor army, and its remaining ground reverts to no-one rather than to the conqueror | 12 |
+| 74 | The defender's advantage is **capped at 90%**, so the ground can never heal an attacker. **[GEN]** | 12 |

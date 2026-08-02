@@ -8,8 +8,11 @@ import type { SimState } from './types';
  * is nothing to reconstruct, and a round trip is exact by construction.
  */
 
-/** 1 → 2: field armies. A v1 save has none, and its factions have never left home. */
-export const SAVE_VERSION = 2;
+/**
+ * 1 → 2: field armies. A v1 save has none, and its factions have never left home.
+ * 2 → 3: battles. A v2 save has fought none, and every faction it knows about is still alive.
+ */
+export const SAVE_VERSION = 3;
 
 const DB_NAME = 'medieval-factions';
 const DB_VERSION = 1;
@@ -56,6 +59,8 @@ export function serialise(state: SimState): SerialisedState {
     cities: structuredClone(state.cities),
     armies: structuredClone(state.armies),
     nextArmyId: state.nextArmyId,
+    battles: structuredClone(state.battles),
+    nextBattleId: state.nextBattleId,
     events: structuredClone(state.events),
     tileOwner: Array.from(state.tileOwner),
     improvementKind: Array.from(state.improvementKind),
@@ -75,6 +80,8 @@ export function deserialise(data: SerialisedState): SimState {
     cities: structuredClone(data.cities),
     armies: structuredClone(data.armies ?? []),
     nextArmyId: data.nextArmyId ?? 1,
+    battles: structuredClone(data.battles ?? []),
+    nextBattleId: data.nextBattleId ?? 1,
     events: structuredClone(data.events ?? []),
     tileOwner: Int8Array.from(data.tileOwner),
     improvementKind: Int8Array.from(data.improvementKind),
@@ -105,6 +112,14 @@ export function migrate(file: SaveFile): SaveFile {
   if (file.version < 2) {
     state.armies = state.armies ?? [];
     state.nextArmyId = state.nextArmyId ?? 1;
+  }
+
+  // v2 predates combat. Nothing has been fought, so there is no battle to replay and no realm
+  // that could already have been extinguished.
+  if (file.version < 3) {
+    state.battles = state.battles ?? [];
+    state.nextBattleId = state.nextBattleId ?? 1;
+    for (const faction of state.factions) faction.alive = faction.alive ?? true;
   }
 
   return { ...file, version: SAVE_VERSION, state };

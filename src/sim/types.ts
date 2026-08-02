@@ -99,6 +99,90 @@ export interface ArmyState {
   march: number;
 }
 
+// ------------------------------------------------------------------- battles
+
+/** 0 attacker, 1 defender. Used as an index throughout a battle report. */
+export type BattleSide = 0 | 1;
+
+/**
+ * Where a fighter came from, so survivors can be written back to the right place.
+ *
+ * A settlement puts three quite different things on the field: its derived `defence`, which
+ * costs nothing and leaves nothing behind; its `garrison`, which is recruited units that go
+ * back into the city if it holds; and an `army` standing on the tile.
+ */
+export type FighterSource = 'army' | 'garrison' | 'defence';
+
+export type BattleWinner = 'attacker' | 'defender' | 'stalemate';
+
+/** How the battle ended: one side wiped out, the 3× rout rule, or the 48-turn cap. */
+export type BattleEnding = 'destroyed' | 'rout' | 'cap';
+
+export interface BattleFighter {
+  /** Index into BattleReport.fighters. Every action refers to a slot. */
+  slot: number;
+  side: BattleSide;
+  source: FighterSource;
+  unitId: string;
+  /** Soldiers it started with. */
+  soldiers: number;
+  /** Tiles from the attacker's edge at the opening bell — 0 or FIELD_WIDTH. */
+  position: number;
+}
+
+export type BattleAction =
+  | { kind: 'move'; slot: number; to: number }
+  | { kind: 'shoot'; slot: number; target: number; casualties: number; charge: false }
+  | { kind: 'strike'; slot: number; target: number; casualties: number; charge: boolean };
+
+export interface BattleTurn {
+  /** 1-based. One in-game hour; six of them make a tick. */
+  turn: number;
+  actions: BattleAction[];
+}
+
+/** Defender's advantage, in per-mille, split into the terms that produced it. */
+export interface BattleAdvantage {
+  terrain: number;
+  settlement: number;
+  fortification: number;
+  winter: number;
+  /** The sum, capped. This is the number the damage formula uses. */
+  total: number;
+}
+
+/**
+ * A fought battle, complete enough to replay tile by tile.
+ *
+ * The report is the only record: the simulation applies the outcome immediately and keeps the
+ * log purely so the player can watch what already happened. Only the last few are kept.
+ */
+export interface BattleReport {
+  id: number;
+  tick: number;
+  tileIndex: number;
+  /** Index into World.cities when a settlement was assaulted, else -1. */
+  cityIndex: number;
+  attackerIndex: number;
+  defenderIndex: number;
+  advantage: BattleAdvantage;
+  fighters: BattleFighter[];
+  turns: BattleTurn[];
+  winner: BattleWinner;
+  ending: BattleEnding;
+  /** Soldiers killed, by side. */
+  losses: [number, number];
+  /** Whole units fielded, by side. */
+  before: [Record<string, number>, Record<string, number>];
+  /** Whole units walking away, by side. */
+  after: [Record<string, number>, Record<string, number>];
+  /** True when the settlement changed hands. */
+  captured: boolean;
+}
+
+/** Battles are heavy; only the most recent are kept, and only so they can be watched. */
+export const MAX_STORED_BATTLES = 3;
+
 export type EventKind =
   | 'building'
   | 'settlement'
@@ -106,7 +190,9 @@ export type EventKind =
   | 'ship'
   | 'improvement'
   | 'desertion'
-  | 'army';
+  | 'army'
+  | 'battle'
+  | 'conquest';
 
 /** A thing that finished. Kept in state so the log survives a save. */
 export interface GameEvent {
@@ -116,6 +202,8 @@ export interface GameEvent {
   /** Where it happened, so a notification can be clicked through to the map. */
   tileIndex: number;
   factionIndex: number;
+  /** Set on battle events, so clicking one opens the report if it is still held. */
+  battleId?: number | undefined;
 }
 
 /** Only the most recent events are kept — this is a notification feed, not an audit trail. */
@@ -137,6 +225,9 @@ export interface SimState {
   armies: ArmyState[];
   /** Next army id to hand out. Monotonic — ids are never reused, so a stale selection is safe. */
   nextArmyId: number;
+  /** Recently fought battles, newest first, trimmed to MAX_STORED_BATTLES. */
+  battles: BattleReport[];
+  nextBattleId: number;
   /** Owning faction index per tile, or -1. Parallel to World.terrain. */
   tileOwner: Int8Array;
 

@@ -19,8 +19,8 @@ Outstanding commitments and slipped work are tracked separately in [OWED.md](OWE
 | 0.6.x | Debt & terrain | Negative treasuries, desertion, per-terrain tile yields, map revisions | ✅ shipped |
 | 0.7.x | Armies & movement | Army entities, city defenders, the starting unit, A* over terrain cost, territory claimed by presence, seasonal penalties, visible marching orders | ✅ shipped without the balance debug panel |
 | 0.8.0 | Settlement UI & growth gates | Square-tile build grid with detail windows, art manifest, Navy tab, population requirements for expanding a settlement | ✅ shipped |
-| 0.9.0 | Combat & conquest | Auto-resolve per the owner's algorithm, watchable battle viewer, city capture, victory | next |
-| 0.10.0 | AI | The 12 rival factions actually play — economy, expansion, army composition, war | |
+| 0.9.0 | Combat & conquest | Auto-resolve per the owner's algorithm, watchable battle viewer, city capture, victory | ✅ shipped, constants unapproved |
+| 0.10.0 | AI | The 12 rival factions actually play — economy, expansion, army composition, war | next |
 | 0.11.0 | Naval | Four ship types, transports, embarkation; unblocks Britons and Moors | |
 | 0.12.0 | Identity & polish | Per-faction unit names, faction bonuses, 10 elite units, the owner's real art, balance pass | |
 | 1.0.0 | Release | Capacitor wrap for Android/iOS, ad and premium hooks wired but inert, phone performance pass | |

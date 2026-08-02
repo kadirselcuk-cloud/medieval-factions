@@ -13,6 +13,60 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.9.0] — 2026-08-03
+
+**Combat and conquest.** Cities can be taken, realms can be extinguished, and every battle can
+be watched turn by turn.
+
+### Added
+
+- **`src/sim/battle.ts`** — auto-resolve, to the owner's algorithm. A 50-tile field, armies at
+  opposite ends, activation alternating by speed, one action per activation, random targets in
+  range, the 3× rout rule from turn 10, and the 48-turn stalemate cap.
+  - A battle is a **pure function** of the two stacks, the ground and the RNG. It draws from the
+    campaign's seeded stream, so the same save fights the same battle.
+  - Every step is **integer arithmetic** — the damage formula's fractions are per-mille
+    multipliers, floored at each step.
+  - The defender's advantage is split into its terms — terrain, settlement, walls, winter —
+    shown on screen, and **capped at 90%** so the ground can never heal an attacker.
+- **`src/sim/conquest.ts`** — what happens after the fighting. Cities change hands, losing
+  armies are destroyed, survivors are reformed into whole units, and a realm that holds neither
+  a settlement nor an army is extinguished, its remaining ground reverting to no-one.
+- **`src/ui/BattleView.tsx`** — the battle viewer. Every formation on its own track across the
+  50-tile field, strength bars draining, an hour-by-hour ticker of who struck whom for how many.
+  Play, pause, scrub, 1×/2×/5×, skip to the end. Playback runs at the stated **6 turns a tick**.
+- **A battle involving the player pauses the campaign and opens the viewer** — the seam Phase B
+  plugs into. Battle notifications reopen a fight while its report is still held.
+- **Victory and defeat.** Total conquest ends the campaign; so does losing your last settlement
+  and your last army.
+- 19 tests covering the formula, the ground, reproducibility from a seed, capture, the garrison
+  going back behind the walls, faction elimination, the save round trip, and a whole campaign
+  advancing identically twice with a battle in it.
+
+### Changed
+
+- **A march may be aimed at hostile ground.** Enemy armies and defended settlements are
+  destinations now, not walls; a route still never threads *through* one. Before this, ordering
+  an attack simply reported "no route".
+- **A settlement fields its garrison as well as its defenders.** Recruited units standing in a
+  city being stormed fight for it, and their survivors return behind the walls if it holds.
+- A captured settlement keeps its people and buildings, and loses its queues, garrison and fleet.
+- Save format **v2 → v3**, with a migration. A v2 save has fought no battles.
+- `docs/CONTENT.md` corrected: Stone Walls give **+30%**, not +25% — the value is stored in
+  tenths and always has been 30%. The documentation was wrong, not the data.
+
+### Known
+
+Three measured results, all recorded with numbers in `docs/OPEN-QUESTIONS.md`. The algorithm is
+owner-specified; the constants under it were never approved.
+
+- **Defenders win mirror matches decisively** — one Light Infantry attacking one Light Infantry
+  on plains is wiped out for 38 casualties.
+- **Ranged dominates the 50-tile field** — a lone Archer beats a lone Light Infantry without
+  taking a casualty.
+- **A Citadel Capitol cannot be taken** — 9 free defenders and an 80% advantage; ten Heavy
+  Cavalry lose 400 men and kill 24.
+
 ## [0.8.3] — 2026-08-03
 
 **The balance panel**, owed since 0.4.0. Press **B**.

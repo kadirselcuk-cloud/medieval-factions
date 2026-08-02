@@ -9,10 +9,41 @@ Nothing here blocks starting the build. Each item is due before the phase that n
 
 ---
 
-## Due before combat (build phase 0.9.0)
+## Combat — shipped in 0.9.0, and now measured
 
-- **Damage formula constants.** — `PROPOSED`. See [MECHANICS.md](MECHANICS.md) §6. Approve or tune.
-- **Battle speeds.** — `PROPOSED`. See [CONTENT.md](CONTENT.md) §3.
+The algorithm is the owner's. The constants under it were never approved, and running them
+produces three results that want a decision. All figures are from real battles on plains, in
+summer, fought by the shipped resolver.
+
+- **The defender wins mirror matches decisively.** — `PROPOSED`. One Light Infantry attacking
+  one Light Infantry on open plains: the **attacker is wiped out for 38 casualties**. A 10%
+  terrain edge becomes a 2.6-to-1 kill ratio, for two compounding reasons: damage scales with
+  the attacker's *current* soldiers, so falling behind accelerates; and moving and attacking
+  are separate actions, so whoever closes gives up the first blow. Levers, in order of bluntness:
+  reduce terrain defence, base damage on *starting* strength, or let a formation that closes
+  into contact strike in the same activation (which is what "charge" arguably means).
+- **Ranged dominates the 50-tile field.** — `PROPOSED`. One Archer beats one Light Infantry
+  **without taking a single casualty**; it takes **three** Light Infantry to win, at a cost of
+  183 men. A Light Cavalry unit dies to a lone Archer having never landed a blow. This follows
+  from the 50-tile field: an archer gets 13 free volleys while infantry crosses 37 tiles. Lever:
+  battle speeds — infantry at 3 tiles/turn was set when the field was 10 wide.
+- **Fortified settlements cannot be taken.** — `PROPOSED`, and the sharpest of the three. A
+  Capitol with a Citadel has **9 free defenders and an 80% defender's advantage**, which means
+  attackers deal a fifth of their damage and defenders nearly double. **Ten Heavy Cavalry —
+  2,000 gold and 100 iron — lose 400 men and kill 24.** No army in the game can take it, because
+  20 units is the cap. Levers: the fortification bonuses (currently +10 / +30 / +40 / +60%), the
+  90% cap, or siege mechanics, which are out of v1 scope.
+
+Two things that work as intended: **spears wreck cavalry** (two Light Cavalry lose 80 men to
+two Spear Infantry and kill 8), and the **3× rout rule** fires cleanly in larger battles.
+
+- **Battle speeds.** — `PROPOSED`. See [CONTENT.md](CONTENT.md) §3. Now live, and the main lever
+  on the point above: they were chosen for a 10-tile field and the field is 50.
+- **Do defeated armies leave survivors?** — `OPEN`. The losing army is currently destroyed
+  outright; routing costs fewer men but still leaves nothing on the map. A retreat to an
+  adjacent tile would be a mechanic of its own — which tile, and what if it is blocked?
+- **Does the garrison fight?** — `PROPOSED`. It does, currently. Recruited units standing in a
+  city being stormed defend it, and their survivors go back behind the walls if it holds.
 
 ## Due before naval (build phase 0.11.0)
 
@@ -66,9 +97,13 @@ Nothing here blocks starting the build. Each item is due before the phase that n
 
 ## Raised by armies (0.7.0)
 
-- **Can an army besiege or blockade?** — `OPEN`. A hostile settlement currently stops a march
-  dead. Standing next to one presumably ought to do *something* — cut its income, starve its
-  population — but nothing was specified.
+- **Can an army besiege or blockade?** — `OPEN`, and now pressing. Since 0.9.0 a hostile
+  settlement can be assaulted, but a fortified one cannot realistically be carried by assault
+  (see above). A siege — cutting income, starving the population, wearing the walls down over
+  months — is the missing answer, and it is currently out of v1 scope.
+- **Can a settlement be recaptured immediately?** — `OPEN`. A city that changes hands has its
+  new owner's derived defenders the instant it falls, so the loser cannot walk back in. Whether
+  a freshly taken city should be weaker for a while was never specified.
 - **Should defenders grow with population**, or is a Village's single unit the same whether it
   holds 1,000 people or 40,000?
 - **Can an army be split?** — `OPEN`. It can merge and stand down, but there is no way to

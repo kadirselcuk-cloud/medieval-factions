@@ -152,11 +152,17 @@ Fortification bonus, added to terrain defender's advantage — **[GEN]**:
 | Tier | Bonus |
 |---|---|
 | Village — Wooden Palisade | +10% |
-| Town — Stone Walls | +25% |
+| Town — Stone Walls | **+30%** |
 | City — City Walls | +40% |
 | Capitol — Citadel | +60% |
 
-Plus the flat +10% "city tile" bonus from [MECHANICS.md](MECHANICS.md) §4.
+Plus the flat +10% "city tile" bonus from [MECHANICS.md](MECHANICS.md) §4, and the terrain
+under the settlement. Stone Walls read +25% here until 0.9.0; the data has always held +30%,
+because the value is stored in tenths and 25% is not expressible. The data wins.
+
+**These are the sharpest numbers in the game.** A Capitol with a Citadel on plains reaches an
+80% defender's advantage, which no army in v1 can overcome — see
+[OPEN-QUESTIONS.md](OPEN-QUESTIONS.md).
 
 ---
 
@@ -209,6 +215,10 @@ unit. Battle speed is tiles per battle turn on the 50-tile auto-resolve field.
 | 7, 8 — light cavalry, cavalry archer | 8 | 6 |
 
 Terrain multiplies strategic movement cost: forest/tundra ×1.25, desert/mountain ×1.5.
+
+**The battle column was chosen for a 10-tile field and is now used on a 50-tile one.** At 3
+tiles a turn, infantry spends 13 turns crossing the ground an archer already covers, which is
+why ranged units currently dominate. This is the first number to reach for when tuning combat.
 
 ---
 

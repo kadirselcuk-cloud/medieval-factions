@@ -2,6 +2,7 @@ import { TERRAIN_PROFILE } from '../data/terrain';
 import { inBounds, TERRAINS, tileIndex, type Terrain, type World } from '../data/world';
 import { armyAt, armyById, armySpeed, merge, stackSize } from './armies';
 import { calendarAt, TICKS_PER_MONTH, type Season } from './calendar';
+import { resolveEngagement } from './conquest';
 import { pushEvent } from './events';
 import { recomputeIncome } from './state';
 import { MAX_ARMY_UNITS, type ArmyState, type SimState } from './types';
@@ -61,6 +62,14 @@ function terrainOf(world: World, index: number): Terrain {
 export type BlockReason = 'water' | 'hostile-army' | 'hostile-settlement' | 'friendly-army';
 
 /**
+ * Hostile ground stops a march, but it can still be *marched at* — it is a destination, not a
+ * wall. Anything else that blocks is simply impassable and the route has to go round it.
+ */
+export function attackable(reason: BlockReason | null): boolean {
+  return reason === 'hostile-army' || reason === 'hostile-settlement';
+}
+
+/**
  * Why an army may not enter a tile, or `null` if it may.
  *
  * Open ground is walkable whoever owns it — a realm's borders do not stop a march, only its
@@ -107,7 +116,10 @@ export function findPath(
   from: number = army.tileIndex,
 ): number[] | null {
   if (destination === from) return [];
-  if (blockedBy(state, world, army, destination, true) !== null) return null;
+  // The destination may be an enemy army or a defended settlement — marching at one is how a
+  // battle is started. Anything else that blocks it means there is nowhere to go.
+  const stop = blockedBy(state, world, army, destination, true);
+  if (stop !== null && !attackable(stop)) return null;
 
   const size = world.width * world.height;
   const best = new Float64Array(size).fill(Number.POSITIVE_INFINITY);
@@ -140,7 +152,10 @@ export function findPath(
 
       const next = tileIndex(world, nx, ny);
       if (closed[next]) continue;
-      if (blockedBy(state, world, army, next, next === destination) !== null) continue;
+
+      // A route never threads *through* hostile ground; it may only end on it.
+      const blocked = blockedBy(state, world, army, next, next === destination);
+      if (blocked !== null && !(next === destination && attackable(blocked))) continue;
 
       const cost = tileMarchCost(world, next);
       if (!Number.isFinite(cost)) continue;
@@ -287,15 +302,28 @@ export function advanceArmies(state: SimState, world: World): void {
 
       const isLast = army.path.length === 1;
       const reason = blockedBy(state, world, army, next, isLast);
+
+      // Hostile ground is not a wall — it is a battle, and the march has to reach it first.
+      // The army pays the tile's cost to make contact whether it takes the ground or not.
+      if (reason === 'hostile-army' || reason === 'hostile-settlement') {
+        const toll = tileMarchCost(world, next);
+        if (army.march < toll) break;
+        army.march -= toll;
+
+        const { advance } = resolveEngagement(state, world, army, next);
+        if (advance) enter(state, army, next);
+        // A battle changes what each realm holds and what it has to pay for, whether or not the
+        // ground moved, so income is always stale afterwards.
+        claimed = true;
+        break;
+      }
+
       if (reason !== null) {
         army.path = [];
         army.march = 0;
         pushEvent(state, {
           kind: 'army',
-          text:
-            reason === 'hostile-settlement'
-              ? 'An army halted at a defended settlement — it cannot be taken until battles exist'
-              : 'An army halted, its road blocked',
+          text: 'An army halted, its road blocked',
           tileIndex: army.tileIndex,
           factionIndex: army.ownerIndex,
         });

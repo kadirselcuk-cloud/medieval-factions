@@ -6,7 +6,9 @@ import type { ArmyView, MapRenderer, TerritoryView, TileInfo } from '../render/M
 import { stackSize } from '../sim/armies';
 import { Game, type Speed } from '../sim/game';
 import { orderMove } from '../sim/movement';
+import type { BattleReport, GameEvent, SimState } from '../sim/types';
 import { BalancePanel } from './BalancePanel';
+import { BattleView } from './BattleView';
 import { BottomBar } from './BottomBar';
 import { MapView } from './MapView';
 import { RosterMenu, type RosterKind } from './RosterMenu';
@@ -79,6 +81,35 @@ function Campaign({
   const [marchingId, setMarching] = useState<number | null>(null);
   /** The balance panel is a developer tool, opened with B. */
   const [balanceOpen, setBalanceOpen] = useState(false);
+  /** The battle currently on screen, if any. */
+  const [battle, setBattle] = useState<BattleReport | null>(null);
+  /** The newest battle already offered to the player, so one is never shown twice. */
+  const seenBattle = useRef(0);
+
+  /**
+   * docs/DESIGN.md decision 11 — a battle the player is in **pauses the campaign and prompts**.
+   *
+   * In v1 auto-resolve is the only option, so what the prompt offers is a seat at a fight that
+   * has already been decided. Phase B plugs in here: the pause moves in front of the
+   * resolution, and the dialog gains the choice to command it.
+   */
+  useEffect(() => {
+    const latest = state.battles[0];
+    if (!latest || latest.id <= seenBattle.current) return;
+    seenBattle.current = latest.id;
+
+    // Battles are recorded on the tick they are fought. Anything older came in with a loaded
+    // save and has already been lived through — it belongs in the log, not in a dialog.
+    if (state.tick - latest.tick > 1) return;
+
+    const mine =
+      latest.attackerIndex === state.playerFactionIndex ||
+      latest.defenderIndex === state.playerFactionIndex;
+    if (!mine) return;
+
+    game.setSpeed(0);
+    setBattle(latest);
+  }, [game, game.version, state]);
 
   const territory = useMemo<TerritoryView>(
     () => ({ owner: state.tileOwner, colors: roster.map((f) => f.color) }),
@@ -146,6 +177,7 @@ function Campaign({
         setRoster(null);
         setMarching(null);
         setBalanceOpen(false);
+        setBattle(null);
         setSelected(null);
       }
     };
@@ -204,6 +236,18 @@ function Campaign({
         />
       )}
 
+      {battle && (
+        <BattleView
+          key={battle.id}
+          report={battle}
+          world={world}
+          roster={roster}
+          onClose={() => setBattle(null)}
+        />
+      )}
+
+      <Verdict state={state} roster={roster} />
+
       {rosterKind && (
         <RosterMenu
           kind={rosterKind}
@@ -222,8 +266,22 @@ function Campaign({
         speed={game.speed}
         autoPaused={game.isAutoPaused}
         onSpeedChange={(speed: Speed) => game.setSpeed(speed)}
-        onSelectEvent={(tileIndex) => {
-          const tile = describeTile(world, tileIndex % world.width, Math.floor(tileIndex / world.width));
+        onSelectEvent={(event: GameEvent) => {
+          // A battle notification opens the fight if the report is still held; everything else
+          // — and a battle too old to have been kept — goes to the map.
+          const report = event.battleId
+            ? state.battles.find((b) => b.id === event.battleId)
+            : undefined;
+          if (report) {
+            game.setSpeed(0);
+            setBattle(report);
+            return;
+          }
+          const tile = describeTile(
+            world,
+            event.tileIndex % world.width,
+            Math.floor(event.tileIndex / world.width),
+          );
           setSelected(tile);
           rendererRef.current?.centerOn(tile.x, tile.y);
         }}
@@ -242,6 +300,42 @@ function Campaign({
           <p>Rotate your device to landscape.</p>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Total conquest, or the end of a realm — docs/MECHANICS.md §2.
+ *
+ * A faction is finished when it holds neither a settlement nor an army, so a landless army in
+ * the field is still a campaign. The banner is deliberately not a modal: the map underneath is
+ * the interesting part, and there is nothing left to decide.
+ */
+function Verdict({
+  state,
+  roster,
+}: {
+  state: SimState;
+  roster: readonly Faction[];
+}): JSX.Element | null {
+  const alive = state.factions.filter((faction) => faction.alive);
+  const player = state.factions[state.playerFactionIndex];
+  if (!player) return null;
+
+  if (!player.alive) {
+    return (
+      <div className="verdict verdict--lost">
+        <h2>Your realm is extinguished</h2>
+        <p>{roster[state.playerFactionIndex]?.name} holds neither a settlement nor an army.</p>
+      </div>
+    );
+  }
+  if (alive.length > 1) return null;
+
+  return (
+    <div className="verdict verdict--won">
+      <h2>Europe is yours</h2>
+      <p>{roster[state.playerFactionIndex]?.name} is the last realm standing.</p>
     </div>
   );
 }

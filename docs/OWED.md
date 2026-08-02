@@ -46,10 +46,14 @@ it is tagged **[GEN]** at its definition. None of it is owner-authored truth.
 | Strategic speeds (tiles/month) | `docs/CONTENT.md` §3 | **live** — infantry crosses 4 tiles a month |
 | Orthogonal-only army movement | `src/sim/movement.ts` | implemented |
 | Which unit each building adds to a settlement's defence | `data/units.json` | implemented |
-| Battle speeds (tiles/battle turn) | `docs/CONTENT.md` §3 | not yet implemented |
-| Fortification bonuses per settlement tier | `docs/CONTENT.md` §2 | not yet implemented |
-| Damage formula and its modifiers | `docs/MECHANICS.md` §6 | not yet implemented |
-| Range ÷ 10 = tiles | `docs/MECHANICS.md` §6 | not yet implemented |
+| Battle speeds (tiles/battle turn) | `docs/CONTENT.md` §3 | **live** — and the main lever on combat balance |
+| Fortification bonuses per settlement tier | `docs/CONTENT.md` §2 | **live** — a Citadel Capitol is currently untakeable |
+| Damage formula and its modifiers | `docs/MECHANICS.md` §6 | **live** — measured, see OPEN-QUESTIONS |
+| 90% cap on the defender's advantage | `src/sim/battle.ts` | **live** |
+| Survivors reformed into whole units | `src/sim/battle.ts` | **live** |
+| The garrison fights alongside a settlement's defenders | `src/sim/conquest.ts` | **live** |
+| A defeated army is destroyed, not retreated | `src/sim/conquest.ts` | **live** |
+| Range used as written (50-tile field) | `docs/MECHANICS.md` §6 | **live** — owner-approved field width |
 | Advanced Farms / Irrigation yields | `docs/OPEN-QUESTIONS.md` | not yet implemented |
 | Season boundaries and modifiers | `docs/MECHANICS.md` §5 | **approved by owner** |
 

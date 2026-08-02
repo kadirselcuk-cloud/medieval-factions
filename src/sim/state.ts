@@ -112,6 +112,8 @@ export function createInitialState(
     cities,
     armies: [],
     nextArmyId: 1,
+    battles: [],
+    nextBattleId: 1,
     tileOwner,
     improvementKind: new Int8Array(tileCount).fill(-1),
     improvementLevel: new Uint8Array(tileCount),

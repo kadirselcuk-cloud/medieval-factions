@@ -345,6 +345,11 @@ Movement and farm numbers approved by the owner; winter defender bonus is owner-
 ### Trigger
 An army moving onto a tile held by a hostile army, or onto a hostile city tile, starts a battle.
 
+**Hostile ground is a destination, not a wall.** A march may be *aimed* at an enemy army or a
+defended settlement, and arriving there is what starts the fight; a route will never thread
+*through* hostile ground on its way somewhere else. The army pays the tile's march cost to make
+contact whether or not it takes the ground — closing with an enemy is itself a march.
+
 ### Framing
 - Resolved as **battle turns of 1 in-game hour, 6 per tick**.
 - v1 is **auto-resolve only**, but simulated turn by turn so the player can **open the battle
@@ -352,6 +357,29 @@ An army moving onto a tile held by a hostile army, or onto a hostile city tile, 
 - A battle involving the **player pauses the campaign** and prompts. In v1 the only option is
   *Auto Resolve*. This prompt is the seam where the Phase B tactical battle map plugs in.
 - AI-vs-AI battles resolve without pausing.
+
+A battle is a **pure function of the two stacks, the ground and the RNG**, and it runs to
+completion in one call, drawing on the campaign's own seeded stream. What it produces is a
+turn-by-turn **log**, not just a result — the viewer replays the log, so what the player watches
+is a fight that has strictly already happened. In v1, where auto-resolve is the only option,
+that distinction is invisible. Phase B replaces the resolver and moves the prompt in front of it.
+
+Only the **last three** battles are kept. They live in the save so a reload can still replay
+them, and they are trimmed because a full log is far larger than the rest of the campaign state.
+
+### Who is on the field
+
+A settlement fields up to three separate things, and they are tracked separately so survivors
+go back where they came from:
+
+| Contingent | Comes back if the settlement holds | Lost if it falls |
+|---|---|---|
+| **Defenders** | Derived from tier and buildings — reappear at full strength | — |
+| **Garrison** | Reformed survivors return behind the walls | Yes |
+| **An army on the tile** | Reformed survivors stay in the field | Destroyed |
+
+**The garrison fights.** Recruited units standing in a city that is being stormed defend it —
+**[GEN]**; the owner separated garrison from defenders but never said the garrison watches.
 
 ### Auto-resolve algorithm — owner-specified
 1. The battlefield is **50 tiles across**, and the two armies start at opposite ends of it.
@@ -364,11 +392,45 @@ An army moving onto a tile held by a hostile army, or onto a hostile city tile, 
 5. Damage is applied to the target's soldier pool; dead soldiers are **deducted from the
    unit's soldier count**.
 
+Two details the algorithm leaves open, resolved as follows — both **[GEN]**:
+
+- **Reach.** A melee formation strikes at **1 tile**; a ranged one at its stated range. A unit
+  closing on an enemy stops the moment it is in reach rather than walking into contact, so
+  archers halt at 40 tiles and shoot while the infantry keeps coming.
+- **When the charge fires.** On a formation's **first blow in melee**, once, and never again.
+  Because moving and attacking are separate actions, the side that closes spends its activation
+  on the step and takes the first blow before landing one.
+
 ### End conditions
 - **Any time:** one army is destroyed.
 - **After turn 10:** one army has **more than 3× the other's unit count** → the smaller routs.
 - **Hard cap: 48 battle turns.** At the cap the battle is a **stalemate and both armies
   withdraw** — neither side takes the ground, and the attacker gains nothing for having tried.
+
+In practice the cap is a safety net rather than a mechanic: with the current roster every
+battle resolves in **5 to 20 turns**, so nothing reaches turn 48.
+
+### After the fighting
+
+**The losing army is destroyed.** Routing ends the battle sooner and so costs fewer men, but it
+does not leave a stack on the map — retreating to an adjacent tile would be a mechanic of its
+own, and none was specified. **[GEN]**, and **[OPEN]**.
+
+**Survivors are reformed into whole units.** A campaign army is a count of units, not a soldier
+ledger, so the men who walk off the field are re-formed: every 60 surviving archers make an
+archer unit again, rounded, and a formation that lost more than half its men is struck off. A
+side that held the field always keeps at least one unit if any of its men are standing. **[GEN]**
+— the owner specified that casualties come off the soldier pool, not what becomes of the pool.
+
+**A captured settlement keeps its people and its buildings** and loses everything its old owner
+had paid for but not yet received: queued construction, recruitment, the garrison and any moored
+fleet. The free defenders need no transfer — they are derived from the tier and the buildings,
+so they are the new owner's the moment the gates open. Sacking and razing are **[OPEN]**.
+
+**A realm is extinguished** when it holds neither a settlement nor an army — a landless army in
+the field is still a campaign. Its remaining territory reverts to **no-one** rather than passing
+to the conqueror: ground is claimed by marching over it, and a realm should not inherit a
+province it has never seen.
 
 ### Damage formula — **[GEN]**, owner to approve
 ```
@@ -381,7 +443,18 @@ casualties = floor(modified / target.hpPerSoldier)
 - `matchupMod` — spear infantry `×2` vs cavalry.
 - `rangedResist` — `0.20` for spear and sword infantry against ranged attacks.
 - `defenderAdvantage` — terrain + settlement fortification + winter, from §4 above. The
-  attacker's damage is reduced by X% and the defender's raised by X%.
+  attacker's damage is reduced by X% and the defender's raised by X%. **Capped at 90%**,
+  because a Citadel Capitol on a mountain in winter otherwise reaches 110%, at which point the
+  attacker deals negative damage and heals the defenders. **[GEN]**
+
+Every step is integer arithmetic: the fractions are held as **per-mille multipliers** and
+floored at each step. A battle that resolved differently on two machines would break the one
+guarantee the whole simulation rests on.
+
+Note what the first line implies: **damage scales with the attacker's current strength**, so a
+formation that falls behind falls further behind. Combined with the defender's advantage, small
+edges compound into decisive ones — see the measured results in
+[OPEN-QUESTIONS.md](OPEN-QUESTIONS.md).
 
 ### Range
 Ranges are used **exactly as written** — Archer 40, Skirmisher 30, Cavalry Archer 30 — because

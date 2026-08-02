@@ -9,7 +9,14 @@ import { MAX_EVENTS, type EventKind, type SimState } from './types';
  */
 export function pushEvent(
   state: SimState,
-  event: { kind: EventKind; text: string; tileIndex: number; factionIndex: number },
+  event: {
+    kind: EventKind;
+    text: string;
+    tileIndex: number;
+    factionIndex: number;
+    /** Set on battle events, so a notification can be clicked through to the report. */
+    battleId?: number | undefined;
+  },
 ): void {
   state.events.push({ tick: state.tick, ...event });
   if (state.events.length > MAX_EVENTS) {

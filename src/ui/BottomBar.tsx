@@ -10,7 +10,8 @@ interface BottomBarProps {
   speed: Speed;
   autoPaused: boolean;
   onSpeedChange: (speed: Speed) => void;
-  onSelectEvent: (tileIndex: number) => void;
+  /** Takes the whole event, not just its tile: a battle notification opens the battle. */
+  onSelectEvent: (event: GameEvent) => void;
   hovered: TileInfo | null;
   zoom: number;
   onZoomIn: () => void;
@@ -51,6 +52,8 @@ const EVENT_ICON: Record<GameEvent['kind'], string> = {
   improvement: '✦',
   desertion: '⚠',
   army: '🏳',
+  battle: '⚔',
+  conquest: '⚑',
 };
 
 /** How long a completion stays on screen, in ticks — one in-game week. */
@@ -67,7 +70,7 @@ function Notifications({
   onSelect,
 }: {
   state: SimState;
-  onSelect: (tileIndex: number) => void;
+  onSelect: (event: GameEvent) => void;
 }): JSX.Element {
   const recent = state.events
     .filter(
@@ -83,10 +86,12 @@ function Notifications({
       {recent.map((event) => (
         <button
           type="button"
-          className={`notification${event.kind === 'desertion' ? ' notification--bad' : ''}`}
+          className={`notification${event.kind === 'desertion' ? ' notification--bad' : ''}${
+            event.battleId ? ' notification--battle' : ''
+          }`}
           key={`${event.tick}-${event.text}`}
-          onClick={() => onSelect(event.tileIndex)}
-          title="Show on map"
+          onClick={() => onSelect(event)}
+          title={event.battleId ? 'Watch the battle' : 'Show on map'}
         >
           <span className="notification__icon" aria-hidden="true">
             {EVENT_ICON[event.kind]}
