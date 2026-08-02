@@ -1,13 +1,4 @@
-import {
-  featureAt,
-  lonLatOfTile,
-  terrainAt,
-  TERRAINS,
-  tileIndex,
-  type Feature,
-  type Terrain,
-  type World,
-} from '../data/world';
+import { describeTile, TERRAINS, tileIndex, type TileInfo, type World } from '../data/world';
 import { Camera } from './camera';
 import {
   CITY_FILL,
@@ -23,16 +14,7 @@ import {
   shadeVariant,
 } from './palette';
 
-export interface TileInfo {
-  x: number;
-  y: number;
-  /** Flat index into the tile grid. */
-  index: number;
-  terrain: Terrain;
-  feature: Feature | undefined;
-  lat: number;
-  lon: number;
-}
+export type { TileInfo };
 
 export interface MapRendererOptions {
   onHover?: (tile: TileInfo | null) => void;
@@ -504,17 +486,7 @@ export class MapRenderer {
     const x = Math.floor(position.x);
     const y = Math.floor(position.y);
     if (x < 0 || y < 0 || x >= this.world.width || y >= this.world.height) return null;
-
-    const { lat, lon } = lonLatOfTile(this.world, x, y);
-    return {
-      x,
-      y,
-      index: tileIndex(this.world, x, y),
-      terrain: terrainAt(this.world, x, y),
-      feature: featureAt(this.world, x, y),
-      lat,
-      lon,
-    };
+    return describeTile(this.world, x, y);
   }
 
   /** Emits only when the pointer crosses into a different tile, so React re-renders stay rare. */

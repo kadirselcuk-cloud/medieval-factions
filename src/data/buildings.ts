@@ -39,6 +39,8 @@ const buildingSchema = z.object({
   housingLevel: z.number().int().nonnegative().default(0),
   /** Fortification line: defender's advantage, in tenths. 3 means +30%. */
   defenceTenths: z.number().int().nonnegative().default(0),
+  /** Naval line: gold per month for every water tile adjacent to the settlement. */
+  goldPerWaterTile: z.number().int().nonnegative().default(0),
   /** Requires the settlement to border water. */
   coastal: z.boolean().default(false),
 });
@@ -119,6 +121,8 @@ export interface BuildingSummary {
   goldPerMonth: number;
   /** Defender's advantage from fortification, in tenths. */
   defenceTenths: number;
+  /** Gold per month per adjacent water tile, from the naval line. */
+  goldPerWaterTile: number;
 }
 
 /** Roll a settlement's completed buildings up into the numbers the simulation needs. */
@@ -128,6 +132,7 @@ export function summariseBuildings(ids: readonly string[]): BuildingSummary {
     growthTenths: 0,
     goldPerMonth: 0,
     defenceTenths: 0,
+    goldPerWaterTile: 0,
   };
 
   for (const id of ids) {
@@ -137,6 +142,7 @@ export function summariseBuildings(ids: readonly string[]): BuildingSummary {
     summary.housingLevel = Math.max(summary.housingLevel, building.housingLevel);
     summary.defenceTenths = Math.max(summary.defenceTenths, building.defenceTenths);
     summary.goldPerMonth = Math.max(summary.goldPerMonth, building.goldPerMonth);
+    summary.goldPerWaterTile = Math.max(summary.goldPerWaterTile, building.goldPerWaterTile);
     summary.growthTenths += building.growthTenths;
   }
   return summary;

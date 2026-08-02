@@ -104,3 +104,8 @@ This is the single most important architectural constraint. See [MECHANICS.md](M
 | 38 | Resource nodes pay a token yield unmined; a mine multiplies it up to tenfold | 7 |
 | 39 | Terrain modifiers scale farms, mines **and** sawmills | 7 |
 | 40 | Modifier scale corrected — `-` is **−40%**, not −50%. `++` +100%, `+` +50%, `--` −80% | 7 |
+| 41 | Sawmills yield 1 wood per level, not 10 — wood is the scarcest resource | 8 |
+| 42 | **Fishery** heads the naval line at Village tier: +10 gold/month per adjacent water tile, +10 per upgrade, offsetting the coastal-city penalty | 8 |
+| 43 | "Adjacent" means all **8** surrounding tiles, and decides both fishery income and whether a settlement is coastal | 8 |
+| 44 | City panel has three tabs — Info, Buildings, Armies | 8 |
+| 45 | Top bar carries Cities / Armies / Navies rosters that select and centre the map | 8 |

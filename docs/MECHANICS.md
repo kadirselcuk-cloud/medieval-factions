@@ -157,8 +157,12 @@ whether recruiting consumes population are still **[OPEN]**.
 | Improvement | Produces | L1 | L2 | L3 | L4 |
 |---|---|---|---|---|---|
 | Farm | gold | 10 | 20 | 30 | 40 |
-| Sawmill | wood | 10 | 20 | 30 | 40 **[GEN]** |
+| Sawmill | wood | 1 | 2 | 3 | 4 |
 | Mine | see the mine table below | | | | |
+
+**Wood is deliberately scarce.** A sawmill yields single digits, and nothing else in the game
+produces wood at all, so the 100 wood a Town upgrade demands is a real campaign of forestry.
+Forest doubles it, tundra doubles it, desert floors it to nothing.
 
 Terrain then scales the result using the modifiers in §4, and the result is **floored** to stay
 integer. A level-1 farm on plains yields 20 gold/month; a level-4 farm on plains yields 80; the

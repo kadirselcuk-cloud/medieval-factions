@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { loadFactions } from '../data/factions';
 import { loadEurope1350 } from '../data/maps';
+import { adjacentWaterCount } from '../data/world';
 import { TICKS_PER_MONTH } from './calendar';
 import {
   buildOptions,
@@ -12,7 +13,7 @@ import {
   queueSettlementUpgrade,
 } from './construction';
 import { deserialise, serialise } from './save';
-import { createInitialState } from './state';
+import { createInitialState, recomputeIncome } from './state';
 import { advanceBy } from './tick';
 import { MILLI, whole, type CityState, type SimState } from './types';
 
@@ -168,6 +169,52 @@ describe('tile improvements', () => {
       ok: false,
       reason: 'max-level',
     });
+  });
+});
+
+describe('fishery', () => {
+  /** Constantinople sits on the Bosphorus, so it has water on several sides. */
+  function coastalCity() {
+    const index = world.cities.findIndex((c) => c.name === 'Constantinople');
+    const location = world.cities[index]!;
+    const city = state.cities.find((c) => c.cityIndex === index)!;
+    city.ownerIndex = FRANKS;
+    state.tileOwner[location.index] = FRANKS;
+    return { city, location };
+  }
+
+  it('is offered at Village tier, but only to a coastal settlement', () => {
+    const { city } = coastalCity();
+    expect(buildOptions(world, city).map((b) => b.id)).toContain('fishery');
+    // Paris is inland.
+    expect(buildOptions(world, paris).map((b) => b.id)).not.toContain('fishery');
+  });
+
+  it('pays per adjacent water tile', () => {
+    const { city, location } = coastalCity();
+    const water = adjacentWaterCount(world, location.x, location.y);
+    expect(water).toBeGreaterThan(0);
+
+    const faction = state.factions[FRANKS]!;
+    recomputeIncome(state, world);
+    const before = faction.monthlyIncome.gold;
+
+    city.buildings.push('fishery');
+    recomputeIncome(state, world);
+    expect(faction.monthlyIncome.gold - before).toBe(10 * water);
+  });
+
+  it('replaces rather than stacks as the naval line upgrades', () => {
+    const { city, location } = coastalCity();
+    const water = adjacentWaterCount(world, location.x, location.y);
+    const faction = state.factions[FRANKS]!;
+
+    recomputeIncome(state, world);
+    const bare = faction.monthlyIncome.gold;
+
+    city.buildings.push('fishery', 'dock');
+    recomputeIncome(state, world);
+    expect(faction.monthlyIncome.gold - bare).toBe(20 * water);
   });
 });
 

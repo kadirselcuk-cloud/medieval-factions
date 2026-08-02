@@ -17,8 +17,9 @@
       ]
     },
     "sawmill": {
+      "_comment": "Wood is deliberately scarce: 1 per level before terrain. A forest sawmill (++) doubles it.",
       "name": "Sawmill",
-      "yield": [0, 10, 20, 30, 40],
+      "yield": [0, 1, 2, 3, 4],
       "cost": [
         {},
         { "gold": 120 },

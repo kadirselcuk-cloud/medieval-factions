@@ -6,6 +6,7 @@ import type { MapRenderer, TerritoryView, TileInfo } from '../render/MapRenderer
 import { Game, type Speed } from '../sim/game';
 import { BottomBar } from './BottomBar';
 import { MapView } from './MapView';
+import { RosterMenu, type RosterKind } from './RosterMenu';
 import { SaveMenu } from './SaveMenu';
 import { SelectionPanel } from './SelectionPanel';
 import { StartScreen } from './StartScreen';
@@ -70,6 +71,7 @@ function Campaign({
   const [selected, setSelected] = useState<TileInfo | null>(null);
   const [zoom, setZoom] = useState(16);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [rosterKind, setRoster] = useState<RosterKind | null>(null);
 
   const territory = useMemo<TerritoryView>(
     () => ({ owner: state.tileOwner, colors: roster.map((f) => f.color) }),
@@ -89,6 +91,7 @@ function Campaign({
         game.setSpeed(game.speed === 0 ? 1 : 0);
       } else if (event.key === 'Escape') {
         setMenuOpen(false);
+        setRoster(null);
         setSelected(null);
       }
     };
@@ -102,6 +105,7 @@ function Campaign({
         state={state}
         playerFaction={game.playerFaction}
         onOpenMenu={() => setMenuOpen(true)}
+        onOpenRoster={setRoster}
       />
 
       <main className="stage">
@@ -116,6 +120,7 @@ function Campaign({
         />
         {selected && (
           <SelectionPanel
+            key={selected.index}
             tile={selected}
             game={game}
             state={state}
@@ -127,6 +132,19 @@ function Campaign({
       </main>
 
       {menuOpen && <SaveMenu game={game} onClose={() => setMenuOpen(false)} />}
+
+      {rosterKind && (
+        <RosterMenu
+          kind={rosterKind}
+          state={state}
+          world={world}
+          onSelect={(tile) => {
+            setSelected(tile);
+            rendererRef.current?.centerOn(tile.x, tile.y);
+          }}
+          onClose={() => setRoster(null)}
+        />
+      )}
 
       <BottomBar
         state={state}

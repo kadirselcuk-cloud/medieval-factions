@@ -3,6 +3,7 @@ import type { Faction } from '../data/factions';
 import { calendarAt, SEASON_LABEL } from '../sim/calendar';
 import { RESOURCES, whole, type SimState } from '../sim/types';
 import { num, signed } from './format';
+import { ROSTER_ICON, ROSTER_LABEL, type RosterKind } from './RosterMenu';
 
 const RESOURCE_SYMBOL: Record<string, string> = {
   gold: '◉',
@@ -22,9 +23,15 @@ interface TopBarProps {
   state: SimState;
   playerFaction: Faction;
   onOpenMenu: () => void;
+  onOpenRoster: (kind: RosterKind) => void;
 }
 
-export function TopBar({ state, playerFaction, onOpenMenu }: TopBarProps): JSX.Element {
+export function TopBar({
+  state,
+  playerFaction,
+  onOpenMenu,
+  onOpenRoster,
+}: TopBarProps): JSX.Element {
   const player = state.factions[state.playerFactionIndex];
   const date = calendarAt(state.tick);
 
@@ -56,6 +63,21 @@ export function TopBar({ state, playerFaction, onOpenMenu }: TopBarProps): JSX.E
             </span>
           );
         })}
+      </div>
+
+      <div className="bar__group" role="group" aria-label="Realm">
+        {(['cities', 'armies', 'navies'] as const).map((kind) => (
+          <button
+            key={kind}
+            type="button"
+            className="icon-button"
+            onClick={() => onOpenRoster(kind)}
+            title={ROSTER_LABEL[kind]}
+            aria-label={ROSTER_LABEL[kind]}
+          >
+            {ROSTER_ICON[kind]}
+          </button>
+        ))}
       </div>
 
       <div className="bar__group bar__group--end">

@@ -13,6 +13,33 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.5.0] — 2026-08-02
+
+**Economy tuning and the realm UI.**
+
+### Changed
+- **Sawmill output cut from 10 per level to 1.** Wood is now the scarcest resource in the
+  game, and nothing but a sawmill produces any. Terrain still applies, so a forest sawmill
+  doubles to 2 and a desert one floors to nothing.
+- Naval buildings renumbered as levels 2–4 behind the new Fishery, with durations following
+  the 12/18/24/30 rule.
+- "Coastal" now means any of the **eight** neighbours is water, matching the fishery's own
+  adjacency. It previously counted only the four orthogonal ones.
+
+### Added
+- **Fishery** — heads the naval line at Village tier, 150 gold, gold only so a coastal capital
+  can build it on turn one. Pays **+10 gold/month per adjacent water tile**, rising to +20,
+  +30 and +40 as the line upgrades. A shore settlement loses land tiles to the sea; this turns
+  that same water into its best income.
+- **Tabbed city panel** — Info, Buildings, Armies. Armies is a placeholder until 0.6.0.
+- **Realm rosters** in the top bar — Cities, Armies, Navies. Cities lists every settlement you
+  hold with its tier, population and current construction; clicking one selects it and centres
+  the map on it.
+- `describeTile()` in `src/data/world.ts` — tile description independent of the renderer, so
+  the roster can select a tile the camera has never been near.
+
+---
+
 ## [0.4.1] — 2026-08-02
 
 Fixes a blank page on GitHub Pages.

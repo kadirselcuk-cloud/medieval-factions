@@ -1,10 +1,9 @@
-import type { JSX } from 'react';
+import { useState, type JSX } from 'react';
 import { settlementUpgradeTo, summariseBuildings, type Cost } from '../data/buildings';
 import { RELIGION_LABEL, type Faction } from '../data/factions';
 import { improvementCost, improvementMonths, tileOutput } from '../data/improvements';
 import { TERRAIN_PROFILE, type ImprovementKind } from '../data/terrain';
-import { TERRAIN_LABEL, type World } from '../data/world';
-import type { TileInfo } from '../render/MapRenderer';
+import { adjacentWaterCount, TERRAIN_LABEL, type TileInfo, type World } from '../data/world';
 import {
   buildOptions,
   cancelImprovement,
@@ -29,6 +28,8 @@ interface SelectionPanelProps {
   onClose: () => void;
 }
 
+type Tab = 'info' | 'buildings' | 'armies';
+
 const IMPROVEMENT_KINDS: readonly ImprovementKind[] = ['farm', 'mine', 'sawmill'];
 const IMPROVEMENT_NAME: Record<ImprovementKind, string> = {
   farm: 'Farm',
@@ -52,36 +53,17 @@ function Row({ label, value }: { label: string; value: string }): JSX.Element {
   );
 }
 
-export function SelectionPanel({
-  tile,
-  game,
-  state,
-  world,
-  roster,
-  onClose,
-}: SelectionPanelProps): JSX.Element {
+export function SelectionPanel(props: SelectionPanelProps): JSX.Element {
+  const { tile, game, state, world, roster, onClose } = props;
+  const [tab, setTab] = useState<Tab>('info');
+
   const ownerIndex = state.tileOwner[tile.index] ?? -1;
   const owner = ownerIndex >= 0 ? roster[ownerIndex] : undefined;
   const isPlayers = ownerIndex === state.playerFactionIndex;
-  const player = state.playerFactionIndex;
 
   const cityFeature = tile.feature?.kind === 'city' ? tile.feature : undefined;
   const city = cityFeature ? state.cities.find((c) => c.tileIndex === tile.index) : undefined;
-
-  const node = tile.feature?.kind === 'resource' ? tile.feature.resource : null;
-  const kind = improvementAt(state, tile.index);
-  const level = state.improvementLevel[tile.index] ?? 0;
-  const monthsLeft = state.improvementMonths[tile.index] ?? 0;
-  const target = state.improvementTarget[tile.index] ?? 0;
-  const cap = improvementCap(state, player);
-  const profile = TERRAIN_PROFILE[tile.terrain];
-
-  const output = tileOutput({ terrain: tile.terrain, improvement: kind, level, node });
-  const outputText =
-    Object.entries(output)
-      .filter(([, amount]) => amount > 0)
-      .map(([resource, amount]) => `+${amount} ${resource}`)
-      .join(', ') || '—';
+  const tabbed = Boolean(city && isPlayers);
 
   return (
     <aside className={`panel${isPlayers ? ' panel--owned' : ''}`}>
@@ -95,82 +77,138 @@ export function SelectionPanel({
         </button>
       </header>
 
-      <div className="panel__body">
-        {owner ? (
-          <div className="panel__owner">
-            <span className="swatch" style={{ background: owner.color }} aria-hidden="true" />
-            <span>{owner.name}</span>
-            {owner.religion !== 'none' && (
-              <span className="panel__muted">· {RELIGION_LABEL[owner.religion]}</span>
-            )}
-          </div>
-        ) : (
-          <div className="panel__owner panel__muted">Unclaimed</div>
-        )}
+      {tabbed && (
+        <nav className="tabs" role="tablist">
+          {(['info', 'buildings', 'armies'] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={tab === value}
+              className={`tab${tab === value ? ' tab--active' : ''}`}
+              onClick={() => setTab(value)}
+            >
+              {value === 'info' ? 'Info' : value === 'buildings' ? 'Buildings' : 'Armies'}
+            </button>
+          ))}
+        </nav>
+      )}
 
-        <Row label="Terrain" value={TERRAIN_LABEL[tile.terrain]} />
-        <Row label="Defence" value={`+${Math.round(profile.defence * 100)}%`} />
-        {node && <Row label="Node" value={`${node[0]?.toUpperCase()}${node.slice(1)}`} />}
-        <Row label="Yields" value={`${outputText} / month`} />
+      {(!tabbed || tab === 'info') && (
+        <div className="panel__body">
+          {owner ? (
+            <div className="panel__owner">
+              <span className="swatch" style={{ background: owner.color }} aria-hidden="true" />
+              <span>{owner.name}</span>
+              {owner.religion !== 'none' && (
+                <span className="panel__muted">· {RELIGION_LABEL[owner.religion]}</span>
+              )}
+            </div>
+          ) : (
+            <div className="panel__owner panel__muted">Unclaimed</div>
+          )}
 
-        {city && <CitySummary city={city} />}
+          <TileFacts tile={tile} state={state} world={world} city={city} />
 
-        {isPlayers && profile.buildable && (
-          <ImprovementSection
-            kind={kind}
-            level={level}
-            cap={cap}
-            monthsLeft={monthsLeft}
-            target={target}
-            canPay={(cost) => canAfford(state, player, cost)}
-            onBuild={(next) =>
-              game.command((s) => queueImprovement(s, world, player, tile.x, tile.y, next))
-            }
-            onCancel={() => game.command((s) => cancelImprovement(s, tile.index))}
-          />
-        )}
-      </div>
+          {isPlayers && TERRAIN_PROFILE[tile.terrain].buildable && (
+            <ImprovementSection tile={tile} game={game} state={state} world={world} />
+          )}
+        </div>
+      )}
 
-      {city && isPlayers && (
-        <CityActions city={city} game={game} state={state} world={world} />
+      {tabbed && tab === 'buildings' && city && (
+        <div className="panel__body">
+          <CityBuildings city={city} game={game} state={state} world={world} />
+        </div>
+      )}
+
+      {tabbed && tab === 'armies' && (
+        <div className="panel__body">
+          <p className="panel__note">
+            Garrisons and recruitment arrive in 0.6.0. Nothing is stationed here yet.
+          </p>
+        </div>
       )}
     </aside>
   );
 }
 
-function CitySummary({ city }: { city: CityState }): JSX.Element {
-  const buildings = summariseBuildings(city.buildings);
+function TileFacts({
+  tile,
+  state,
+  world,
+  city,
+}: {
+  tile: TileInfo;
+  state: SimState;
+  world: World;
+  city: CityState | undefined;
+}): JSX.Element {
+  const node = tile.feature?.kind === 'resource' ? tile.feature.resource : null;
+  const kind = improvementAt(state, tile.index);
+  const level = state.improvementLevel[tile.index] ?? 0;
+  const profile = TERRAIN_PROFILE[tile.terrain];
+  const water = adjacentWaterCount(world, tile.x, tile.y);
+
+  const output = tileOutput({ terrain: tile.terrain, improvement: kind, level, node });
+  const outputText =
+    Object.entries(output)
+      .filter(([, amount]) => amount > 0)
+      .map(([resource, amount]) => `+${amount} ${resource}`)
+      .join(', ') || '—';
+
+  const buildings = city ? summariseBuildings(city.buildings) : undefined;
+
   return (
     <>
-      <Row label="Settlement" value={TIER_NAME[city.tier]} />
-      <Row label="Population" value={num(city.populationMilli / MILLI)} />
-      <Row label="Housing" value={buildings.housingLevel > 0 ? `Level ${buildings.housingLevel}` : 'None'} />
-      <Row label="Walls" value={buildings.defenceTenths > 0 ? `+${buildings.defenceTenths * 10}%` : 'None'} />
+      <Row label="Terrain" value={TERRAIN_LABEL[tile.terrain]} />
+      <Row label="Defence" value={`+${Math.round(profile.defence * 100)}%`} />
+      {node && <Row label="Node" value={`${node[0]?.toUpperCase()}${node.slice(1)}`} />}
+      <Row label="Tile yields" value={`${outputText} / month`} />
+      {water > 0 && <Row label="Adjacent water" value={`${water} tiles`} />}
+
+      {city && buildings && (
+        <>
+          <Row label="Settlement" value={TIER_NAME[city.tier]} />
+          <Row label="Population" value={num(city.populationMilli / MILLI)} />
+          <Row
+            label="Housing"
+            value={buildings.housingLevel > 0 ? `Level ${buildings.housingLevel}` : 'None'}
+          />
+          <Row
+            label="Walls"
+            value={buildings.defenceTenths > 0 ? `+${buildings.defenceTenths * 10}%` : 'None'}
+          />
+          {buildings.goldPerWaterTile > 0 && (
+            <Row
+              label="Fishing"
+              value={`+${num(buildings.goldPerWaterTile * water)} gold / month`}
+            />
+          )}
+        </>
+      )}
     </>
   );
 }
 
-interface ImprovementSectionProps {
-  kind: ImprovementKind | null;
-  level: number;
-  cap: number;
-  monthsLeft: number;
-  target: number;
-  canPay: (cost: Cost) => boolean;
-  onBuild: (kind: ImprovementKind) => void;
-  onCancel: () => void;
-}
-
 function ImprovementSection({
-  kind,
-  level,
-  cap,
-  monthsLeft,
-  target,
-  canPay,
-  onBuild,
-  onCancel,
-}: ImprovementSectionProps): JSX.Element {
+  tile,
+  game,
+  state,
+  world,
+}: {
+  tile: TileInfo;
+  game: Game;
+  state: SimState;
+  world: World;
+}): JSX.Element {
+  const player = state.playerFactionIndex;
+  const kind = improvementAt(state, tile.index);
+  const level = state.improvementLevel[tile.index] ?? 0;
+  const monthsLeft = state.improvementMonths[tile.index] ?? 0;
+  const target = state.improvementTarget[tile.index] ?? 0;
+  const cap = improvementCap(state, player);
+
   if (monthsLeft > 0) {
     return (
       <div className="panel__section">
@@ -181,7 +219,11 @@ function ImprovementSection({
           </span>
           <span className="panel__muted">{monthsLeft} mo</span>
         </div>
-        <button type="button" className="action action--minor" onClick={onCancel}>
+        <button
+          type="button"
+          className="action action--minor"
+          onClick={() => game.command((s) => cancelImprovement(s, tile.index))}
+        >
           Cancel · full refund
         </button>
       </div>
@@ -191,7 +233,6 @@ function ImprovementSection({
   // A tile holds one improvement, so once something is built only that line can continue.
   const choices = kind === null ? IMPROVEMENT_KINDS : [kind];
   const nextLevel = level + 1;
-  const blocked = nextLevel > cap;
 
   return (
     <div className="panel__section">
@@ -205,22 +246,24 @@ function ImprovementSection({
         )}
       </div>
 
-      {blocked ? (
+      {nextLevel > cap ? (
         <p className="panel__note">
-          Level {nextLevel} needs a tier-{nextLevel} settlement somewhere in your realm.
-          Your best is tier {cap}.
+          Level {nextLevel} needs a tier-{nextLevel} settlement somewhere in your realm. Your
+          best is tier {cap}.
         </p>
       ) : (
         choices.map((choice) => {
           const cost = improvementCost(choice, nextLevel);
-          const affordable = canPay(cost);
+          const affordable = canAfford(state, player, cost);
           return (
             <button
               key={choice}
               type="button"
               className="action"
               disabled={!affordable}
-              onClick={() => onBuild(choice)}
+              onClick={() =>
+                game.command((s) => queueImprovement(s, world, player, tile.x, tile.y, choice))
+              }
               title={affordable ? undefined : 'Not enough resources'}
             >
               <span>
@@ -238,7 +281,7 @@ function ImprovementSection({
   );
 }
 
-function CityActions({
+function CityBuildings({
   city,
   game,
   state,
@@ -254,15 +297,15 @@ function CityActions({
   const upgradeQueued = city.queue.some((order) => order.kind === 'settlement');
 
   return (
-    <footer className="panel__actions">
+    <>
       {city.queue.length > 0 && (
-        <div className="panel__section">
+        <div className="panel__section panel__section--first">
           <div className="panel__heading">Under construction</div>
           {city.queue.map((order, position) => (
             <div className="progress" key={`${order.kind}-${position}`}>
               <span>
                 {order.kind === 'building'
-                  ? (options.find((b) => b.id === order.id)?.name ?? order.id)
+                  ? (options.find((b) => b.id === order.id)?.name ?? labelOf(order.id))
                   : `Upgrade to ${TIER_NAME[order.targetTier]}`}
                 {position > 0 && <span className="panel__muted"> · waiting</span>}
               </span>
@@ -281,20 +324,22 @@ function CityActions({
       )}
 
       {upgrade && !upgradeQueued && (
-        <button
-          type="button"
-          className="action action--primary"
-          disabled={!canAfford(state, city.ownerIndex, upgrade.cost)}
-          onClick={() => game.command((s) => queueSettlementUpgrade(s, city))}
-        >
-          <span>Upgrade to {upgrade.name}</span>
-          <span className="action__cost">
-            {costText(upgrade.cost)} · {upgrade.months} mo
-          </span>
-        </button>
+        <div className="panel__section panel__section--first">
+          <button
+            type="button"
+            className="action action--primary"
+            disabled={!canAfford(state, city.ownerIndex, upgrade.cost)}
+            onClick={() => game.command((s) => queueSettlementUpgrade(s, city))}
+          >
+            <span>Upgrade to {upgrade.name}</span>
+            <span className="action__cost">
+              {costText(upgrade.cost)} · {upgrade.months} mo
+            </span>
+          </button>
+        </div>
       )}
 
-      {options.length > 0 && (
+      {options.length > 0 ? (
         <div className="panel__section">
           <div className="panel__heading">Build</div>
           {options.map((building) => (
@@ -312,14 +357,28 @@ function CityActions({
             </button>
           ))}
         </div>
+      ) : (
+        <p className="panel__note">Nothing further can be built at this settlement tier.</p>
       )}
 
       {city.buildings.length > 0 && (
-        <p className="panel__note">
-          Built: {city.buildings.map((id) => id.replace(/_/g, ' ')).join(', ')}
-        </p>
+        <div className="panel__section">
+          <div className="panel__heading">Standing</div>
+          {city.buildings.map((id) => (
+            <div className="progress" key={id}>
+              <span>{labelOf(id)}</span>
+            </div>
+          ))}
+        </div>
       )}
-      <p className="panel__note">Treasury {num(whole(state.factions[city.ownerIndex]?.stock.gold ?? 0))} gold</p>
-    </footer>
+
+      <p className="panel__note">
+        Treasury {num(whole(state.factions[city.ownerIndex]?.stock.gold ?? 0))} gold
+      </p>
+    </>
   );
+}
+
+function labelOf(id: string): string {
+  return id.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }

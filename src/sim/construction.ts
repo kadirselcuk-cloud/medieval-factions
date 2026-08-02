@@ -8,7 +8,7 @@ import {
 import { improvementCost, improvementMonths, MAX_IMPROVEMENT_LEVEL } from '../data/improvements';
 import type { ImprovementKind } from '../data/terrain';
 import { TERRAIN_PROFILE } from '../data/terrain';
-import { terrainAt, tileIndex, type World } from '../data/world';
+import { adjacentWaterCount, terrainAt, tileIndex, type World } from '../data/world';
 import {
   IMPROVEMENT_KINDS,
   MILLI,
@@ -67,17 +67,9 @@ function refund(state: SimState, factionIndex: number, cost: Cost): void {
 
 // ------------------------------------------------------------------ buildings
 
+/** Coastal means any of the eight neighbours is water — the same adjacency the fishery pays on. */
 export function isCoastal(world: World, x: number, y: number): boolean {
-  const neighbours = [
-    [x, y - 1],
-    [x + 1, y],
-    [x, y + 1],
-    [x - 1, y],
-  ] as const;
-  return neighbours.some(([nx, ny]) => {
-    if (nx < 0 || ny < 0 || nx >= world.width || ny >= world.height) return false;
-    return terrainAt(world, nx, ny) === 'water';
-  });
+  return adjacentWaterCount(world, x, y) > 0;
 }
 
 export function buildOptions(world: World, city: CityState): readonly Building[] {

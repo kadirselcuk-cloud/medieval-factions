@@ -101,6 +101,62 @@ export function featureAt(world: World, x: number, y: number): Feature | undefin
   return world.features[tileIndex(world, x, y)];
 }
 
+/** All eight neighbours. "Around the tile" means this everywhere in the game. */
+export const ADJACENT_8: readonly (readonly [number, number])[] = [
+  [-1, -1],
+  [0, -1],
+  [1, -1],
+  [-1, 0],
+  [1, 0],
+  [-1, 1],
+  [0, 1],
+  [1, 1],
+];
+
+/** The four orthogonal neighbours — used for starting territory, not for adjacency. */
+export const ADJACENT_4: readonly (readonly [number, number])[] = [
+  [0, -1],
+  [1, 0],
+  [0, 1],
+  [-1, 0],
+];
+
+export function adjacentWaterCount(world: World, x: number, y: number): number {
+  let count = 0;
+  for (const [dx, dy] of ADJACENT_8) {
+    const nx = x + dx;
+    const ny = y + dy;
+    if (!inBounds(world, nx, ny)) continue;
+    if (terrainAt(world, nx, ny) === 'water') count += 1;
+  }
+  return count;
+}
+
+export interface TileInfo {
+  x: number;
+  y: number;
+  /** Flat index into the tile grid. */
+  index: number;
+  terrain: Terrain;
+  feature: Feature | undefined;
+  lat: number;
+  lon: number;
+}
+
+/** Everything the UI needs to describe a tile, independent of any renderer or viewport. */
+export function describeTile(world: World, x: number, y: number): TileInfo {
+  const { lat, lon } = lonLatOfTile(world, x, y);
+  return {
+    x,
+    y,
+    index: tileIndex(world, x, y),
+    terrain: terrainAt(world, x, y),
+    feature: featureAt(world, x, y),
+    lat,
+    lon,
+  };
+}
+
 /** Geographic centre of a tile, derived from the map's bounding box. */
 export function lonLatOfTile(world: World, x: number, y: number): { lon: number; lat: number } {
   const { lon_min, lon_max, lat_min, lat_max } = world.bounds;

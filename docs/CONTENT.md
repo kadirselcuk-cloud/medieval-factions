@@ -95,9 +95,16 @@ All costs and durations below are **[GEN]** proposals.
 | Axe Quarters | military | Town | 400g, 40 wood, 30 iron | 12 | unlocks Shock Infantry |
 | Barracks | military | Town | 500g, 60 wood, 40 iron | 12 | unlocks Sword Infantry |
 | Stables | military | Town | 600g, 80 wood, 30 iron | 12 | unlocks Light Cavalry |
-| Dock | naval | Town | 400g, 80 wood | 12 | Transport, Light Ship |
-| Port | naval | City | 1,000g, 150 wood, 80 stone | 18 | Heavy Ship |
-| Shipyard | naval | Capitol | 2,500g, 300 wood, 200 stone | 24 | Flagship |
+| Fishery | naval | Village | 150g | 12 | +10 gold/month **per adjacent water tile** |
+| Dock | naval | Town | 400g, 80 wood | 18 | +20 per water tile; Transport, Light Ship |
+| Port | naval | City | 1,000g, 150 wood, 80 stone | 24 | +30 per water tile; Heavy Ship |
+| Shipyard | naval | Capitol | 2,500g, 300 wood, 200 stone | 30 | +40 per water tile; Flagship |
+
+**The naval line is what makes a coastal settlement worth having.** A shore city loses land
+tiles to the sea and cannot farm them; the fishery turns that same water into its best income.
+"Adjacent" means all **eight** surrounding tiles, and the same test decides whether a
+settlement counts as coastal at all. Being a chain, the line replaces rather than stacks — a
+Port pays 30 per tile, not 10 + 20 + 30. **[GEN]**
 
 ### Improvement costs — **[GEN]**
 

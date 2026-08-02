@@ -209,33 +209,47 @@
     },
 
     {
+      "id": "fishery",
+      "name": "Fishery",
+      "line": "naval",
+      "level": 1,
+      "minTier": 1,
+      "months": 12,
+      "cost": { "gold": 150 },
+      "goldPerWaterTile": 10,
+      "coastal": true
+    },
+    {
       "id": "dock",
       "name": "Dock",
       "line": "naval",
-      "level": 1,
+      "level": 2,
       "minTier": 2,
-      "months": 12,
+      "months": 18,
       "cost": { "gold": 400, "wood": 80 },
+      "goldPerWaterTile": 20,
       "coastal": true
     },
     {
       "id": "port",
       "name": "Port",
       "line": "naval",
-      "level": 2,
+      "level": 3,
       "minTier": 3,
-      "months": 18,
+      "months": 24,
       "cost": { "gold": 1000, "wood": 150, "stone": 80 },
+      "goldPerWaterTile": 30,
       "coastal": true
     },
     {
       "id": "shipyard",
       "name": "Shipyard",
       "line": "naval",
-      "level": 3,
+      "level": 4,
       "minTier": 4,
-      "months": 24,
+      "months": 30,
       "cost": { "gold": 2500, "wood": 300, "stone": 200 },
+      "goldPerWaterTile": 40,
       "coastal": true
     }
   ]

@@ -48,6 +48,16 @@ describe('tileOutput', () => {
     expect(tileOutput({ terrain: 'desert', improvement: 'farm', level: 1, node: null }).gold).toBe(2);
   });
 
+  // Wood is the scarcest resource: a Town upgrade needs 100 of it and nothing else makes any.
+  it('keeps sawmill output deliberately small', () => {
+    expect(tileOutput({ terrain: 'plains', improvement: 'sawmill', level: 1, node: null }).wood).toBe(1);
+    expect(tileOutput({ terrain: 'forest', improvement: 'sawmill', level: 1, node: null }).wood).toBe(2);
+    expect(tileOutput({ terrain: 'forest', improvement: 'sawmill', level: 4, node: null }).wood).toBe(8);
+    expect(tileOutput({ terrain: 'tundra', improvement: 'sawmill', level: 2, node: null }).wood).toBe(4);
+    // Desert at -80% floors to nothing at all.
+    expect(tileOutput({ terrain: 'desert', improvement: 'sawmill', level: 1, node: null }).wood).toBe(0);
+  });
+
   it('gives a mine on an ordinary tile both metals', () => {
     const output = tileOutput({ terrain: 'mountain', improvement: 'mine', level: 2, node: null });
     expect(output.iron).toBe(4);

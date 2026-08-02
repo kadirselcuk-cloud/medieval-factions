@@ -1,7 +1,13 @@
 import { summariseBuildings } from '../data/buildings';
 import type { Faction } from '../data/factions';
 import { tileOutput } from '../data/improvements';
-import { featureAt, terrainAt, tileIndex, type World } from '../data/world';
+import {
+  adjacentWaterCount,
+  featureAt,
+  terrainAt,
+  tileIndex,
+  type World,
+} from '../data/world';
 import { improvementAt } from './construction';
 import {
   emptyLedger,
@@ -128,12 +134,22 @@ export function recomputeIncome(state: SimState, world: World): void {
     faction.monthlyIncome = emptyLedger();
   }
 
-  // Settlements: 100 people yield 1 gold per month, plus commerce (docs/MECHANICS.md §5).
+  // Settlements: 100 people yield 1 gold per month, plus commerce and fishing.
   for (const city of state.cities) {
     const faction = state.factions[city.ownerIndex];
     if (!faction) continue;
+    const location = world.cities[city.cityIndex];
+    const buildings = summariseBuildings(city.buildings);
+
     faction.monthlyIncome.gold += Math.floor(city.populationMilli / MILLI / 100);
-    faction.monthlyIncome.gold += summariseBuildings(city.buildings).goldPerMonth;
+    faction.monthlyIncome.gold += buildings.goldPerMonth;
+
+    // The naval line pays per adjacent water tile, which is what makes a coastal settlement
+    // worth having: the sea it cannot farm becomes the thing it earns from.
+    if (buildings.goldPerWaterTile > 0 && location) {
+      faction.monthlyIncome.gold +=
+        buildings.goldPerWaterTile * adjacentWaterCount(world, location.x, location.y);
+    }
   }
 
   // Every owned tile: its improvement, or the token yield of an unimproved resource node.
