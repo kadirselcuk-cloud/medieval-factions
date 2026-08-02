@@ -227,6 +227,41 @@ describe('movement', () => {
     expect(MARCH_PER_TILE / (4 * SEASON_MOVEMENT.winter)).toBe(50);
   });
 
+  // March appends rather than replaces, so a route can be laid out one click at a time. Halt
+  // is the only way to throw one away — that pairing is the whole design.
+  it('continues a march from the end of the route already ordered', () => {
+    const army = raise({ light_infantry: 1 });
+    const city = world.cities.find((c) => c.name === 'Paris')!;
+    const first = tileIndex(world, city.x + 1, city.y);
+    const second = tileIndex(world, city.x + 2, city.y);
+
+    expect(orderMove(state, world, army.id, first)).toEqual({ ok: true, tiles: 1 });
+    expect(orderMove(state, world, army.id, second)).toEqual({ ok: true, tiles: 2 });
+    expect(army.path).toEqual([first, second]);
+  });
+
+  it('walks a queued route to its far end', () => {
+    const army = raise({ light_infantry: 1 });
+    const city = world.cities.find((c) => c.name === 'Paris')!;
+    orderMove(state, world, army.id, tileIndex(world, city.x + 1, city.y));
+    orderMove(state, world, army.id, tileIndex(world, city.x + 2, city.y));
+
+    advanceBy(state, world, TICKS_PER_MONTH);
+    expect(army.tileIndex).toBe(tileIndex(world, city.x + 2, city.y));
+    expect(army.path).toEqual([]);
+  });
+
+  it('clears every queued leg on halt, not just the current one', () => {
+    const army = raise({ light_infantry: 1 });
+    const city = world.cities.find((c) => c.name === 'Paris')!;
+    orderMove(state, world, army.id, tileIndex(world, city.x + 1, city.y));
+    orderMove(state, world, army.id, tileIndex(world, city.x + 2, city.y));
+    expect(army.path).toHaveLength(2);
+
+    halt(state, army.id);
+    expect(army.path).toEqual([]);
+  });
+
   it('halts on command, discarding banked progress', () => {
     const army = raise({ light_infantry: 1 });
     orderMove(state, world, army.id, nearParis());

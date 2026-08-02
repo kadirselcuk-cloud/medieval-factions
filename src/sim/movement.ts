@@ -102,8 +102,11 @@ export function findPath(
   world: World,
   army: ArmyState,
   destination: number,
+  /** Where to start from. Defaults to where the army stands; a queued leg starts from the
+   *  end of the leg before it. */
+  from: number = army.tileIndex,
 ): number[] | null {
-  if (destination === army.tileIndex) return [];
+  if (destination === from) return [];
   if (blockedBy(state, world, army, destination, true) !== null) return null;
 
   const size = world.width * world.height;
@@ -118,12 +121,12 @@ export function findPath(
     MARCH_PER_TILE;
 
   const open = new Heap();
-  best[army.tileIndex] = 0;
-  open.push(army.tileIndex, heuristic(army.tileIndex));
+  best[from] = 0;
+  open.push(from, heuristic(from));
 
   while (open.size > 0) {
     const current = open.pop();
-    if (current === destination) return reconstruct(cameFrom, army.tileIndex, destination);
+    if (current === destination) return reconstruct(cameFrom, from, destination);
     if (closed[current]) continue;
     closed[current] = 1;
 
@@ -216,7 +219,14 @@ class Heap {
 
 export type MoveResult = { ok: true; tiles: number } | { ok: false; reason: 'no-such-army' | 'no-route' };
 
-/** Order an army to march. Replaces any order it already had. */
+/**
+ * Order an army to march, **continuing from wherever it is already headed**.
+ *
+ * A second order does not throw away the first: the new leg is routed from the end of the
+ * existing route and appended, so a player can lay out a journey with several clicks and have
+ * the army walk the whole of it. `halt` is the way to throw a route away — that pairing is why
+ * this appends rather than replaces.
+ */
 export function orderMove(
   state: SimState,
   world: World,
@@ -226,16 +236,22 @@ export function orderMove(
   const army = armyById(state, armyId);
   if (!army) return { ok: false, reason: 'no-such-army' };
 
-  const path = findPath(state, world, army, destination);
-  if (path === null) return { ok: false, reason: 'no-route' };
+  const from = army.path[army.path.length - 1] ?? army.tileIndex;
+  const leg = findPath(state, world, army, destination, from);
+  if (leg === null) return { ok: false, reason: 'no-route' };
 
-  army.path = path;
-  // Banked progress is discarded on a new order, so an army cannot sit still storing momentum
-  // and then teleport a tile the moment it is pointed somewhere.
-  army.march = 0;
-  return { ok: true, tiles: path.length };
+  if (army.path.length === 0) {
+    // Starting from a standstill. Banked progress is discarded so an army cannot sit still
+    // storing momentum and then jump a tile the moment it is pointed somewhere.
+    army.march = 0;
+    army.path = leg;
+  } else {
+    army.path = [...army.path, ...leg];
+  }
+  return { ok: true, tiles: army.path.length };
 }
 
+/** Cancel an army's whole route, queued legs and all. */
 export function halt(state: SimState, armyId: number): void {
   const army = armyById(state, armyId);
   if (!army) return;

@@ -49,9 +49,11 @@ export interface ArmyMarker {
 export interface ArmyView {
   markers: readonly ArmyMarker[];
   colors: readonly string[];
-  /** The army whose route is drawn, if any. */
+  /** Whose routes are drawn. Another realm's marching orders are not the player's business. */
+  playerIndex: number;
+  /** The army drawn as selected, if any. Its route is drawn brighter than the rest. */
   selectedId: number | null;
-  /** The army waiting for a destination click, if any — its route preview follows the cursor. */
+  /** The army waiting for a destination click, if any. */
   marchingId: number | null;
 }
 
@@ -91,6 +93,8 @@ export class MapRenderer {
 
   private territory: TerritoryView | null = null;
   private armies: ArmyView | null = null;
+  /** True while any of the player's armies has a route to draw — see `frame`. */
+  private marching = false;
   private selectedIndex: number | null = null;
   private pressOrigin: { x: number; y: number } | null = null;
   private pressMoved = false;
@@ -149,6 +153,11 @@ export class MapRenderer {
   /** Field armies. Rebuilt each time the simulation changes, so it is replaced wholesale. */
   setArmies(armies: ArmyView | null): void {
     this.armies = armies;
+    this.marching = Boolean(
+      armies?.markers.some(
+        (marker) => marker.ownerIndex === armies.playerIndex && marker.path.length > 0,
+      ),
+    );
     this.dirty = true;
   }
 
@@ -191,9 +200,15 @@ export class MapRenderer {
     this.invalidate();
   }
 
+  /**
+   * Frames are only produced when something changed — except while an army is marching, when
+   * the route's dashes crawl and every frame is a different picture. The whole map redraws in
+   * well under a millisecond, so animating costs nothing worth optimising, but a map that
+   * repaints continuously while nothing moves would cost a phone its battery.
+   */
   private readonly frame = (): void => {
     if (this.disposed) return;
-    if (this.dirty) {
+    if (this.dirty || this.marching) {
       this.dirty = false;
       this.draw();
     }
@@ -250,32 +265,40 @@ export class MapRenderer {
         viewH,
       );
 
-    // The route first, so the marker sits on top of its own line.
-    const routed = armies.markers.find(
-      (marker) => marker.id === (armies.marchingId ?? armies.selectedId),
-    );
-    if (routed && routed.path.length > 0) {
-      const start = centre(routed.tileIndex);
+    // Routes first, so a marker always sits on top of its own line. Every marching army of the
+    // player's is drawn, not only the selected one — an order given is an order you can see.
+    const dash = Math.max(3, zoom * 0.3);
+    const gap = Math.max(3, zoom * 0.22);
+    // Dashes crawl towards the destination at a steady rate, independent of game speed: this
+    // says "under orders", not "moving this fast".
+    const crawl = ((performance.now() / 45) % (dash + gap)) * -1;
+
+    for (const marker of armies.markers) {
+      if (marker.ownerIndex !== armies.playerIndex || marker.path.length === 0) continue;
+      const highlighted = marker.id === armies.selectedId || marker.id === armies.marchingId;
+
       ctx.save();
-      ctx.setLineDash([Math.max(3, zoom * 0.3), Math.max(3, zoom * 0.22)]);
-      ctx.lineWidth = Math.max(1.5, zoom * 0.09);
-      ctx.strokeStyle = '#ffe9a8';
+      ctx.setLineDash([dash, gap]);
+      ctx.lineDashOffset = crawl;
+      ctx.lineWidth = highlighted ? Math.max(2, zoom * 0.11) : Math.max(1.2, zoom * 0.07);
+      ctx.strokeStyle = highlighted ? '#ffe9a8' : 'rgba(255, 233, 168, 0.55)';
       ctx.beginPath();
+      const start = centre(marker.tileIndex);
       ctx.moveTo(start.x, start.y);
-      for (const step of routed.path) {
+      for (const step of marker.path) {
         const p = centre(step);
         ctx.lineTo(p.x, p.y);
       }
       ctx.stroke();
       ctx.restore();
 
-      const last = routed.path[routed.path.length - 1];
+      const last = marker.path[marker.path.length - 1];
       if (last !== undefined) {
         const p = centre(last);
         const r = Math.max(3, zoom * 0.2);
         ctx.beginPath();
         ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-        ctx.strokeStyle = '#ffe9a8';
+        ctx.strokeStyle = highlighted ? '#ffe9a8' : 'rgba(255, 233, 168, 0.55)';
         ctx.lineWidth = Math.max(1.5, zoom * 0.08);
         ctx.stroke();
       }

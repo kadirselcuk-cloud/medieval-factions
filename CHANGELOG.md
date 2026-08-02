@@ -13,6 +13,29 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.7.1] — 2026-08-02
+
+**Orders you can see.** Follow-up to 0.7.0 from the owner's first play.
+
+### Changed
+
+- **Every marching army shows its route**, not only the selected one. The selected army's line
+  is drawn brighter; the rest are dimmed but visible. Only the player's own orders are drawn.
+- **Route lines animate** — the dashes crawl towards the destination. Deliberately at a fixed
+  rate rather than one tied to game speed: the line says "under orders", not "moving this
+  fast". The map only animates while something is actually marching.
+- **March continues from the last destination.** A second march order routes from the end of
+  the route already given and appends to it, so a journey can be laid out in several clicks.
+- **Halt cancels the whole route**, queued legs and all. It is now the only way to throw a
+  route away, which is what makes append the right default for March.
+- **Recruit moved from the Buildings tab to the Armies tab**, beside the garrison it feeds.
+- The Armies tab now shows **In training**: every unit in the recruitment queue, with a meter,
+  a months-remaining count, and a cancel button with a full refund.
+- **Progress meters creep instead of stepping.** Construction only ticks over on a month
+  boundary, so every bar used to sit still for 120 ticks and then jump. Bars now add the
+  current month's own progress to whatever is being worked on. Queued items behind it stay
+  still, because nothing is happening to them.
+
 ## [0.7.0] — 2026-08-02
 
 **Armies.** Units stop being inventory and start being a map presence.

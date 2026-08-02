@@ -118,3 +118,7 @@ This is the single most important architectural constraint. See [MECHANICS.md](M
 | 52 | Defender composition: Village 1 light inf; Town +1 sword; City +1 archer; Capitol 1 each of light/spear/sword/archer/light cav. Barracks, Archery Range, Stables and Town Hall each add one | 10 |
 | 53 | A **garrison** is what the faction recruited, and is the only thing an army musters from. Standing down returns units to it intact; disbanding in the field loses them | 10 |
 | 54 | Armies move **orthogonally**, and two friendly armies meeting on a tile merge | 10 |
+| 55 | A march order **appends** to the route already given; **Halt** clears the whole route | 10 |
+| 56 | Every marching army of the player's shows its route, selected or not, with crawling dashes | 10 |
+| 57 | Recruitment lives in the **Armies** tab, beside the garrison it feeds, not in Buildings | 10 |
+| 58 | Progress meters creep with the month rather than stepping at the month boundary | 10 |

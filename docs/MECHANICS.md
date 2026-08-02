@@ -52,6 +52,9 @@ Conquer every other faction. All factions permanently hostile; no diplomacy in v
 - A march is **banked in integer march points**: one tile of open ground costs
   `120 × 100` points and an army banks `speed × 100` a tick, so the stated speed in tiles per
   month is exactly what a player gets, at any game speed.
+- A march order **appends to the route already given**, routing the new leg from the end of the
+  last one, so a journey can be laid out in several clicks. **Halt** cancels the whole route,
+  queued legs and all — it is the only way to throw a route away.
 
 ### Garrison, defenders and the field
 

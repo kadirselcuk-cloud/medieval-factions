@@ -96,6 +96,7 @@ function Campaign({
         path: army.path,
       })),
       colors: roster.map((f) => f.color),
+      playerIndex: state.playerFactionIndex,
       selectedId: selectedArmyId,
       marchingId,
     }),
@@ -168,7 +169,8 @@ function Campaign({
         />
         {marchingId !== null && (
           <div className="march-hint">
-            Click a tile to march to. <button onClick={() => setMarching(null)}>Cancel</button>
+            Click a tile to march to — it continues from where the army is already headed.
+            <button onClick={() => setMarching(null)}>Cancel</button>
           </div>
         )}
         {selected && (

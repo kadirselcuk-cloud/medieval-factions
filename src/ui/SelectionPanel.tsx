@@ -27,6 +27,7 @@ import {
   buildOptions,
   cancelImprovement,
   cancelOrder,
+  cancelProduction,
   canAfford,
   improvementAt,
   improvementCap,
@@ -188,7 +189,7 @@ export function SelectionPanel(props: SelectionPanelProps): JSX.Element {
           {playersArmy && (
             <ArmyCard army={playersArmy} game={game} state={state} world={world} onMarch={onMarch} />
           )}
-          <Garrison city={city} game={game} world={world} />
+          <Garrison city={city} game={game} state={state} world={world} />
         </div>
       )}
     </aside>
@@ -262,19 +263,31 @@ function growthText(state: SimState, city: CityState): string {
 
 interface ProgressItem {
   label: string;
+  /** Months completed. Fractional for whatever is actually being worked on. */
   done: number;
   total: number;
 }
 
+/**
+ * How far through the current month the campaign is, 0..1.
+ *
+ * Construction only ever ticks over on a month boundary, so a bar driven by `monthsRemaining`
+ * alone sits still for 120 ticks and then jumps. Adding the month's own progress to the head
+ * of a queue makes the bar creep the way the clock does, without the simulation having to
+ * store anything finer than whole months.
+ */
+function monthFraction(state: SimState): number {
+  return calendarAt(state.tick).monthProgress;
+}
+
 function Meter({ item, waiting }: { item: ProgressItem; waiting: boolean }): JSX.Element {
-  const percent = item.total > 0 ? (item.done / item.total) * 100 : 0;
+  const percent = item.total > 0 ? Math.min(100, (item.done / item.total) * 100) : 0;
+  const left = Math.max(1, Math.ceil(item.total - item.done));
   return (
     <div className="bar-item">
       <div className="bar-item__top">
         <span className="bar-item__label">{item.label}</span>
-        <span className="panel__muted">
-          {waiting ? 'waiting' : `${item.total - item.done} mo`}
-        </span>
+        <span className="panel__muted">{waiting ? 'waiting' : `${left} mo`}</span>
       </div>
       <div className="meter">
         <div
@@ -284,6 +297,13 @@ function Meter({ item, waiting }: { item: ProgressItem; waiting: boolean }): JSX
       </div>
     </div>
   );
+}
+
+/** Only the head of a queue is being worked on, so only the head creeps within the month. */
+function creeping(items: ProgressItem[], fraction: number): ProgressItem[] {
+  const head = items[0];
+  if (!head) return items;
+  return [{ ...head, done: Math.min(head.total, head.done + fraction) }, ...items.slice(1)];
 }
 
 /**
@@ -304,6 +324,7 @@ function ProgressLines({
   state: SimState;
 }): JSX.Element | null {
   const lines: { heading: string; items: ProgressItem[] }[] = [];
+  const fraction = monthFraction(state);
 
   if (city) {
     lines.push(
@@ -354,7 +375,9 @@ function ProgressLines({
     });
   }
 
-  const visible = lines.filter((line) => line.items.length > 0);
+  const visible = lines
+    .filter((line) => line.items.length > 0)
+    .map((line) => ({ ...line, items: creeping(line.items, fraction) }));
   if (visible.length === 0) return null;
 
   return (
@@ -381,15 +404,27 @@ function ProgressLines({
 function Garrison({
   city,
   game,
+  state,
   world,
 }: {
   city: CityState;
   game: Game;
+  state: SimState;
   world: World;
 }): JSX.Element {
   const defenders = Object.entries(defenceOf(city)).filter(([, count]) => count > 0);
   const units = Object.entries(city.garrison).filter(([, count]) => count > 0);
   const ships = Object.entries(city.fleet).filter(([, count]) => count > 0);
+  const recruitable = recruitableUnits(city.tier, city.buildings);
+
+  const training = creeping(
+    city.recruitQueue.map((order) => ({
+      label: unitById(order.id)?.name ?? order.id,
+      done: (unitById(order.id)?.months ?? 0) - order.monthsRemaining,
+      total: unitById(order.id)?.months ?? 0,
+    })),
+    monthFraction(state),
+  );
 
   const muster = (picks: Record<string, number>) => {
     game.command((s) => mobilise(s, world, city, picks));
@@ -415,8 +450,8 @@ function Garrison({
         <div className="panel__heading">Garrison</div>
         {units.length === 0 ? (
           <p className="panel__note">
-            Nothing recruited here yet. Units trained in the Buildings tab muster into this
-            garrison, and an army is raised from it.
+            Nothing recruited here yet. Finished units muster into this garrison, and an army is
+            raised from it.
           </p>
         ) : (
           <>
@@ -447,6 +482,51 @@ function Garrison({
           </>
         )}
       </div>
+
+      {training.length > 0 && (
+        <div className="panel__section">
+          <div className="panel__heading">
+            In training
+            <span className="panel__muted"> · {training.length} queued</span>
+          </div>
+          {training.map((item, position) => (
+            <div className="training-row" key={`${item.label}-${position}`}>
+              <Meter item={item} waiting={position > 0} />
+              <button
+                type="button"
+                className="panel__close"
+                title="Cancel, full refund"
+                onClick={() => game.command((s) => cancelProduction(s, city, 'recruit', position))}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+          <p className="panel__note">
+            Only the first is being worked on. The rest start when it finishes.
+          </p>
+        </div>
+      )}
+
+      {recruitable.length > 0 && (
+        <div className="panel__section">
+          <div className="panel__heading">Recruit</div>
+          {recruitable.map((unit) => (
+            <button
+              key={unit.id}
+              type="button"
+              className="action"
+              disabled={!canAfford(state, city.ownerIndex, unit.cost)}
+              onClick={() => game.command((s) => queueUnit(s, city, unit.id))}
+            >
+              <span>{unit.name}</span>
+              <span className="action__cost">
+                {costText(unit.cost)} · {unit.months} mo · {unit.upkeep}g/mo
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {ships.length > 0 && (
         <div className="panel__section">
@@ -528,6 +608,7 @@ function ArmyCard({
             type="button"
             className="action"
             onClick={() => game.command((s) => halt(s, army.id))}
+            title="Cancel the whole route, queued legs and all"
           >
             Halt
           </button>
@@ -586,7 +667,7 @@ function ImprovementSection({
         <Meter
           item={{
             label: `${kind ? IMPROVEMENT_NAME[kind] : 'Work'} → level ${target}`,
-            done: total - monthsLeft,
+            done: Math.min(total, total - monthsLeft + monthFraction(state)),
             total,
           }}
           waiting={false}
@@ -667,7 +748,6 @@ function CityBuildings({
   const options = buildOptions(world, city);
   const upgrade = settlementUpgradeTo(city.tier + 1);
   const upgradeQueued = city.queue.some((order) => order.kind === 'settlement');
-  const recruitable = recruitableUnits(city.tier, city.buildings);
   const ships = buildableShips(city.buildings);
 
   return (
@@ -733,26 +813,6 @@ function CityBuildings({
         </div>
       ) : (
         <p className="panel__note">Nothing further can be built at this settlement tier.</p>
-      )}
-
-      {recruitable.length > 0 && (
-        <div className="panel__section">
-          <div className="panel__heading">Recruit</div>
-          {recruitable.map((unit) => (
-            <button
-              key={unit.id}
-              type="button"
-              className="action"
-              disabled={!canAfford(state, city.ownerIndex, unit.cost)}
-              onClick={() => game.command((s) => queueUnit(s, city, unit.id))}
-            >
-              <span>{unit.name}</span>
-              <span className="action__cost">
-                {costText(unit.cost)} · {unit.months} mo · {unit.upkeep}g/mo
-              </span>
-            </button>
-          ))}
-        </div>
       )}
 
       {ships.length > 0 && (

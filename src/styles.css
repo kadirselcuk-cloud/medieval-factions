@@ -680,6 +680,18 @@ body {
   margin-top: 0;
 }
 
+/* A training meter with its cancel button beside it. */
+.training-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.training-row .bar-item {
+  flex: 1;
+  min-width: 0;
+}
+
 /* Inline "Muster" beside a garrison row. */
 .panel__mini {
   margin-left: 7px;
