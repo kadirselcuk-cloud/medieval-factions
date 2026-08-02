@@ -61,23 +61,25 @@ abstract "upgrade".
 | Tier | Needs | Cost | Unlocks |
 |---|---|---|---|
 | **Village** (start) | — | — | Basic Farms, Wooden Houses, Cottage Shops, Wooden Palisade |
-| **Town** | **5,000 people** | 1,000g + 100 wood | Advanced Farms, Stone Houses, Merchants, **1 military building**, Town Hall, Stone Walls, Dock (coastal) |
-| **City** | **10,000 people** | 5,000g + 100 stone | Irrigation, Villas, Artisans, **2 military buildings**, City Hall, City Walls, Port (coastal) |
-| **Capitol** | **20,000 people**, and only one per realm | 20,000g + 1,000 stone | Guildhouse, **military buildings**, Palace, Citadel, Shipyard (coastal) |
+| **Town** | **2,000 people** | 1,000g + 100 wood | Advanced Farms, Stone Houses, Merchants, **1 military building**, Town Hall, Stone Walls, Dock (coastal) |
+| **City** | **5,000 people** | 5,000g + 100 stone | Irrigation, Villas, Artisans, **2 military buildings**, City Hall, City Walls, Port (coastal) |
+| **Capitol** | **10,000 people**, and only one per realm | 20,000g + 1,000 stone | Guildhouse, **military buildings**, Palace, Citadel, Shipyard (coastal) |
 
 **Population is the real gate, not gold.** A realm cannot buy its way up the tiers; it has to
 have built somewhere people want to live. Since the wealth bonus dominates population growth,
 the practical route to a Capitol runs through the treasury anyway — but through a treasury held
-for decades, not one spent in a month.
+for years, not one spent in a month.
 
-Roughly how long the first gate takes, from the opening 1,000 people:
+Roughly how long each gate takes, at the growth rates a settlement can realistically reach:
 
-| Situation | Growth | To 5,000 people |
-|---|---|---|
-| Village, nothing built, empty treasury | 0.2%/mo | ~76 years |
-| Village, Wooden Houses, empty treasury | 0.3%/mo | ~49 years |
-| Village, Wooden Houses, 10,000 gold banked | 1.3%/mo | ~11 years |
-| Village, Wooden Houses, 100,000 gold banked | 2.3%/mo | ~6 years |
+| Situation | Growth | Gate | Takes |
+|---|---|---|---|
+| Village, nothing built, empty treasury | 0.2%/mo | 1,000 → 2,000 | ~35 years |
+| Village, Wooden Houses, empty treasury | 0.3%/mo | 1,000 → 2,000 | ~22 years |
+| Village, Wooden Houses, 10,000 banked | 1.3%/mo | 1,000 → 2,000 | ~5 years |
+| Village, Wooden Houses, 100,000 banked | 2.3%/mo | 1,000 → 2,000 | ~3 years |
+| Town, Stone Houses + Town Hall, 10,000 banked | 1.6%/mo | 2,000 → 5,000 | ~5 years |
+| City, Villas + City Hall, 100,000 banked | 2.9%/mo | 5,000 → 10,000 | ~2 years |
 
 Military buildings: **Spear Quarters, Barracks, Axe Quarters, Archery Range, Stables**.
 The slot limit gates the roster — Heavy Cavalry needs Barracks *and* Stables, so it needs

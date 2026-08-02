@@ -123,7 +123,7 @@ This is the single most important architectural constraint. See [MECHANICS.md](M
 | 57 | Recruitment lives in the **Armies** tab, beside the garrison it feeds, not in Buildings | 10 |
 | 58 | Progress meters creep with the month rather than stepping at the month boundary | 10 |
 | 59 | Expanding a settlement is **built like a building**, first card in the City Buildings grid | 11 |
-| 60 | Settlement tiers are gated on **population**: Town 5,000, City 10,000, Capitol 20,000 | 11 |
+| 60 | Settlement tiers are gated on **population**: Town 2,000, City 5,000, Capitol 10,000 | 11 |
 | 61 | A realm may hold **only one Capitol** | 11 |
 | 62 | Everything buildable is a **square tile, two per row**, opening a detail window that carries the description, the numbers and the order button | 11 |
 | 63 | All icons and flavour text live in `data/art.json`; **no asset path is ever hardcoded** | 11 |

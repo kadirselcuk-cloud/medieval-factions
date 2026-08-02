@@ -13,6 +13,15 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.8.1] — 2026-08-03
+
+### Changed
+
+- **Settlement population gates halved**: Town **2,000**, City **5,000**, Capitol **10,000**,
+  down from 5,000 / 10,000 / 20,000. The first gate falls from about 76 years to about 35 for
+  a settlement with nothing built, and from six years to three for one sitting on a fortune.
+  Growing a realm is still the work of decades, but the opening no longer stalls.
+
 ## [0.8.0] — 2026-08-03
 
 **Everything is a square.** The settlement panel is rebuilt around a picture grid, and
@@ -52,8 +61,8 @@ expanding a settlement becomes a building you put up rather than an abstract upg
 ### Known limits
 
 - The population gates are steep. A Village with nothing built and no treasury grows at
-  0.2% a month, which is **76 years** to the 5,000 people a Town needs. The wealth bonus is
-  what makes expansion possible at all: 100,000 gold banked turns that into about six years.
+  0.2% a month, which is a long road to the people a Town needs. The wealth bonus is
+  what makes expansion possible at all - see 0.8.1, which halved the gates.
 
 ## [0.7.1] — 2026-08-02
 
