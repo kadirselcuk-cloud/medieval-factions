@@ -1,5 +1,5 @@
-{
-  "_comment": "Land units are owner-authored (docs/CONTENT.md §3). Ship costs and upkeep are owner-authored; ship build times, HP, damage and crew are [GEN]. HP and damage are PER SOLDIER. minTier: 1 Village, 2 Town, 3 City, 4 Capitol.",
+﻿{
+  "_comment": "Land units are owner-authored (docs/CONTENT.md section 3). Ship costs, wood, upkeep are owner-authored; ship build times, HP, damage and crew are [GEN]. HP and damage are PER SOLDIER. minTier: 1 Village, 2 Town, 3 City, 4 Capitol.",
 
   "units": [
     {
@@ -153,7 +153,7 @@
       "id": "transport",
       "name": "Transport",
       "requires": "dock",
-      "cost": { "gold": 50 },
+      "cost": { "gold": 50, "wood": 50 },
       "upkeep": 10,
       "months": 6
     },
@@ -161,7 +161,7 @@
       "id": "light_ship",
       "name": "Light Ship",
       "requires": "dock",
-      "cost": { "gold": 100 },
+      "cost": { "gold": 100, "wood": 100 },
       "upkeep": 20,
       "months": 8
     },
@@ -169,7 +169,7 @@
       "id": "heavy_ship",
       "name": "Heavy Ship",
       "requires": "port",
-      "cost": { "gold": 250 },
+      "cost": { "gold": 250, "wood": 200 },
       "upkeep": 50,
       "months": 12
     },
@@ -177,7 +177,7 @@
       "id": "flagship",
       "name": "Flagship",
       "requires": "shipyard",
-      "cost": { "gold": 500 },
+      "cost": { "gold": 500, "wood": 500 },
       "upkeep": 100,
       "months": 18
     }

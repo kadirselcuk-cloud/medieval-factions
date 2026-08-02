@@ -1,9 +1,20 @@
 import { summariseBuildings } from '../data/buildings';
+import { unitById } from '../data/units';
 import type { World } from '../data/world';
 import { isMonthBoundary, TICKS_PER_MONTH } from './calendar';
 import { advanceConstruction } from './construction';
 import { recomputeIncome } from './state';
-import { MILLI, RESOURCES, type CityState, type SimState } from './types';
+import {
+  MAX_EVENTS,
+  MILLI,
+  nextRandom,
+  RESOURCES,
+  type CityState,
+  type SimState,
+} from './types';
+
+/** A settlement never falls below this, however deep the debt. **[GEN]** */
+export const MIN_POPULATION = 100;
 
 /**
  * Advance the simulation by exactly one tick.
@@ -18,8 +29,54 @@ export function advance(state: SimState, world: World): void {
 
   if (isMonthBoundary(state.tick)) {
     advanceConstruction(state, world);
+    desertUnpaidTroops(state, world);
     growPopulation(state);
     recomputeIncome(state, world);
+  }
+}
+
+/** Chance each unit deserts in a month its faction cannot pay for it. */
+export const DESERTION_CHANCE = 0.1;
+
+/**
+ * Troops a faction cannot pay start walking home.
+ *
+ * Iteration order is fixed — cities by index, garrison ids sorted — because the RNG is drawn
+ * per unit and the whole simulation has to stay reproducible from a save.
+ */
+function desertUnpaidTroops(state: SimState, world: World): void {
+  for (const faction of state.factions) {
+    if (faction.stock.gold >= 0) continue;
+
+    for (const city of state.cities) {
+      if (city.ownerIndex !== faction.index) continue;
+
+      for (const id of Object.keys(city.garrison).sort()) {
+        const count = city.garrison[id] ?? 0;
+        let lost = 0;
+        for (let i = 0; i < count; i++) {
+          if (nextRandom(state) < DESERTION_CHANCE) lost += 1;
+        }
+        if (lost === 0) continue;
+
+        const left = count - lost;
+        if (left > 0) city.garrison[id] = left;
+        else delete city.garrison[id];
+
+        const name = unitById(id)?.name ?? id;
+        const where = world.cities[city.cityIndex]?.name ?? 'the field';
+        state.events.push({
+          tick: state.tick,
+          kind: 'desertion',
+          text: `${lost} × ${name} deserted at ${where} — the treasury is empty`,
+          tileIndex: city.tileIndex,
+          factionIndex: faction.index,
+        });
+        if (state.events.length > MAX_EVENTS) {
+          state.events.splice(0, state.events.length - MAX_EVENTS);
+        }
+      }
+    }
   }
 }
 
@@ -62,9 +119,9 @@ function accrueIncome(state: SimState): void {
       const carry = faction.carry[resource] + monthly * MILLI;
       const gained = Math.floor(carry / TICKS_PER_MONTH);
       faction.carry[resource] = carry - gained * TICKS_PER_MONTH;
-      // Upkeep can drive income negative. A faction cannot go into debt — it simply runs
-      // dry, which is a visible failure rather than a hidden one. [GEN]
-      faction.stock[resource] = Math.max(0, faction.stock[resource] + gained);
+      // Gold may go negative — a realm can run into debt, and pays for it in population and
+      // desertion rather than in a hard stop.
+      faction.stock[resource] += gained;
     }
   }
 }
@@ -73,14 +130,20 @@ function accrueIncome(state: SimState): void {
  * Treasury contribution to population growth, in tenths of a percent (docs/MECHANICS.md §5).
  *
  * Diminishing by design: the owner's anchors are +1% at 10k, +2% at 100k and +3% at 1M, so
- * each decade of wealth is worth the same again rather than compounding away. Capped at +3%.
+ * each decade of wealth is worth the same again rather than compounding away. Capped at ±3%.
+ *
+ * **Symmetric.** Debt hurts exactly as much as wealth helps — a realm 10,000 gold in the red
+ * bleeds 1% of its people a month, and one a million in the red bleeds 3%.
  */
 export function wealthGrowthTenths(goldWhole: number): number {
-  if (goldWhole < 1_000) return 0;
-  if (goldWhole < 10_000) return Math.floor(goldWhole / 1_000);
-  if (goldWhole < 100_000) return 10 + Math.floor((goldWhole - 10_000) / 10_000);
-  if (goldWhole < 1_000_000) return 20 + Math.floor((goldWhole - 100_000) / 100_000);
-  return 30;
+  const sign = goldWhole < 0 ? -1 : 1;
+  const size = Math.abs(goldWhole);
+
+  if (size < 1_000) return 0;
+  if (size < 10_000) return sign * Math.floor(size / 1_000);
+  if (size < 100_000) return sign * (10 + Math.floor((size - 10_000) / 10_000));
+  if (size < 1_000_000) return sign * (20 + Math.floor((size - 100_000) / 100_000));
+  return sign * 30;
 }
 
 /**
@@ -94,8 +157,9 @@ export function wealthGrowthTenths(goldWhole: number): number {
  */
 function growPopulation(state: SimState): void {
   for (const city of state.cities) {
-    city.populationMilli += Math.floor(
-      (city.populationMilli * cityGrowthTenths(state, city)) / 1000,
-    );
+    const change = Math.floor((city.populationMilli * cityGrowthTenths(state, city)) / 1000);
+    // Debt can drive growth negative, but a settlement never empties out entirely — it
+    // shrinks back to a hamlet and stops there. [GEN]
+    city.populationMilli = Math.max(MIN_POPULATION * MILLI, city.populationMilli + change);
   }
 }

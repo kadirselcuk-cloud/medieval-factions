@@ -112,16 +112,24 @@ A starting city — Village, Wooden Houses, 250 gold, no hall — grows at
 
 **Every 100 people yields 1 gold per month.** A 1,000-population village is worth 10 gold/month.
 
-#### Wealth bonus — treasury-wide, diminishing
+#### Wealth bonus — treasury-wide, diminishing, and symmetric
 
 The bonus applies to **every city at once** and is calculated from the **faction treasury**,
 with diminishing returns so a late-game fortune does not run away with the game.
 
-| Treasury | Growth bonus |
+**Debt hurts exactly as much as wealth helps.** The same bands run in reverse, so a realm
+10,000 gold in the red loses 1% of its people a month.
+
+| Treasury | Growth |
 |---|---|
-| 10,000 gold | +1.0% |
-| 100,000 gold | +2.0% |
 | 1,000,000 gold | +3.0% |
+| 100,000 gold | +2.0% |
+| 10,000 gold | +1.0% |
+| −10,000 gold | −1.0% |
+| −100,000 gold | −2.0% |
+| −1,000,000 gold | −3.0% |
+
+A settlement never falls below **100 people** however deep the debt. **[GEN]**
 
 Implemented as integer tenths of a percent, capped at 30 (+3%):
 
@@ -216,11 +224,20 @@ trained while other construction continues.
 Ships need the naval line: Dock gives Transport and Light Ship, Port adds Heavy Ship, Shipyard
 adds Flagship.
 
-### Upkeep
+### Upkeep and debt
 
 Every unit and ship costs gold per month, netted off income so the treasury figure is what a
-faction actually banks. **A treasury cannot go negative** — it runs dry at zero. What should
-happen at that point (disbanding, desertion, unrest) is **[OPEN]**. **[GEN]**
+faction actually banks.
+
+**Gold may go negative.** A realm can run into debt, and pays for it twice:
+
+- **Population shrinks**, through the symmetric wealth band above.
+- **Troops desert.** Every month a faction's treasury is in the red, each unit in every
+  garrison has a **10% chance** of walking away. A notification says where and how many.
+
+Desertion is drawn from the seeded RNG, over a fixed iteration order, so it stays reproducible
+from a save. Ships are **not** subject to desertion — the owner specified armies. **[OPEN]**
+whether a fleet should suffer the same.
 
 | Work | Duration |
 |---|---|

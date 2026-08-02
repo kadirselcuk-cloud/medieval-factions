@@ -37,7 +37,14 @@ interface SelectionPanelProps {
   onClose: () => void;
 }
 
-type Tab = 'info' | 'buildings' | 'armies';
+type Tab = 'info' | 'buildings' | 'improvements' | 'armies';
+
+const TAB_LABEL: Record<Tab, string> = {
+  info: 'Info',
+  buildings: 'Buildings',
+  improvements: 'Land',
+  armies: 'Armies',
+};
 
 const IMPROVEMENT_KINDS: readonly ImprovementKind[] = ['farm', 'mine', 'sawmill'];
 const IMPROVEMENT_NAME: Record<ImprovementKind, string> = {
@@ -88,7 +95,7 @@ export function SelectionPanel(props: SelectionPanelProps): JSX.Element {
 
       {tabbed && (
         <nav className="tabs" role="tablist">
-          {(['info', 'buildings', 'armies'] as const).map((value) => (
+          {(['info', 'buildings', 'improvements', 'armies'] as const).map((value) => (
             <button
               key={value}
               type="button"
@@ -97,7 +104,7 @@ export function SelectionPanel(props: SelectionPanelProps): JSX.Element {
               className={`tab${tab === value ? ' tab--active' : ''}`}
               onClick={() => setTab(value)}
             >
-              {value === 'info' ? 'Info' : value === 'buildings' ? 'Buildings' : 'Armies'}
+              {TAB_LABEL[value]}
             </button>
           ))}
         </nav>
@@ -119,9 +126,11 @@ export function SelectionPanel(props: SelectionPanelProps): JSX.Element {
 
           <TileFacts tile={tile} state={state} world={world} city={city} />
 
-          {city && <CityProgress city={city} />}
+          {/* Info reports; it never acts. Every button lives in a tab of its own. */}
+          <ProgressLines city={city} tile={tile} state={state} />
 
-          {isPlayers && TERRAIN_PROFILE[tile.terrain].buildable && (
+          {/* A tile with no city has no tabs, so its actions belong here. */}
+          {!tabbed && isPlayers && TERRAIN_PROFILE[tile.terrain].buildable && (
             <ImprovementSection tile={tile} game={game} state={state} world={world} />
           )}
         </div>
@@ -133,11 +142,19 @@ export function SelectionPanel(props: SelectionPanelProps): JSX.Element {
         </div>
       )}
 
-      {tabbed && tab === 'armies' && (
+      {tabbed && tab === 'improvements' && (
         <div className="panel__body">
           <p className="panel__note">
-            Garrisons and recruitment arrive in 0.6.0. Nothing is stationed here yet.
+            A settlement stands on a tile like any other, and can work it. Improve the
+            surrounding land by selecting those tiles on the map.
           </p>
+          <ImprovementSection tile={tile} game={game} state={state} world={world} />
+        </div>
+      )}
+
+      {tabbed && tab === 'armies' && city && (
+        <div className="panel__body">
+          <Garrison city={city} />
         </div>
       )}
     </aside>
@@ -209,69 +226,161 @@ function growthText(state: SimState, city: CityState): string {
   return `+${(tenths / 10).toFixed(1)}% · ${num(people)} / month`;
 }
 
-/**
- * Live progress on everything this settlement is producing.
- *
- * Only the head of each queue is actually advancing, so it gets the bar; the rest are listed
- * as waiting. Showing all three queues here answers "what is this city doing?" without
- * needing to open another tab.
- */
-function CityProgress({ city }: { city: CityState }): JSX.Element | null {
-  const lines: { heading: string; items: { label: string; done: number; total: number }[] }[] = [
-    {
-      heading: 'Building',
-      items: city.queue.map((order) => ({
-        label:
-          order.kind === 'building'
-            ? (buildingById(order.id)?.name ?? labelOf(order.id))
-            : `Upgrade to ${TIER_NAME[order.targetTier]}`,
-        done: totalMonths(order) - order.monthsRemaining,
-        total: totalMonths(order),
-      })),
-    },
-    {
-      heading: 'Recruiting',
-      items: city.recruitQueue.map((order) => ({
-        label: unitById(order.id)?.name ?? order.id,
-        done: (unitById(order.id)?.months ?? 0) - order.monthsRemaining,
-        total: unitById(order.id)?.months ?? 0,
-      })),
-    },
-    {
-      heading: 'Shipyard',
-      items: city.shipQueue.map((order) => ({
-        label: shipById(order.id)?.name ?? order.id,
-        done: (shipById(order.id)?.months ?? 0) - order.monthsRemaining,
-        total: shipById(order.id)?.months ?? 0,
-      })),
-    },
-  ].filter((line) => line.items.length > 0);
+interface ProgressItem {
+  label: string;
+  done: number;
+  total: number;
+}
 
-  if (lines.length === 0) return null;
+function Meter({ item, waiting }: { item: ProgressItem; waiting: boolean }): JSX.Element {
+  const percent = item.total > 0 ? (item.done / item.total) * 100 : 0;
+  return (
+    <div className="bar-item">
+      <div className="bar-item__top">
+        <span className="bar-item__label">{item.label}</span>
+        <span className="panel__muted">
+          {waiting ? 'waiting' : `${item.total - item.done} mo`}
+        </span>
+      </div>
+      <div className="meter">
+        <div
+          className={`meter__fill${waiting ? ' meter__fill--idle' : ''}`}
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Live progress on everything happening here — construction, recruitment, shipyard, and the
+ * tile's own improvement.
+ *
+ * Only the head of each queue is actually advancing, so the rest are marked as waiting. This
+ * answers "what is this place doing?" without opening another tab, and it is read-only: every
+ * button lives elsewhere.
+ */
+function ProgressLines({
+  city,
+  tile,
+  state,
+}: {
+  city: CityState | undefined;
+  tile: TileInfo;
+  state: SimState;
+}): JSX.Element | null {
+  const lines: { heading: string; items: ProgressItem[] }[] = [];
+
+  if (city) {
+    lines.push(
+      {
+        heading: 'Building',
+        items: city.queue.map((order) => ({
+          label:
+            order.kind === 'building'
+              ? (buildingById(order.id)?.name ?? labelOf(order.id))
+              : `Upgrade to ${TIER_NAME[order.targetTier]}`,
+          done: totalMonths(order) - order.monthsRemaining,
+          total: totalMonths(order),
+        })),
+      },
+      {
+        heading: 'Recruiting',
+        items: city.recruitQueue.map((order) => ({
+          label: unitById(order.id)?.name ?? order.id,
+          done: (unitById(order.id)?.months ?? 0) - order.monthsRemaining,
+          total: unitById(order.id)?.months ?? 0,
+        })),
+      },
+      {
+        heading: 'Shipyard',
+        items: city.shipQueue.map((order) => ({
+          label: shipById(order.id)?.name ?? order.id,
+          done: (shipById(order.id)?.months ?? 0) - order.monthsRemaining,
+          total: shipById(order.id)?.months ?? 0,
+        })),
+      },
+    );
+  }
+
+  const monthsLeft = state.improvementMonths[tile.index] ?? 0;
+  if (monthsLeft > 0) {
+    const kind = improvementAt(state, tile.index);
+    const target = state.improvementTarget[tile.index] ?? 0;
+    const total = improvementMonths(target);
+    lines.push({
+      heading: 'Improvement',
+      items: [
+        {
+          label: `${kind ? IMPROVEMENT_NAME[kind] : 'Work'} → level ${target}`,
+          done: total - monthsLeft,
+          total,
+        },
+      ],
+    });
+  }
+
+  const visible = lines.filter((line) => line.items.length > 0);
+  if (visible.length === 0) return null;
 
   return (
     <>
-      {lines.map((line) => (
+      {visible.map((line) => (
         <div className="panel__section" key={line.heading}>
           <div className="panel__heading">{line.heading}</div>
           {line.items.map((item, position) => (
-            <div className="bar-item" key={`${item.label}-${position}`}>
-              <div className="bar-item__top">
-                <span className="bar-item__label">{item.label}</span>
-                <span className="panel__muted">
-                  {position === 0 ? `${item.total - item.done} mo` : 'waiting'}
-                </span>
-              </div>
-              <div className="meter">
-                <div
-                  className={`meter__fill${position > 0 ? ' meter__fill--idle' : ''}`}
-                  style={{ width: `${item.total > 0 ? (item.done / item.total) * 100 : 0}%` }}
-                />
-              </div>
-            </div>
+            <Meter key={`${item.label}-${position}`} item={item} waiting={position > 0} />
           ))}
         </div>
       ))}
+    </>
+  );
+}
+
+function Garrison({ city }: { city: CityState }): JSX.Element {
+  const units = Object.entries(city.garrison).filter(([, count]) => count > 0);
+  const ships = Object.entries(city.fleet).filter(([, count]) => count > 0);
+
+  if (units.length === 0 && ships.length === 0) {
+    return (
+      <p className="panel__note">
+        Nothing is stationed here. Train units in the Buildings tab; they muster into this
+        garrison. Marching them out arrives with armies in 0.7.0.
+      </p>
+    );
+  }
+
+  return (
+    <>
+      {units.length > 0 && (
+        <div className="panel__section panel__section--first">
+          <div className="panel__heading">Garrison</div>
+          {units.map(([id, count]) => (
+            <div className="panel__row" key={id}>
+              <span className="panel__label">{unitById(id)?.name ?? id}</span>
+              <span className="panel__value">
+                ×{count}
+                <span className="panel__muted"> · {(unitById(id)?.upkeep ?? 0) * count}g/mo</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {ships.length > 0 && (
+        <div className="panel__section">
+          <div className="panel__heading">Fleet</div>
+          {ships.map(([id, count]) => (
+            <div className="panel__row" key={id}>
+              <span className="panel__label">{shipById(id)?.name ?? id}</span>
+              <span className="panel__value">
+                ×{count}
+                <span className="panel__muted"> · {(shipById(id)?.upkeep ?? 0) * count}g/mo</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }
@@ -300,15 +409,18 @@ function ImprovementSection({
   const cap = improvementCap(state, player);
 
   if (monthsLeft > 0) {
+    const total = improvementMonths(target);
     return (
       <div className="panel__section">
         <div className="panel__heading">Improvement</div>
-        <div className="progress">
-          <span>
-            {kind ? IMPROVEMENT_NAME[kind] : 'Work'} → level {target}
-          </span>
-          <span className="panel__muted">{monthsLeft} mo</span>
-        </div>
+        <Meter
+          item={{
+            label: `${kind ? IMPROVEMENT_NAME[kind] : 'Work'} → level ${target}`,
+            done: total - monthsLeft,
+            total,
+          }}
+          waiting={false}
+        />
         <button
           type="button"
           className="action action--minor"

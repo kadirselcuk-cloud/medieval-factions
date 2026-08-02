@@ -56,8 +56,12 @@ export function TopBar({
               <span className="chip__symbol" aria-hidden="true">
                 {RESOURCE_SYMBOL[resource]}
               </span>
-              <span className="chip__value">{num(stock)}</span>
-              <span className={`chip__rate${income > 0 ? ' chip__rate--good' : ''}`}>
+              <span className={`chip__value${stock < 0 ? ' chip__value--debt' : ''}`}>
+                {num(stock)}
+              </span>
+              <span
+                className={`chip__rate${income > 0 ? ' chip__rate--good' : ''}${income < 0 ? ' chip__rate--bad' : ''}`}
+              >
                 {signed(income)}
               </span>
             </span>

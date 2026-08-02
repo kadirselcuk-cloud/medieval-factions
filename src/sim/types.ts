@@ -72,7 +72,13 @@ export interface CityState {
   fleet: Record<string, number>;
 }
 
-export type EventKind = 'building' | 'settlement' | 'unit' | 'ship' | 'improvement';
+export type EventKind =
+  | 'building'
+  | 'settlement'
+  | 'unit'
+  | 'ship'
+  | 'improvement'
+  | 'desertion';
 
 /** A thing that finished. Kept in state so the log survives a save. */
 export interface GameEvent {

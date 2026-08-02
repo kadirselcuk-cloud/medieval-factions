@@ -18,7 +18,7 @@ import {
 } from './construction';
 import { deserialise, serialise } from './save';
 import { createInitialState, recomputeIncome } from './state';
-import { advanceBy } from './tick';
+import { advanceBy, MIN_POPULATION } from './tick';
 import { MILLI, whole, type CityState, type SimState } from './types';
 
 const world = loadEurope1350();
@@ -283,13 +283,45 @@ describe('recruitment and shipyards', () => {
     expect(totalUpkeep(state, FRANKS)).toBe(30);
   });
 
-  it('never lets a treasury go negative', () => {
+  it('lets a treasury fall into debt', () => {
     const faction = state.factions[FRANKS]!;
     faction.stock.gold = 0;
     paris.garrison['heavy_cavalry'] = 20; // 1,000 gold a month against a bare treasury
     recomputeIncome(state, world);
+    advanceBy(state, world, TICKS_PER_MONTH);
+    expect(faction.stock.gold).toBeLessThan(0);
+  });
+
+  it('deserts unpaid troops and says so', () => {
+    const faction = state.factions[FRANKS]!;
+    faction.stock.gold = -50_000 * MILLI;
+    paris.garrison['light_infantry'] = 40;
+    recomputeIncome(state, world);
+
     advanceBy(state, world, TICKS_PER_MONTH * 3);
-    expect(faction.stock.gold).toBe(0);
+
+    expect(paris.garrison['light_infantry'] ?? 0).toBeLessThan(40);
+    expect(state.events.some((e) => e.kind === 'desertion')).toBe(true);
+  });
+
+  it('keeps troops while the treasury holds', () => {
+    enrich();
+    paris.garrison['light_infantry'] = 40;
+    recomputeIncome(state, world);
+    advanceBy(state, world, TICKS_PER_MONTH * 6);
+    expect(paris.garrison['light_infantry']).toBe(40);
+  });
+
+  it('shrinks a settlement that is deep in debt, but never below the floor', () => {
+    const faction = state.factions[FRANKS]!;
+    faction.stock.gold = -2_000_000 * MILLI;
+    const before = paris.populationMilli;
+
+    advanceBy(state, world, TICKS_PER_MONTH);
+    expect(paris.populationMilli).toBeLessThan(before);
+
+    advanceBy(state, world, TICKS_PER_MONTH * 400);
+    expect(paris.populationMilli).toBe(MIN_POPULATION * MILLI);
   });
 });
 

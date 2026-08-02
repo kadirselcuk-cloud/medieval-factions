@@ -248,6 +248,24 @@ body {
   flex: none;
 }
 
+.notification--bad .notification__icon {
+  color: #d98b7a;
+}
+
+.notification--bad .notification__text {
+  color: #e0a294;
+}
+
+/* Debt reads as alarming rather than merely small. */
+.chip__rate--bad {
+  color: #d98b7a;
+  opacity: 0.95;
+}
+
+.chip__value--debt {
+  color: #d98b7a;
+}
+
 .notification__text {
   overflow: hidden;
   text-overflow: ellipsis;

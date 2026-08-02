@@ -77,12 +77,13 @@ Nothing here blocks starting the build. Each item is due before the phase that n
 
 ## Raised by 0.6.0
 
-- **What happens when a treasury runs dry?** — `OPEN`. Upkeep can exceed income; gold is
-  currently clamped at zero and nothing else happens. Should units desert, disband, or should
-  settlements grow unruly?
-- **Ship statistics.** — `OPEN`, still. Costs and upkeep are owner-authored; HP, damage, crew
-  size and build times are **[GEN]** (6 / 8 / 12 / 18 months). Ships also cost no wood at
-  present, which sits oddly beside a Dock costing 80.
+- **Do fleets desert too?** — `OPEN`. The owner specified that *armies* have a 10% monthly
+  desertion chance while in debt. Ships cost upkeep but are currently immune.
+- **Ship statistics.** — `OPEN`, partly. Costs, wood, and upkeep are owner-authored; HP,
+  damage, crew size and build times are **[GEN]** (6 / 8 / 12 / 18 months).
+- **Is there a floor on debt?** — `OPEN`. A realm can now sink arbitrarily deep. The
+  population floor of 100 per settlement caps the bleeding, but nothing stops the number
+  itself running away.
 - **Do units draw from a settlement's population?** — `OPEN`, still, and now visible: a Light
   Infantry unit is 100 soldiers trained out of a 1,000-person village at no demographic cost.
 - **Where does a garrison live?** — units currently accumulate in the settlement that trained

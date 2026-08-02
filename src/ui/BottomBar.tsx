@@ -49,6 +49,7 @@ const EVENT_ICON: Record<GameEvent['kind'], string> = {
   unit: '⚔',
   ship: '⛵',
   improvement: '✦',
+  desertion: '⚠',
 };
 
 /** How long a completion stays on screen, in ticks — one in-game week. */
@@ -81,7 +82,7 @@ function Notifications({
       {recent.map((event) => (
         <button
           type="button"
-          className="notification"
+          className={`notification${event.kind === 'desertion' ? ' notification--bad' : ''}`}
           key={`${event.tick}-${event.text}`}
           onClick={() => onSelect(event.tileIndex)}
           title="Show on map"

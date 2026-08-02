@@ -13,6 +13,35 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.6.1] — 2026-08-02
+
+**Debt.** Running out of money is now a slow crisis rather than a hard stop.
+
+### Changed
+- **Gold may go negative.** The clamp at zero is gone; a realm can run into debt and pays for
+  it in people and troops rather than in a wall.
+- **The wealth growth band is now symmetric.** Debt hurts exactly as much as wealth helps —
+  10,000 in the red is −1% population a month, a million in the red is −3%. A settlement
+  never falls below 100 people however deep it goes. **[GEN]**
+- **Ships cost wood**: 50 / 100 / 200 / 500 for Transport, Light Ship, Heavy Ship, Flagship.
+- **Improvement buttons left the Info tab.** Info now reports and never acts. A settlement
+  gets a fourth tab, **Land**, holding the improvement actions for its own tile.
+
+### Added
+- **Desertion.** Every month a faction's treasury is in the red, each unit in every garrison
+  has a **10% chance** of walking away, with a notification naming the settlement and the
+  count. Drawn from the seeded RNG over a fixed iteration order, so it stays reproducible
+  from a save. Ships are exempt — the owner specified armies.
+- **Improvement progress bars.** Tile improvements now show a filling meter, both in the Info
+  tab of whatever tile is selected and on the tile itself. Previously they were text only,
+  which is why they never appeared as bars.
+- **Armies tab shows the garrison** — units and ships stationed here with their monthly
+  upkeep, rather than a placeholder.
+- Debt is coloured in the top bar: a negative treasury and a negative monthly rate both read
+  red, and desertion notifications are marked as bad news.
+
+---
+
 ## [0.6.0] — 2026-08-02
 
 **Recruitment, shipyards, notifications.** Three production queues, and the game finally

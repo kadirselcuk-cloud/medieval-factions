@@ -138,6 +138,15 @@ describe('wealth growth bonus', () => {
     expect(wealthGrowthTenths(50_000_000)).toBe(30);
   });
 
+  // Debt hurts exactly as much as wealth helps.
+  it('mirrors itself into debt', () => {
+    for (const gold of [1_000, 9_999, 10_000, 55_000, 100_000, 1_000_000, 9_000_000]) {
+      expect(wealthGrowthTenths(-gold), `at -${gold}`).toBe(-wealthGrowthTenths(gold));
+    }
+    expect(wealthGrowthTenths(-999)).toBe(0);
+    expect(wealthGrowthTenths(-50_000_000)).toBe(-30);
+  });
+
   it('never decreases as the treasury grows', () => {
     let previous = 0;
     for (const gold of [0, 1_000, 5_000, 9_999, 10_000, 55_000, 99_999, 100_000, 500_000, 1_000_000]) {
