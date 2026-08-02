@@ -180,8 +180,9 @@ These numbers are **not** run through the terrain modifiers in §4. They already
 terrain's contribution; scaling them again would count the terrain twice. Only the
 improvement's own yield is scaled.
 
-Note that **mountain pays no gold at all**. A realm boxed in by mountains — Milan is the
-extreme case — starts rich in metal and starved of coin.
+Note that **mountain pays no gold at all**. A realm boxed in by mountains starts rich in metal
+and starved of coin, which is why a capital's surrounding terrain is a balance decision and not
+just scenery.
 
 | Improvement | Produces | L1 | L2 | L3 | L4 |
 |---|---|---|---|---|---|

@@ -13,6 +13,19 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.6.4] — 2026-08-02
+
+**Milan out of the Alps.** The Italian capital was walled in by mountain on all four sides,
+which under the per-terrain base yields of 0.6.3 left it earning 10 gold a month against
+22–55 for everyone else.
+
+### Changed
+
+- **Milan** (26, 15) and the tile south of it (26, 16) change from Mountain to **Plains**; the
+  tile east (27, 15) changes to **Forest**.
+- Italy's opening income goes from 10 gold to **35 gold, 3 wood, 2 iron, 2 stone** a month —
+  mid-pack, and still the most mixed economy on the map.
+
 ## [0.6.3] — 2026-08-02
 
 **Terrain pays.** A held tile's base yield now depends on what the ground is.
