@@ -1,0 +1,59 @@
+import { useEffect, useRef, useState, type JSX } from 'react';
+import type { World } from '../data/world';
+import { MapRenderer, type TerritoryView, type TileInfo } from '../render/MapRenderer';
+
+interface MapViewProps {
+  world: World;
+  territory: TerritoryView | null;
+  selection: number | null;
+  onHover: (tile: TileInfo | null) => void;
+  onSelect: (tile: TileInfo | null) => void;
+  onZoomChange: (zoom: number) => void;
+  onReady: (renderer: MapRenderer | null) => void;
+}
+
+export function MapView({
+  world,
+  territory,
+  selection,
+  onHover,
+  onSelect,
+  onZoomChange,
+  onReady,
+}: MapViewProps): JSX.Element {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [renderer, setRenderer] = useState<MapRenderer | null>(null);
+
+  // Callbacks are read through a ref so re-rendering the shell never tears down the renderer.
+  const handlers = useRef({ onHover, onSelect, onZoomChange, onReady });
+  handlers.current = { onHover, onSelect, onZoomChange, onReady };
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const instance = new MapRenderer(canvas, world, {
+      onHover: (tile) => handlers.current.onHover(tile),
+      onSelect: (tile) => handlers.current.onSelect(tile),
+      onZoomChange: (zoom) => handlers.current.onZoomChange(zoom),
+    });
+    setRenderer(instance);
+    handlers.current.onReady(instance);
+
+    return () => {
+      handlers.current.onReady(null);
+      setRenderer(null);
+      instance.destroy();
+    };
+  }, [world]);
+
+  useEffect(() => {
+    renderer?.setTerritory(territory);
+  }, [renderer, territory]);
+
+  useEffect(() => {
+    renderer?.setSelection(selection);
+  }, [renderer, selection]);
+
+  return <canvas ref={canvasRef} className="map-canvas" />;
+}

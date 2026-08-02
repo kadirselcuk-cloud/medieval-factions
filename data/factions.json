@@ -1,0 +1,144 @@
+{
+  "factions": [
+    {
+      "id": "independents",
+      "name": "Independents",
+      "adjective": "Independent",
+      "religion": "none",
+      "capital": null,
+      "color": "#6e6a63",
+      "playable": false,
+      "neutral": true
+    },
+    {
+      "id": "spanish",
+      "name": "Castille",
+      "adjective": "Spanish",
+      "religion": "catholic",
+      "capital": "Toledo",
+      "color": "#d9a441",
+      "playable": false,
+      "neutral": false
+    },
+    {
+      "id": "britons",
+      "name": "Britons",
+      "adjective": "Briton",
+      "religion": "catholic",
+      "capital": "London",
+      "color": "#c0392b",
+      "playable": false,
+      "neutral": false
+    },
+    {
+      "id": "franks",
+      "name": "Franks",
+      "adjective": "Frankish",
+      "religion": "catholic",
+      "capital": "Paris",
+      "color": "#3f6fd1",
+      "playable": true,
+      "neutral": false
+    },
+    {
+      "id": "holy_romans",
+      "name": "Holy Romans",
+      "adjective": "Imperial",
+      "religion": "catholic",
+      "capital": "Vienna",
+      "color": "#7a5c9e",
+      "playable": false,
+      "neutral": false
+    },
+    {
+      "id": "italians",
+      "name": "Italians",
+      "adjective": "Italian",
+      "religion": "catholic",
+      "capital": "Milan",
+      "color": "#4f9d69",
+      "playable": false,
+      "neutral": false
+    },
+    {
+      "id": "hungarians",
+      "name": "Hungarians",
+      "adjective": "Hungarian",
+      "religion": "catholic",
+      "capital": "Buda",
+      "color": "#2aa198",
+      "playable": false,
+      "neutral": false
+    },
+    {
+      "id": "romans",
+      "name": "Romans",
+      "adjective": "Roman",
+      "religion": "orthodox",
+      "capital": "Constantinople",
+      "color": "#d95f8b",
+      "playable": false,
+      "neutral": false
+    },
+    {
+      "id": "bulgarians",
+      "name": "Bulgarians",
+      "adjective": "Bulgarian",
+      "religion": "orthodox",
+      "capital": "Sofia",
+      "color": "#6b8f2f",
+      "playable": false,
+      "neutral": false
+    },
+    {
+      "id": "russians",
+      "name": "Russians",
+      "adjective": "Russian",
+      "religion": "orthodox",
+      "capital": "Moscow",
+      "color": "#9ad3e0",
+      "playable": true,
+      "neutral": false
+    },
+    {
+      "id": "golden_horde",
+      "name": "Golden Horde",
+      "adjective": "Tatar",
+      "religion": "muslim",
+      "capital": "Caffa",
+      "color": "#e0812b",
+      "playable": false,
+      "neutral": false
+    },
+    {
+      "id": "turks",
+      "name": "Turks",
+      "adjective": "Turkish",
+      "religion": "muslim",
+      "capital": "Bursa",
+      "color": "#8b1f2f",
+      "playable": true,
+      "neutral": false
+    },
+    {
+      "id": "mamluks",
+      "name": "Mamluks",
+      "adjective": "Mamluk",
+      "religion": "muslim",
+      "capital": "Jerusalem",
+      "color": "#a8763a",
+      "playable": false,
+      "neutral": false
+    },
+    {
+      "id": "moors",
+      "name": "Moors",
+      "adjective": "Moorish",
+      "religion": "muslim",
+      "capital": "Fez",
+      "color": "#2f6f4f",
+      "playable": false,
+      "neutral": false
+    }
+  ]
+}

@@ -1,0 +1,142 @@
+import { useCallback, useEffect, useState, type JSX } from 'react';
+import { calendarAt } from '../sim/calendar';
+import type { Game } from '../sim/game';
+import {
+  deleteSave,
+  deserialise,
+  fromJSON,
+  listSaves,
+  readSave,
+  toJSON,
+  type SaveMeta,
+} from '../sim/save';
+
+const KIND_LABEL: Record<SaveMeta['kind'], string> = {
+  manual: 'Manual',
+  monthly: 'Autosave',
+  yearly: 'Yearly',
+};
+
+export function SaveMenu({ game, onClose }: { game: Game; onClose: () => void }): JSX.Element {
+  const [saves, setSaves] = useState<SaveMeta[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const refresh = useCallback(() => {
+    listSaves()
+      .then(setSaves)
+      .catch((e: unknown) => setError(describe(e)));
+  }, []);
+
+  useEffect(refresh, [refresh]);
+
+  const run = (work: () => Promise<unknown>) => {
+    setBusy(true);
+    setError(null);
+    work()
+      .then(refresh)
+      .catch((e: unknown) => setError(describe(e)))
+      .finally(() => setBusy(false));
+  };
+
+  const load = (id: string) =>
+    run(async () => {
+      const file = await readSave(id);
+      if (!file) throw new Error('That save is no longer there.');
+      game.setSpeed(0);
+      game.loadState(deserialise(file.state));
+      onClose();
+    });
+
+  const exportSave = () => {
+    const blob = new Blob([toJSON(game.snapshot())], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${game.describe().replace(/[^\w-]+/g, '-').toLowerCase()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importSave = (file: File) =>
+    run(async () => {
+      const parsed = fromJSON(await file.text());
+      game.setSpeed(0);
+      game.loadState(deserialise(parsed.state));
+      onClose();
+    });
+
+  return (
+    <div className="overlay" role="dialog" aria-label="Saves">
+      <div className="overlay__panel">
+        <header className="overlay__header">
+          <h2>Saves</h2>
+          <button type="button" className="panel__close" onClick={onClose} title="Close">
+            ✕
+          </button>
+        </header>
+
+        <div className="overlay__actions">
+          <button
+            type="button"
+            className="action"
+            disabled={busy}
+            onClick={() => run(() => game.save(game.describe()))}
+          >
+            Save now
+          </button>
+          <button type="button" className="action" onClick={exportSave}>
+            Export to file
+          </button>
+          <label className="action action--file">
+            Import from file
+            <input
+              type="file"
+              accept="application/json"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) importSave(file);
+                event.target.value = '';
+              }}
+            />
+          </label>
+        </div>
+
+        {error && <p className="overlay__error">{error}</p>}
+
+        <div className="overlay__list">
+          {saves.length === 0 && <p className="panel__note">No saves yet. Autosaves appear each month.</p>}
+          {saves.map((save) => {
+            const date = calendarAt(save.tick);
+            return (
+              <div className="save-row" key={save.id}>
+                <div className="save-row__main">
+                  <span className="save-row__name">{save.name}</span>
+                  <span className="panel__muted">
+                    {KIND_LABEL[save.kind]} · {date.monthName} {date.year}
+                  </span>
+                </div>
+                <button type="button" className="action action--minor" disabled={busy} onClick={() => load(save.id)}>
+                  Load
+                </button>
+                <button
+                  type="button"
+                  className="panel__close"
+                  title="Delete"
+                  disabled={busy}
+                  onClick={() => run(() => deleteSave(save.id))}
+                >
+                  ✕
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function describe(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}

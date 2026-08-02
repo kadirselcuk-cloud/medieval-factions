@@ -1,0 +1,49 @@
+{
+  "_comment": "Tile improvement economics. Yields are owner-authored; costs are [GEN] proposals. Arrays are indexed by improvement level, so index 0 is 'not built'.",
+  "maxLevel": 4,
+  "buildMonths": [0, 12, 18, 24, 30],
+  "demolishMonths": 6,
+
+  "kinds": {
+    "farm": {
+      "name": "Farm",
+      "yield": [0, 10, 20, 30, 40],
+      "cost": [
+        {},
+        { "gold": 100 },
+        { "gold": 200, "wood": 40 },
+        { "gold": 350, "wood": 80, "stone": 40 },
+        { "gold": 550, "wood": 120, "stone": 80 }
+      ]
+    },
+    "sawmill": {
+      "name": "Sawmill",
+      "yield": [0, 10, 20, 30, 40],
+      "cost": [
+        {},
+        { "gold": 120 },
+        { "gold": 240, "wood": 30 },
+        { "gold": 420, "wood": 60, "stone": 40 },
+        { "gold": 650, "wood": 100, "stone": 80 }
+      ]
+    },
+    "mine": {
+      "name": "Mine",
+      "yield": [0, 1, 2, 3, 4],
+      "cost": [
+        {},
+        { "gold": 200 },
+        { "gold": 400, "wood": 60 },
+        { "gold": 700, "wood": 120, "stone": 60 },
+        { "gold": 1100, "wood": 200, "stone": 120 }
+      ]
+    }
+  },
+
+  "nodes": {
+    "gold": { "resource": "gold", "yield": [20, 50, 100, 200, 400] },
+    "silver": { "resource": "gold", "yield": [10, 25, 50, 100, 200] },
+    "iron": { "resource": "iron", "yield": [1, 3, 5, 7, 9] },
+    "stone": { "resource": "stone", "yield": [1, 3, 5, 7, 9] }
+  }
+}

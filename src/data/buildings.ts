@@ -1,0 +1,174 @@
+import { z } from 'zod';
+import rawBuildings from '../../data/buildings.json';
+
+/**
+ * City buildings.
+ *
+ * Six lines. Housing and fortification are built separately from the settlement tier, so a
+ * Town that never builds Stone Houses keeps growing at its Wooden Houses rate — upgrading a
+ * settlement unlocks the better building, it does not grant it.
+ *
+ * Lines other than `military` are upgrade chains: only the next level can be built, and it
+ * replaces the one below.
+ */
+
+const costSchema = z
+  .object({
+    gold: z.number().int().nonnegative().default(0),
+    wood: z.number().int().nonnegative().default(0),
+    iron: z.number().int().nonnegative().default(0),
+    stone: z.number().int().nonnegative().default(0),
+  })
+  .default({});
+
+const buildingSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  line: z.enum(['housing', 'fortification', 'commerce', 'administration', 'military', 'naval']),
+  /** Position within its line. Lines are upgrade chains; military is a set of parallel level-1 buildings. */
+  level: z.number().int().min(1).max(4),
+  /** Lowest settlement tier that may build it. 1 Village … 4 Capitol. */
+  minTier: z.number().int().min(1).max(4),
+  months: z.number().int().positive(),
+  cost: costSchema,
+  /** Commerce line: flat gold per month. */
+  goldPerMonth: z.number().int().nonnegative().default(0),
+  /** Administration line: population growth, in tenths of a percent. */
+  growthTenths: z.number().int().nonnegative().default(0),
+  /** Housing line: the settlement's housing level, worth +0.1% growth each. */
+  housingLevel: z.number().int().nonnegative().default(0),
+  /** Fortification line: defender's advantage, in tenths. 3 means +30%. */
+  defenceTenths: z.number().int().nonnegative().default(0),
+  /** Requires the settlement to border water. */
+  coastal: z.boolean().default(false),
+});
+
+export type Building = z.infer<typeof buildingSchema>;
+export type BuildingLine = Building['line'];
+export type Cost = z.infer<typeof costSchema>;
+
+/** Lines where a building replaces the one below it, rather than sitting alongside. */
+export const CHAIN_LINES: readonly BuildingLine[] = [
+  'housing',
+  'fortification',
+  'commerce',
+  'administration',
+  'naval',
+];
+
+const settlementUpgradeSchema = z.object({
+  toTier: z.number().int().min(2).max(4),
+  name: z.string().min(1),
+  months: z.number().int().positive(),
+  cost: costSchema,
+});
+
+export type SettlementUpgrade = z.infer<typeof settlementUpgradeSchema>;
+
+const fileSchema = z.object({
+  settlementUpgrades: z.array(settlementUpgradeSchema).length(3),
+  buildings: z.array(buildingSchema).min(1),
+});
+
+let parsed: z.infer<typeof fileSchema> | undefined;
+
+function data(): z.infer<typeof fileSchema> {
+  if (!parsed) {
+    const file = fileSchema.parse(rawBuildings);
+
+    const ids = new Set<string>();
+    for (const building of file.buildings) {
+      if (ids.has(building.id)) throw new Error(`Duplicate building id "${building.id}"`);
+      ids.add(building.id);
+
+      // A building the settlement can never reach is a data entry mistake, not a design.
+      if (building.line !== 'military' && building.level > building.minTier) {
+        throw new Error(
+          `"${building.name}" is level ${building.level} of the ${building.line} line but needs only tier ${building.minTier}`,
+        );
+      }
+    }
+    parsed = file;
+  }
+  return parsed;
+}
+
+export function loadBuildings(): readonly Building[] {
+  return data().buildings;
+}
+
+/** The upgrade that takes a settlement to the given tier, or undefined at Capitol. */
+export function settlementUpgradeTo(tier: number): SettlementUpgrade | undefined {
+  return data().settlementUpgrades.find((u) => u.toTier === tier);
+}
+
+export function buildingsForTier(tier: number): readonly Building[] {
+  return loadBuildings().filter((b) => b.minTier <= tier);
+}
+
+export function buildingById(id: string): Building | undefined {
+  return loadBuildings().find((b) => b.id === id);
+}
+
+export interface BuildingSummary {
+  /** Highest housing level built. 0 if the settlement has no housing at all. */
+  housingLevel: number;
+  /** Population growth from administration buildings, in tenths of a percent. */
+  growthTenths: number;
+  /** Gold per month from commerce. */
+  goldPerMonth: number;
+  /** Defender's advantage from fortification, in tenths. */
+  defenceTenths: number;
+}
+
+/** Roll a settlement's completed buildings up into the numbers the simulation needs. */
+export function summariseBuildings(ids: readonly string[]): BuildingSummary {
+  const summary: BuildingSummary = {
+    housingLevel: 0,
+    growthTenths: 0,
+    goldPerMonth: 0,
+    defenceTenths: 0,
+  };
+
+  for (const id of ids) {
+    const building = buildingById(id);
+    if (!building) continue;
+    // Chain lines replace rather than stack, so take the best rather than the sum.
+    summary.housingLevel = Math.max(summary.housingLevel, building.housingLevel);
+    summary.defenceTenths = Math.max(summary.defenceTenths, building.defenceTenths);
+    summary.goldPerMonth = Math.max(summary.goldPerMonth, building.goldPerMonth);
+    summary.growthTenths += building.growthTenths;
+  }
+  return summary;
+}
+
+/**
+ * What a settlement may start building right now.
+ *
+ * Chain lines offer only the next level up, and only if the settlement tier allows it, so the
+ * list is always short and never shows a building that is already superseded.
+ */
+export function availableBuildings(options: {
+  tier: number;
+  built: readonly string[];
+  queued: readonly string[];
+  coastal: boolean;
+}): readonly Building[] {
+  const { tier, built, queued, coastal } = options;
+  const claimed = new Set([...built, ...queued]);
+
+  const levelInLine = new Map<BuildingLine, number>();
+  for (const id of claimed) {
+    const building = buildingById(id);
+    if (!building) continue;
+    levelInLine.set(building.line, Math.max(levelInLine.get(building.line) ?? 0, building.level));
+  }
+
+  return loadBuildings().filter((building) => {
+    if (building.minTier > tier) return false;
+    if (building.coastal && !coastal) return false;
+    if (claimed.has(building.id)) return false;
+    if (!CHAIN_LINES.includes(building.line)) return true;
+    return building.level === (levelInLine.get(building.line) ?? 0) + 1;
+  });
+}

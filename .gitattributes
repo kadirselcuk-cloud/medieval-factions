@@ -1,0 +1,7 @@
+# Normalise line endings. Stored as LF, checked out as LF everywhere, so the repo does not
+# churn when it is opened on macOS or Linux — or by the mobile build later.
+* text=auto eol=lf
+
+# Content files the owner hand-edits. Keeping them diffable matters more than anything else.
+*.json  text eol=lf
+*.md    text eol=lf

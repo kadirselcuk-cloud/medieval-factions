@@ -1,0 +1,106 @@
+# Medieval Factions — Design Record
+
+The vision and locked decisions. Detail lives in the sibling documents:
+
+- [MECHANICS.md](MECHANICS.md) — time, territory, terrain, economy, combat, saves
+- [CONTENT.md](CONTENT.md) — factions, settlements, buildings, units
+- [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) — unresolved; **never guess, ask**
+
+Anything not written down in these files is **not decided**.
+
+---
+
+## 1. Concept
+
+A single-player grand-strategy game blending **Total War** (campaign map, army movement,
+faction warfare) with **Age of Empires** (settlement economy, buildings, unit production).
+Europe and the Mediterranean, starting in **1350**.
+
+- **Platform:** browser first, fully offline. Later wrapped as a WebView app for Android/iOS.
+- **Players:** one, versus 12 AI factions. Everyone is hostile to everyone.
+- **Session:** long-form campaigns across many sittings. Save/continue is mandatory.
+- **Business:** hobby now; possibly commercial later via ads, an ad-removal purchase, and
+  premium unlock of all playable factions.
+
+## 2. The defining idea — continuous time
+
+Time never stops for input. There is **no End Turn**; a "turn" is just a month.
+One tick = one day-phase = one real second at 1x; 120 ticks make a month. Armies march,
+buildings rise, troops train, gold accrues and the AI schemes on the same clock the player
+watches. The player controls only the *rate*: pause, 1x, 2x, 5x, 10x.
+
+This is the single most important architectural constraint. See [MECHANICS.md](MECHANICS.md) §1.
+
+## 3. Scope of version 1
+
+### In
+- 70 × 35 tile Europe map, zoomable and draggable — [data/maps/europe-1350.json](../data/maps/europe-1350.json)
+- 13 factions across 3 religions; 3 playable (Franks, Turks, Russians)
+- Settlement tiers Village → Town → City → Capitol, with buildings
+- Recruitment of a 10-unit roster, renamed per faction
+- Economy: gold, wood, iron, stone; resource nodes; seasonal effects
+- Army movement, one army per tile, up to 20 units
+- Battles: **auto-resolve, simulated turn by turn and watchable**
+- Save / load / continue with export/import
+- Landscape UI: top bar (resources, menu), bottom bar (speed controls), map between
+
+### Out of v1 (deferred, deliberately)
+- Tactical battle map — **Phase B**, after the strategic layer is complete. Regiment-level
+  units with move/attack/hold orders. Not individually simulated soldiers.
+- Sieges, characters/generals, fog of war, random events, diplomacy
+- Victory conditions beyond total conquest
+
+## 4. Standing constraints
+
+- **Deterministic simulation.** Seeded RNG, integer tick counter. Speed setting and frame
+  rate must never change outcomes.
+- **Data-driven.** Maps, factions, units, buildings, terrain are data files. More maps —
+  including procedurally generated ones — are planned, so no hardcoded geography or rules.
+- **Faction access is a data flag** from day one, for later monetization.
+- **Placeholder art now**, owner-supplied 2D assets later, swapped through a manifest.
+- **Landscape-locked**, responsive from phone to desktop full-screen.
+
+## 5. Decision log
+
+| # | Decision | Round |
+|---|---|---|
+| 1 | Fully offline, no backend | 1 |
+| 2 | Auto-resolve battles in v1; regiment-level tactical battles in Phase B | 2 |
+| 3 | Continuous time — 1 tick = 1 day-phase = 1s at 1x; 120 ticks/month | 2 |
+| 4 | "End Turn" removed; a turn is just a month label | 2 |
+| 5 | 70 × 35 square-tile Europe map, owner-authored | 2 |
+| 6 | No sieges / generals / fog of war / events / diplomacy in v1 | 2 |
+| 7 | Landscape-locked, top + bottom UI bars | 2 |
+| 8 | Pause exists; sim pauses when the player is not in the game — no offline progress | 3 |
+| 9 | One army per tile, max 20 units, moves at its slowest unit's speed | 3 |
+| 10 | Auto-resolve is simulated in battle turns of 1 hour, 6 per tick, and is watchable | 3 |
+| 11 | Player battles auto-pause the campaign and prompt — the seam for Phase B | 3 |
+| 12 | Start January 1350; victory = total conquest | 3 |
+| 13 | 13 factions, 3 religions, 3 playable (Franks, Turks, Russians) | 3 |
+| 14 | Factions start with one city + the 4 surrounding tiles | 3 |
+| 15 | Seasons affect movement and farm income | 3 |
+| 16 | Saves: IndexedDB, named slots, month-rollover autosave, JSON export/import | 3 |
+| 17 | The other 45 cities belong to a neutral, garrisoned **Independents** faction | 4 |
+| 18 | No food resource — **farms produce gold**, 10/month at Basic tier | 4 |
+| 19 | Four ship types: Transport, Light, Heavy, Flagship — gated by Dock/Port/Shipyard | 4 |
+| 20 | Every faction starts at **Village** tier with **250 gold**; Castille = Toledo, Hungary = Buda | 4 |
+| 21 | Territory is claimed by **army presence**; starting tiles are the 4 orthogonal neighbours | 4 |
+| 22 | Auto-resolve: 10-tile field, alternating speed-ordered activations, one action each, 3× rout rule after turn 10, 48-turn cap | 4 |
+| 23 | Winter adds +10% defender's advantage on top of movement and harvest penalties | 4 |
+| 24 | Cities have **population**, starting at 1,000, compounding monthly from wealth, city level and housing | 5 |
+| 25 | Every 100 population yields 1 gold/month | 5 |
+| 26 | Tile farms yield 10 gold/month, +10 per upgrade, upgrades gated by highest city level | 5 |
+| 27 | Git initialisation deferred by the owner until after the first version | 5 |
+| 28 | Farms, mines and sawmills are **tile improvements**; the realm's highest city level caps their upgrade | 6 |
+| 29 | A city tile is also a tile — settlements carry improvements alongside city buildings | 6 |
+| 30 | Buildings 12 months at level 1, +6 per level; settlement upgrades 24 / 36 / 48 months | 6 |
+| 31 | Building and unit queues are independent — construction never blocks recruitment | 6 |
+| 32 | Commerce line gives +10 gold per upgrade; hall line gives +0.1% growth each | 6 |
+| 33 | Wealth growth bonus is treasury-wide and diminishing: +1% at 10k, +2% at 100k, +3% at 1M | 6 |
+| 34 | Autosaves: 5 monthly plus 3 yearly | 6 |
+| 35 | Map revision: Toulouse and Genoa removed; Burgundy, Sardinia, Crete and Cyprus added; Leon, Barcelona and Mecca moved. 60 cities | 6 |
+| 36 | A tile carries exactly **one** improvement — farm, mine, or sawmill | 7 |
+| 37 | Improvements are built at level 1 and upgraded 3 more times, to **level 4**; the realm's highest settlement tier caps the level | 7 |
+| 38 | Resource nodes pay a token yield unmined; a mine multiplies it up to tenfold | 7 |
+| 39 | Terrain modifiers scale farms, mines **and** sawmills | 7 |
+| 40 | Modifier scale corrected — `-` is **−40%**, not −50%. `++` +100%, `+` +50%, `--` −80% | 7 |

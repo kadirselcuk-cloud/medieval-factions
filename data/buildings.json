@@ -1,0 +1,242 @@
+{
+  "_comment": "City buildings. All costs and durations are [GEN] proposals. minTier: 1 Village, 2 Town, 3 City, 4 Capitol. Housing and fortification are separately built lines, not granted by the tier.",
+
+  "settlementUpgrades": [
+    { "toTier": 2, "name": "Town", "months": 24, "cost": { "gold": 1000, "wood": 100 } },
+    { "toTier": 3, "name": "City", "months": 36, "cost": { "gold": 5000, "stone": 100 } },
+    { "toTier": 4, "name": "Capitol", "months": 48, "cost": { "gold": 20000, "stone": 1000 } }
+  ],
+
+  "buildings": [
+    {
+      "id": "wooden_houses",
+      "name": "Wooden Houses",
+      "line": "housing",
+      "level": 1,
+      "minTier": 1,
+      "months": 12,
+      "cost": { "gold": 120 },
+      "housingLevel": 1
+    },
+    {
+      "id": "stone_houses",
+      "name": "Stone Houses",
+      "line": "housing",
+      "level": 2,
+      "minTier": 2,
+      "months": 18,
+      "cost": { "gold": 350, "wood": 40, "stone": 40 },
+      "housingLevel": 2
+    },
+    {
+      "id": "villas",
+      "name": "Villas",
+      "line": "housing",
+      "level": 3,
+      "minTier": 3,
+      "months": 24,
+      "cost": { "gold": 800, "wood": 80, "stone": 100 },
+      "housingLevel": 3
+    },
+    {
+      "id": "manors",
+      "name": "Manors",
+      "line": "housing",
+      "level": 4,
+      "minTier": 4,
+      "months": 30,
+      "cost": { "gold": 1600, "wood": 150, "stone": 200 },
+      "housingLevel": 4
+    },
+
+    {
+      "id": "wooden_palisade",
+      "name": "Wooden Palisade",
+      "line": "fortification",
+      "level": 1,
+      "minTier": 1,
+      "months": 12,
+      "cost": { "gold": 100 },
+      "defenceTenths": 1
+    },
+    {
+      "id": "stone_walls",
+      "name": "Stone Walls",
+      "line": "fortification",
+      "level": 2,
+      "minTier": 2,
+      "months": 18,
+      "cost": { "gold": 450, "stone": 60 },
+      "defenceTenths": 3
+    },
+    {
+      "id": "city_walls",
+      "name": "City Walls",
+      "line": "fortification",
+      "level": 3,
+      "minTier": 3,
+      "months": 24,
+      "cost": { "gold": 1200, "stone": 150 },
+      "defenceTenths": 4
+    },
+    {
+      "id": "citadel",
+      "name": "Citadel",
+      "line": "fortification",
+      "level": 4,
+      "minTier": 4,
+      "months": 30,
+      "cost": { "gold": 3000, "stone": 400 },
+      "defenceTenths": 6
+    },
+
+    {
+      "id": "cottage_shops",
+      "name": "Cottage Shops",
+      "line": "commerce",
+      "level": 1,
+      "minTier": 1,
+      "months": 12,
+      "cost": { "gold": 150 },
+      "goldPerMonth": 10
+    },
+    {
+      "id": "merchants",
+      "name": "Merchants",
+      "line": "commerce",
+      "level": 2,
+      "minTier": 2,
+      "months": 18,
+      "cost": { "gold": 400, "wood": 60 },
+      "goldPerMonth": 20
+    },
+    {
+      "id": "artisans",
+      "name": "Artisans",
+      "line": "commerce",
+      "level": 3,
+      "minTier": 3,
+      "months": 24,
+      "cost": { "gold": 900, "wood": 100, "stone": 60 },
+      "goldPerMonth": 30
+    },
+    {
+      "id": "guildhouse",
+      "name": "Guildhouse",
+      "line": "commerce",
+      "level": 4,
+      "minTier": 4,
+      "months": 30,
+      "cost": { "gold": 1800, "wood": 150, "stone": 120 },
+      "goldPerMonth": 40
+    },
+
+    {
+      "id": "town_hall",
+      "name": "Town Hall",
+      "line": "administration",
+      "level": 1,
+      "minTier": 2,
+      "months": 12,
+      "cost": { "gold": 500, "wood": 50, "stone": 50 },
+      "growthTenths": 1
+    },
+    {
+      "id": "city_hall",
+      "name": "City Hall",
+      "line": "administration",
+      "level": 2,
+      "minTier": 3,
+      "months": 18,
+      "cost": { "gold": 1200, "wood": 100, "stone": 120 },
+      "growthTenths": 1
+    },
+    {
+      "id": "palace",
+      "name": "Palace",
+      "line": "administration",
+      "level": 3,
+      "minTier": 4,
+      "months": 24,
+      "cost": { "gold": 3000, "wood": 200, "stone": 300 },
+      "growthTenths": 1
+    },
+
+    {
+      "id": "spear_quarters",
+      "name": "Spear Quarters",
+      "line": "military",
+      "level": 1,
+      "minTier": 2,
+      "months": 12,
+      "cost": { "gold": 300, "wood": 50 }
+    },
+    {
+      "id": "archery_range",
+      "name": "Archery Range",
+      "line": "military",
+      "level": 1,
+      "minTier": 2,
+      "months": 12,
+      "cost": { "gold": 350, "wood": 60 }
+    },
+    {
+      "id": "axe_quarters",
+      "name": "Axe Quarters",
+      "line": "military",
+      "level": 1,
+      "minTier": 2,
+      "months": 12,
+      "cost": { "gold": 400, "wood": 40, "iron": 30 }
+    },
+    {
+      "id": "barracks",
+      "name": "Barracks",
+      "line": "military",
+      "level": 1,
+      "minTier": 2,
+      "months": 12,
+      "cost": { "gold": 500, "wood": 60, "iron": 40 }
+    },
+    {
+      "id": "stables",
+      "name": "Stables",
+      "line": "military",
+      "level": 1,
+      "minTier": 2,
+      "months": 12,
+      "cost": { "gold": 600, "wood": 80, "iron": 30 }
+    },
+
+    {
+      "id": "dock",
+      "name": "Dock",
+      "line": "naval",
+      "level": 1,
+      "minTier": 2,
+      "months": 12,
+      "cost": { "gold": 400, "wood": 80 },
+      "coastal": true
+    },
+    {
+      "id": "port",
+      "name": "Port",
+      "line": "naval",
+      "level": 2,
+      "minTier": 3,
+      "months": 18,
+      "cost": { "gold": 1000, "wood": 150, "stone": 80 },
+      "coastal": true
+    },
+    {
+      "id": "shipyard",
+      "name": "Shipyard",
+      "line": "naval",
+      "level": 3,
+      "minTier": 4,
+      "months": 24,
+      "cost": { "gold": 2500, "wood": 300, "stone": 200 },
+      "coastal": true
+    }
+  ]
+}
