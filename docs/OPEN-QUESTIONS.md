@@ -44,8 +44,13 @@ Nothing here blocks starting the build. Each item is due before the phase that n
 - **Capitol housing tier.** — `OPEN`. Housing runs Wooden Houses → Stone Houses → Villas
   (levels 1–3). A Capitol lists Palace and Guildhouse but no housing. Is there a level-4
   housing building, or does a Capitol stay on Villas?
-- **Is population capped, and can it fall?** — `OPEN`. Famine, plague, war losses, or sacking
-  a captured city. Uncapped compounding growth has no brake.
+- **Is population capped, and can it fall?** — `OPEN`, and now **measured**. Growth compounds
+  with no ceiling, and the treasury bonus feeds it. Running a fresh campaign 50 years forward
+  with nobody doing anything leaves an untouched rival on **1.7 million gold** with **4.7
+  million people in a single Village** — still tier 1, no buildings, no armies. Population
+  pays gold, gold raises the growth rate, and nothing anywhere pushes back. This affects the
+  player exactly as much as the AI; it is a rule gap, not an AI gap. Needs either a cap per
+  settlement tier, or a drag that grows with size.
 - **Does recruitment consume population?** — `OPEN`. Light Infantry is 100 soldiers against a
   starting population of 1,000. If units draw from population, that is a real strategic
   constraint; if not, population is purely an income multiplier.
