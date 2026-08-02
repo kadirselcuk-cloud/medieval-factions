@@ -13,6 +13,21 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.6.2] — 2026-08-02
+
+**Map revision.** Owner-directed terrain edits to `data/maps/europe-1350.json`.
+
+### Changed
+
+- Nineteen tiles become **Mountain**: five scattered through the tundra, four through the
+  steppe, five through the forest, four across the Libyan desert between Tripoli and
+  Alexandria, and one at (65, 27). They are deliberately isolated single peaks rather than
+  ranges — none is orthogonally adjacent to a settlement, so no city loses a workable tile.
+- **Konya** and the tile west of it (54, 23) change from Mountain to **Plains**, giving the
+  city something to farm.
+- The three tiles directly south of **Alexandria** — (50, 31), (50, 32), (50, 33) — change
+  from Desert to **Plains**.
+
 ## [0.6.1] — 2026-08-02
 
 **Debt.** Running out of money is now a slow crisis rather than a hard stop.
