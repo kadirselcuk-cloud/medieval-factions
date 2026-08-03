@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import rawEurope from '../../data/maps/europe-1350.json';
 import { buildWorld } from '../data/world';
-import { Camera } from './camera';
+import { Camera, OVERSCROLL_TILES } from './camera';
 
 const world = buildWorld(rawEurope);
 
@@ -56,18 +56,39 @@ describe('Camera', () => {
     expect(camera.zoom).toBe(48);
   });
 
-  it('keeps the map edges pinned to the viewport when panning', () => {
+  /**
+   * The bars and the settlement panel sit over the map, so a coastal city at the edge would be
+   * permanently underneath them if the map could not be pulled past its own coastline. Panning
+   * therefore runs out exactly `OVERSCROLL_TILES` beyond each edge — no more, and no less.
+   */
+  it('pans up to ten tiles past each edge, and no further', () => {
     camera.setZoom(40, VIEW_W, VIEW_H);
-    camera.panByPixels(100_000, 100_000, VIEW_W, VIEW_H);
+    const slack = OVERSCROLL_TILES * camera.zoom;
 
+    camera.panByPixels(100_000, 100_000, VIEW_W, VIEW_H);
     const topLeft = camera.worldToScreen(0, 0, VIEW_W, VIEW_H);
-    expect(topLeft.x).toBeLessThanOrEqual(0);
-    expect(topLeft.y).toBeLessThanOrEqual(0);
+    expect(topLeft.x).toBeCloseTo(slack, 6);
+    expect(topLeft.y).toBeCloseTo(slack, 6);
 
     camera.panByPixels(-100_000, -100_000, VIEW_W, VIEW_H);
     const bottomRight = camera.worldToScreen(world.width, world.height, VIEW_W, VIEW_H);
-    expect(bottomRight.x).toBeGreaterThanOrEqual(VIEW_W);
-    expect(bottomRight.y).toBeGreaterThanOrEqual(VIEW_H);
+    expect(bottomRight.x).toBeCloseTo(VIEW_W - slack, 6);
+    expect(bottomRight.y).toBeCloseTo(VIEW_H - slack, 6);
+  });
+
+  it('still gives slack at the fit zoom, where a panel would otherwise trap a coastline', () => {
+    camera.fit(VIEW_W, VIEW_H);
+    camera.panByPixels(100_000, 0, VIEW_W, VIEW_H);
+    // The whole map is on screen, and it can still be shoved out from under the panel.
+    expect(world.width / 2 - camera.centerX).toBeCloseTo(OVERSCROLL_TILES, 6);
+  });
+
+  it('centres an axis that has nowhere to pan to at all', () => {
+    // A viewport more than twice the overscroll wider than the map: the range collapses.
+    const wide = world.width * 40 + OVERSCROLL_TILES * 80;
+    camera.setZoom(40, wide, VIEW_H);
+    camera.panByPixels(100_000, 0, wide, VIEW_H);
+    expect(camera.centerX).toBe(world.width / 2);
   });
 
   it('reports a visible-tile range that covers the viewport', () => {

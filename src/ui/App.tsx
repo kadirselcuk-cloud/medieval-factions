@@ -10,9 +10,9 @@ import type { BattleReport, GameEvent, SimState } from '../sim/types';
 import { BalancePanel } from './BalancePanel';
 import { BattleView } from './BattleView';
 import { BottomBar } from './BottomBar';
+import { GameMenu } from './GameMenu';
 import { MapView } from './MapView';
 import { RosterMenu, type RosterKind } from './RosterMenu';
-import { SaveMenu } from './SaveMenu';
 import { SelectionPanel } from './SelectionPanel';
 import { StartScreen } from './StartScreen';
 import { TopBar } from './TopBar';
@@ -81,6 +81,7 @@ function Campaign({
   const [marchingId, setMarching] = useState<number | null>(null);
   /** The balance panel is a developer tool, opened with B. */
   const [balanceOpen, setBalanceOpen] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
   /** The battle currently on screen, if any. */
   const [battle, setBattle] = useState<BattleReport | null>(null);
   /** The newest battle already offered to the player, so one is never shown twice. */
@@ -163,6 +164,23 @@ function Campaign({
     rendererRef.current = renderer;
   }, []);
 
+  /**
+   * Full screen, which the browser only grants from a user gesture and can also leave on its
+   * own — pressing Escape, for instance. The flag therefore follows the document rather than
+   * the button, so the icon can never claim a state the browser is not in.
+   */
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void document.documentElement.requestFullscreen().catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    const sync = () => setFullscreen(document.fullscreenElement !== null);
+    document.addEventListener('fullscreenchange', sync);
+    sync();
+    return () => document.removeEventListener('fullscreenchange', sync);
+  }, []);
+
   // Keyboard shortcuts: space toggles pause, number keys pick a speed.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -225,7 +243,14 @@ function Campaign({
         )}
       </main>
 
-      {menuOpen && <SaveMenu game={game} onClose={() => setMenuOpen(false)} />}
+      {menuOpen && (
+        <GameMenu
+          game={game}
+          onClose={() => setMenuOpen(false)}
+          fullscreen={fullscreen}
+          onFullscreen={toggleFullscreen}
+        />
+      )}
 
       {balanceOpen && (
         <BalancePanel
@@ -290,6 +315,10 @@ function Campaign({
         onZoomIn={() => rendererRef.current?.zoomBy(1.35)}
         onZoomOut={() => rendererRef.current?.zoomBy(1 / 1.35)}
         onFit={() => rendererRef.current?.fit()}
+        onFullscreen={toggleFullscreen}
+        fullscreen={fullscreen}
+        cheatsUnlocked={game.cheatsUnlocked}
+        onUnlockCheats={() => game.unlockCheats()}
       />
 
       <div className="rotate-gate">

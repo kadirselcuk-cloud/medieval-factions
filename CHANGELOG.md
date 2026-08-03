@@ -13,6 +13,39 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.10.1] — 2026-08-03
+
+Quality of life, all at the owner's request. No rules changed.
+
+### Added
+
+- **Full screen**, as an icon beside Fit in the bottom bar and as a switch in the menu's
+  Options. It follows the document rather than the button, so the icon cannot claim a state the
+  browser is not in — leaving with Escape updates it too.
+- **The map pans ten tiles past every edge.** The bars and the settlement panel sit over the
+  map, so a coastal city at the edge used to be permanently underneath them with no way to shift
+  it. Anything on the map can now be dragged into open space.
+- **CHEAT, and it must not ship:** a hidden **maximum speed** — a century of campaign in about
+  two and a half minutes — unlocked by clicking **Pause three times, then 10× three times**.
+  Session-only, never written to a save, every piece commented `CHEAT — remove before release`,
+  and logged at the top of `docs/OWED.md`.
+
+### Changed
+
+- **Saves is now Menu**, holding save, load and options, with the version at the foot of it.
+  The version chip is gone from the top bar.
+- **Neither bar shuffles any more.** Everything whose text changes as the campaign runs — the
+  date, the season, the treasury, the tile readout — now has a width of its own. "1 September
+  1350" is wider than "1 May 1350", and the difference used to shove every neighbouring control
+  sideways once a month, every month.
+- **The build grid is three to a row**, with smaller squares and tighter margins.
+- **A square carries a picture and a name and nothing else.** Costs and durations are gone from
+  it; every number lives in the detail box, which is what makes the squares small enough to fit
+  three across.
+- **The detail box is a panel of its own, beside the settlement's**, rather than a window over
+  it — so the numbers and the city they belong to can be read at the same time. Closing the
+  settlement, or clicking anywhere else, closes both. Only one can ever be open.
+
 ## [0.10.0] — 2026-08-03
 
 **Siege, and the fight for a city.** A walled capital is no longer untakeable — it is taken by

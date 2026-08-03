@@ -1,8 +1,8 @@
-import type { JSX } from 'react';
+import { useRef, type JSX } from 'react';
 import { TERRAIN_LABEL } from '../data/world';
 import type { TileInfo } from '../render/MapRenderer';
 import { calendarAt } from '../sim/calendar';
-import { SPEEDS, type Speed } from '../sim/game';
+import { MAX_SPEED, SPEEDS, type Speed } from '../sim/game';
 import type { GameEvent, SimState } from '../sim/types';
 
 interface BottomBarProps {
@@ -17,7 +17,21 @@ interface BottomBarProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFit: () => void;
+  onFullscreen: () => void;
+  fullscreen: boolean;
+  /** CHEAT — remove before release. */
+  cheatsUnlocked: boolean;
+  /** CHEAT — remove before release. */
+  onUnlockCheats: () => void;
 }
+
+/**
+ * CHEAT — remove before release. See docs/OWED.md.
+ *
+ * Three clicks on Pause, then three on 10x, and a Max button appears. Written as a sequence
+ * rather than a key combination so it survives on a touchscreen, where the game will live.
+ */
+const CHEAT_SEQUENCE: readonly Speed[] = [0, 0, 0, 10, 10, 10];
 
 function describe(tile: TileInfo | null): JSX.Element {
   if (!tile) return <span className="readout__hint">Click a tile or city · drag to pan</span>;
@@ -115,22 +129,38 @@ export function BottomBar({
   onZoomIn,
   onZoomOut,
   onFit,
+  onFullscreen,
+  fullscreen,
+  cheatsUnlocked,
+  onUnlockCheats,
 }: BottomBarProps): JSX.Element {
   const date = calendarAt(state.tick);
+
+  // CHEAT — remove before release.
+  const recent = useRef<Speed[]>([]);
+  const press = (value: Speed) => {
+    recent.current = [...recent.current, value].slice(-CHEAT_SEQUENCE.length);
+    if (recent.current.every((v, i) => v === CHEAT_SEQUENCE[i]) && recent.current.length === CHEAT_SEQUENCE.length) {
+      onUnlockCheats();
+    }
+    onSpeedChange(value);
+  };
+
+  const speeds: Speed[] = cheatsUnlocked ? [...SPEEDS, MAX_SPEED] : [...SPEEDS];
 
   return (
     <footer className="bar bar--bottom">
       <div className="bar__group" role="group" aria-label="Game speed">
-        {SPEEDS.map((value) => (
+        {speeds.map((value) => (
           <button
             key={value}
             type="button"
-            className={`speed-button${speed === value ? ' speed-button--active' : ''}`}
+            className={`speed-button${speed === value ? ' speed-button--active' : ''}${value === MAX_SPEED ? ' speed-button--cheat' : ''}`}
             aria-pressed={speed === value}
-            onClick={() => onSpeedChange(value)}
-            title={value === 0 ? 'Pause' : `${value}× speed`}
+            onClick={() => press(value)}
+            title={value === 0 ? 'Pause' : value === MAX_SPEED ? 'Maximum speed — a cheat' : `${value}× speed`}
           >
-            {value === 0 ? '❚❚' : `${value}×`}
+            {value === 0 ? '❚❚' : value === MAX_SPEED ? 'MAX' : `${value}×`}
           </button>
         ))}
       </div>
@@ -161,6 +191,16 @@ export function BottomBar({
           title={`Fit map to screen (${zoom.toFixed(1)} px/tile)`}
         >
           Fit
+        </button>
+        <button
+          type="button"
+          className="icon-button"
+          onClick={onFullscreen}
+          title={fullscreen ? 'Leave full screen' : 'Full screen'}
+          aria-label={fullscreen ? 'Leave full screen' : 'Full screen'}
+          aria-pressed={fullscreen}
+        >
+          {fullscreen ? '⤡' : '⤢'}
         </button>
       </div>
     </footer>

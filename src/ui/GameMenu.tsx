@@ -17,7 +17,23 @@ const KIND_LABEL: Record<SaveMeta['kind'], string> = {
   yearly: 'Yearly',
 };
 
-export function SaveMenu({ game, onClose }: { game: Game; onClose: () => void }): JSX.Element {
+/**
+ * The game menu — saving, loading and options, behind one button.
+ *
+ * Options is deliberately thin: it holds the settings that actually exist rather than a row of
+ * switches wired to nothing. It grows as the game gains things worth setting.
+ */
+export function GameMenu({
+  game,
+  onClose,
+  fullscreen,
+  onFullscreen,
+}: {
+  game: Game;
+  onClose: () => void;
+  fullscreen: boolean;
+  onFullscreen: () => void;
+}): JSX.Element {
   const [saves, setSaves] = useState<SaveMeta[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -67,10 +83,10 @@ export function SaveMenu({ game, onClose }: { game: Game; onClose: () => void })
     });
 
   return (
-    <div className="overlay" role="dialog" aria-label="Saves">
+    <div className="overlay" role="dialog" aria-label="Menu">
       <div className="overlay__panel">
         <header className="overlay__header">
-          <h2>Saves</h2>
+          <h2>Menu</h2>
           <button type="button" className="panel__close" onClick={onClose} title="Close">
             ✕
           </button>
@@ -104,7 +120,21 @@ export function SaveMenu({ game, onClose }: { game: Game; onClose: () => void })
 
         {error && <p className="overlay__error">{error}</p>}
 
+        <div className="overlay__section">
+          <div className="panel__heading">Options</div>
+          <label className="option-row">
+            <input type="checkbox" checked={fullscreen} onChange={onFullscreen} />
+            Full screen
+          </label>
+          {game.cheatsUnlocked && (
+            <p className="panel__note">
+              Maximum speed is unlocked. It is a testing cheat and will not ship.
+            </p>
+          )}
+        </div>
+
         <div className="overlay__list">
+          <div className="panel__heading">Load</div>
           {saves.length === 0 && <p className="panel__note">No saves yet. Autosaves appear each month.</p>}
           {saves.map((save) => {
             const date = calendarAt(save.tick);
@@ -132,6 +162,10 @@ export function SaveMenu({ game, onClose }: { game: Game; onClose: () => void })
             );
           })}
         </div>
+
+        <footer className="overlay__foot">
+          Medieval Factions <strong>v{__APP_VERSION__}</strong>
+        </footer>
       </div>
     </div>
   );

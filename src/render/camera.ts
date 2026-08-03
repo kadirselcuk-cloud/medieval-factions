@@ -6,6 +6,14 @@ import type { World } from '../data/world';
  * `zoom` is pixels per tile — using it directly rather than an abstract scale factor keeps
  * every "is this readable yet?" decision in the renderer honest and unit-ful.
  */
+
+/** Empty tiles the camera may pull past each map edge, so the UI never traps a coastline. */
+export const OVERSCROLL_TILES = 10;
+
+/** Clamp to [lo, hi], falling back to `whenInverted` if the range has collapsed. */
+function between(lo: number, hi: number, value: number, whenInverted: number): number {
+  return lo >= hi ? whenInverted : Math.max(lo, Math.min(hi, value));
+}
 export class Camera {
   centerX = 0;
   centerY = 0;
@@ -54,18 +62,21 @@ export class Camera {
   }
 
   /**
-   * Keep the map anchored to the viewport. When an axis is smaller than the viewport the map
-   * is centred on it; otherwise the centre is clamped so the edge never pulls inside the frame.
+   * Keep the map anchored to the viewport, with room to spare past every edge.
+   *
+   * The bars and the selection panel sit over the map, so a city on the coast would otherwise
+   * be permanently underneath them with no way to shift it. Allowing the camera to pull
+   * `OVERSCROLL_TILES` past each edge means anything on the map can be dragged into open space.
+   *
+   * When an axis is smaller than the viewport there is nowhere to pan to, so it is simply centred.
    */
   clamp(viewW: number, viewH: number): void {
     const halfW = viewW / this.zoom / 2;
     const halfH = viewH / this.zoom / 2;
     const { width, height } = this.world;
 
-    this.centerX =
-      width <= halfW * 2 ? width / 2 : Math.max(halfW, Math.min(width - halfW, this.centerX));
-    this.centerY =
-      height <= halfH * 2 ? height / 2 : Math.max(halfH, Math.min(height - halfH, this.centerY));
+    this.centerX = between(halfW - OVERSCROLL_TILES, width + OVERSCROLL_TILES - halfW, this.centerX, width / 2);
+    this.centerY = between(halfH - OVERSCROLL_TILES, height + OVERSCROLL_TILES - halfH, this.centerY, height / 2);
   }
 
   worldToScreen(wx: number, wy: number, viewW: number, viewH: number): { x: number; y: number } {

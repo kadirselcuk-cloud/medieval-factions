@@ -40,7 +40,6 @@ export function TopBar({
       <div className="bar__group">
         <span className="swatch" style={{ background: playerFaction.color }} aria-hidden="true" />
         <span className="brand">{playerFaction.name}</span>
-        <span className="chip chip--version">v{__APP_VERSION__}</span>
       </div>
 
       <div className="bar__group bar__group--resources">
@@ -84,6 +83,11 @@ export function TopBar({
         ))}
       </div>
 
+      {/*
+        Every part of this block has a width of its own. A calendar reading "1 September 1350"
+        is wider than "1 May 1350", and before this the difference shoved everything else in the
+        bar sideways once a month, every month.
+      */}
       <div className="bar__group bar__group--end">
         <span className="date">
           <span className="date__day">{date.day}</span>
@@ -93,8 +97,13 @@ export function TopBar({
         <span className="status status--muted">
           {date.phase} · {SEASON_LABEL[date.season]}
         </span>
-        <button type="button" className="icon-button icon-button--wide" onClick={onOpenMenu}>
-          Saves
+        <button
+          type="button"
+          className="icon-button icon-button--wide"
+          onClick={onOpenMenu}
+          title="Save, load and options"
+        >
+          Menu
         </button>
       </div>
     </header>

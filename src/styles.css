@@ -1408,3 +1408,162 @@ body {
   font-size: 10px;
   font-variant-numeric: tabular-nums;
 }
+
+/* =========================================================================
+   0.10.1 — quality of life
+   ========================================================================= */
+
+/* ------------------------------------------------- bars that do not shuffle
+
+   Everything in a bar whose text changes as the campaign runs is given a width of
+   its own. "1 September 1350" is wider than "1 May 1350", and without this the
+   difference shoved every neighbouring control sideways once a month. */
+
+.date {
+  width: 132px;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
+.date__month {
+  min-width: 66px;
+  text-align: right;
+}
+
+.bar--top .status--muted {
+  display: inline-block;
+  width: 108px;
+  text-align: right;
+}
+
+/* Wide enough for a seven-figure treasury; longer than that clips rather than shoves. */
+.bar__group--resources .chip {
+  min-width: 104px;
+  justify-content: flex-start;
+  overflow: hidden;
+}
+
+.bar__group--resources .chip__value {
+  margin-left: auto;
+}
+
+.bar__group--resources .chip__rate {
+  min-width: 34px;
+  text-align: right;
+}
+
+/* The terrain readout takes a fixed share of the bar, so a long city name cannot
+   push the zoom controls about. It shrinks with the viewport, never with its text. */
+.bar--bottom .readout {
+  flex: 0 1 320px;
+}
+
+.speed-button--cheat {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+/* ------------------------------------------------------------ the game menu */
+
+.overlay__section {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--panel-line);
+}
+
+.option-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.option-row input {
+  accent-color: var(--accent);
+}
+
+.overlay__foot {
+  padding: 9px 14px;
+  border-top: 1px solid var(--panel-line);
+  color: var(--ink-muted);
+  font-size: 11px;
+  text-align: right;
+}
+
+.overlay__foot strong {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* --------------------------------------------- the build grid and its detail
+
+   Three to a row, and the square carries a picture and a name and nothing else.
+   Every number lives in the detail box, which is why the squares can be this small. */
+
+.tile-grid {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.build-tile {
+  gap: 2px;
+  padding: 4px 2px;
+  border-radius: 5px;
+}
+
+.build-tile__art {
+  font-size: clamp(16px, 2.4vw, 24px);
+}
+
+.build-tile__name {
+  font-size: 9px;
+  line-height: 1.1;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.build-tile--open {
+  border-color: var(--accent);
+  background: rgba(200, 162, 74, 0.14);
+}
+
+/* The detail sits beside the settlement panel rather than over it, so the numbers
+   and the city they belong to can be read at the same time. */
+.panel--detail {
+  right: 282px;
+}
+
+.detail__title {
+  gap: 7px;
+  min-width: 0;
+}
+
+.detail__blurb {
+  margin: 0 0 8px;
+  color: var(--ink-muted);
+  line-height: 1.5;
+}
+
+@media (max-width: 720px) {
+  .panel,
+  .panel--detail {
+    width: 224px;
+  }
+
+  .panel--detail {
+    right: 244px;
+  }
+
+  .bar--top .status--muted {
+    display: none;
+  }
+
+  .bar__group--resources .chip {
+    min-width: 84px;
+    padding: 3px 5px;
+  }
+}

@@ -7,7 +7,17 @@ import { advance } from './tick';
 import type { SimState } from './types';
 
 export const SPEEDS = [0, 1, 2, 5, 10] as const;
-export type Speed = (typeof SPEEDS)[number];
+
+/**
+ * **CHEAT — remove before release.** See docs/OWED.md.
+ *
+ * A century of campaign in about two and a half minutes, for testing balance by eye rather than
+ * by projection. Hidden until unlocked, and unlocked by a key sequence no player finds by
+ * accident: three clicks on Pause, then three on 10x.
+ */
+export const MAX_SPEED = 1000;
+
+export type Speed = (typeof SPEEDS)[number] | typeof MAX_SPEED;
 
 /**
  * Real time is clamped per frame so a stalled tab cannot dump thousands of queued ticks into
@@ -30,6 +40,8 @@ export class Game {
 
   private speedValue: Speed = 1;
   private speedBeforeAutoPause: Speed = 1;
+  /** CHEAT — remove before release. Session-only; deliberately not part of a save. */
+  private cheatsOn = false;
   private autoPaused = false;
   private frameHandle = 0;
   private lastFrameTime = 0;
@@ -52,6 +64,18 @@ export class Game {
 
   get isAutoPaused(): boolean {
     return this.autoPaused;
+  }
+
+  /** CHEAT — remove before release. */
+  get cheatsUnlocked(): boolean {
+    return this.cheatsOn;
+  }
+
+  /** CHEAT — remove before release. */
+  unlockCheats(): void {
+    if (this.cheatsOn) return;
+    this.cheatsOn = true;
+    this.emit();
   }
 
   get playerFaction(): Faction {

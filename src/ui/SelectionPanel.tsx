@@ -1,5 +1,5 @@
-import { useState, type JSX } from 'react';
-import { artFor, settlementArtKey } from '../data/art';
+import { useState, type JSX } from "react";
+import { artFor, settlementArtKey } from "../data/art";
 import {
   buildingById,
   buildingsForTier,
@@ -9,15 +9,15 @@ import {
   summariseBuildings,
   type Building,
   type SettlementUpgrade,
-} from '../data/buildings';
-import { RELIGION_LABEL, type Faction } from '../data/factions';
+} from "../data/buildings";
+import { RELIGION_LABEL, type Faction } from "../data/factions";
 import {
   improvementCost,
   improvementMonths,
   MAX_IMPROVEMENT_LEVEL,
   tileOutput,
-} from '../data/improvements';
-import { TERRAIN_PROFILE, type ImprovementKind } from '../data/terrain';
+} from "../data/improvements";
+import { TERRAIN_PROFILE, type ImprovementKind } from "../data/terrain";
 import {
   buildableShips,
   defenceBuildings,
@@ -27,9 +27,19 @@ import {
   shipById,
   unitById,
   type Unit,
-} from '../data/units';
-import { adjacentWaterCount, TERRAIN_LABEL, type TileInfo, type World } from '../data/world';
-import { BuildGrid, costText, type BuildTile } from './BuildGrid';
+} from "../data/units";
+import {
+  adjacentWaterCount,
+  TERRAIN_LABEL,
+  type TileInfo,
+  type World,
+} from "../data/world";
+import {
+  BuildGrid,
+  BuildGridScope,
+  costText,
+  type BuildTile,
+} from "./BuildGrid";
 import {
   armyAt,
   armySpeed,
@@ -40,10 +50,10 @@ import {
   stackSoldiers,
   stackUpkeep,
   standDown,
-} from '../sim/armies';
-import { calendarAt } from '../sim/calendar';
-import { beginSiege, siegeTarget } from '../sim/conquest';
-import { assault, halt, SEASON_MOVEMENT } from '../sim/movement';
+} from "../sim/armies";
+import { calendarAt } from "../sim/calendar";
+import { beginSiege, siegeTarget } from "../sim/conquest";
+import { assault, halt, SEASON_MOVEMENT } from "../sim/movement";
 import {
   buildOptions,
   cancelImprovement,
@@ -60,9 +70,9 @@ import {
   queueUnit,
   settlementUpgradeBlock,
   type BuildFailure,
-} from '../sim/construction';
-import type { Game } from '../sim/game';
-import { cityGrowthTenths } from '../sim/tick';
+} from "../sim/construction";
+import type { Game } from "../sim/game";
+import { cityGrowthTenths } from "../sim/tick";
 import {
   MAX_ARMY_UNITS,
   MILLI,
@@ -71,8 +81,8 @@ import {
   type ArmyState,
   type CityState,
   type SimState,
-} from '../sim/types';
-import { num, signed } from './format';
+} from "../sim/types";
+import { num, signed } from "./format";
 
 interface SelectionPanelProps {
   tile: TileInfo;
@@ -85,20 +95,24 @@ interface SelectionPanelProps {
   onClose: () => void;
 }
 
-type Tab = 'info' | 'buildings' | 'armies' | 'navy';
+type Tab = "info" | "buildings" | "armies" | "navy";
 
 const TAB_LABEL: Record<Tab, string> = {
-  info: 'Info',
-  buildings: 'Buildings',
-  armies: 'Armies',
-  navy: 'Navy',
+  info: "Info",
+  buildings: "Buildings",
+  armies: "Armies",
+  navy: "Navy",
 };
 
-const IMPROVEMENT_KINDS: readonly ImprovementKind[] = ['farm', 'mine', 'sawmill'];
+const IMPROVEMENT_KINDS: readonly ImprovementKind[] = [
+  "farm",
+  "mine",
+  "sawmill",
+];
 const IMPROVEMENT_NAME: Record<ImprovementKind, string> = {
-  farm: 'Farm',
-  mine: 'Mine',
-  sawmill: 'Sawmill',
+  farm: "Farm",
+  mine: "Mine",
+  sawmill: "Sawmill",
 };
 
 function Row({ label, value }: { label: string; value: string }): JSX.Element {
@@ -112,106 +126,148 @@ function Row({ label, value }: { label: string; value: string }): JSX.Element {
 
 export function SelectionPanel(props: SelectionPanelProps): JSX.Element {
   const { tile, game, state, world, roster, onMarch, onClose } = props;
-  const [tab, setTab] = useState<Tab>('info');
+  const [tab, setTab] = useState<Tab>("info");
 
   const ownerIndex = state.tileOwner[tile.index] ?? -1;
   const owner = ownerIndex >= 0 ? roster[ownerIndex] : undefined;
   const isPlayers = ownerIndex === state.playerFactionIndex;
 
-  const cityFeature = tile.feature?.kind === 'city' ? tile.feature : undefined;
-  const city = cityFeature ? state.cities.find((c) => c.tileIndex === tile.index) : undefined;
+  const cityFeature = tile.feature?.kind === "city" ? tile.feature : undefined;
+  const city = cityFeature
+    ? state.cities.find((c) => c.tileIndex === tile.index)
+    : undefined;
   const tabbed = Boolean(city && isPlayers);
 
   // Landlocked settlements have no navy to speak of, so they do not carry the tab at all.
   const coastal = isCoastal(world, tile.x, tile.y);
   const tabs: Tab[] = coastal
-    ? ['info', 'buildings', 'armies', 'navy']
-    : ['info', 'buildings', 'armies'];
+    ? ["info", "buildings", "armies", "navy"]
+    : ["info", "buildings", "armies"];
 
   // An army is selected by selecting the ground it stands on. Ownership of the tile and of the
   // army can differ the moment fighting exists, so the panel asks the army who it belongs to.
   const army = armyAt(state, tile.index);
-  const playersArmy = army && army.ownerIndex === state.playerFactionIndex ? army : undefined;
+  const playersArmy =
+    army && army.ownerIndex === state.playerFactionIndex ? army : undefined;
 
   return (
-    <aside className={`panel${isPlayers ? ' panel--owned' : ''}`}>
-      <header className="panel__header">
-        <div className="panel__title">
-          {cityFeature ? cityFeature.name : `Tile ${tile.x}, ${tile.y}`}
-          {isPlayers && <span className="panel__badge">Yours</span>}
-        </div>
-        <button type="button" className="panel__close" onClick={onClose} title="Close">
-          ✕
-        </button>
-      </header>
+    // Keyed on the tab so switching one closes any detail box the last tab had open.
+    <BuildGridScope key={tab}>
+      <aside className={`panel${isPlayers ? " panel--owned" : ""}`}>
+        <header className="panel__header">
+          <div className="panel__title">
+            {cityFeature ? cityFeature.name : `Tile ${tile.x}, ${tile.y}`}
+            {isPlayers && <span className="panel__badge">Yours</span>}
+          </div>
+          <button
+            type="button"
+            className="panel__close"
+            onClick={onClose}
+            title="Close"
+          >
+            ✕
+          </button>
+        </header>
 
-      {tabbed && (
-        <nav className="tabs" role="tablist">
-          {tabs.map((value) => (
-            <button
-              key={value}
-              type="button"
-              role="tab"
-              aria-selected={tab === value}
-              className={`tab${tab === value ? ' tab--active' : ''}`}
-              onClick={() => setTab(value)}
-            >
-              {TAB_LABEL[value]}
-            </button>
-          ))}
-        </nav>
-      )}
+        {tabbed && (
+          <nav className="tabs" role="tablist">
+            {tabs.map((value) => (
+              <button
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={tab === value}
+                className={`tab${tab === value ? " tab--active" : ""}`}
+                onClick={() => setTab(value)}
+              >
+                {TAB_LABEL[value]}
+              </button>
+            ))}
+          </nav>
+        )}
 
-      {(!tabbed || tab === 'info') && (
-        <div className="panel__body">
-          {owner ? (
-            <div className="panel__owner">
-              <span className="swatch" style={{ background: owner.color }} aria-hidden="true" />
-              <span>{owner.name}</span>
-              {owner.religion !== 'none' && (
-                <span className="panel__muted">· {RELIGION_LABEL[owner.religion]}</span>
+        {(!tabbed || tab === "info") && (
+          <div className="panel__body">
+            {owner ? (
+              <div className="panel__owner">
+                <span
+                  className="swatch"
+                  style={{ background: owner.color }}
+                  aria-hidden="true"
+                />
+                <span>{owner.name}</span>
+                {owner.religion !== "none" && (
+                  <span className="panel__muted">
+                    · {RELIGION_LABEL[owner.religion]}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="panel__owner panel__muted">Unclaimed</div>
+            )}
+
+            <TileFacts tile={tile} state={state} world={world} city={city} />
+
+            {/* Info reports; it never acts. Every button lives in a tab of its own. */}
+            <ProgressLines city={city} tile={tile} state={state} />
+
+            {/* A tile with no city has no tabs, so its army and its actions belong here. */}
+            {!tabbed && playersArmy && (
+              <ArmyCard
+                army={playersArmy}
+                game={game}
+                state={state}
+                world={world}
+                onMarch={onMarch}
+              />
+            )}
+            {!tabbed &&
+              isPlayers &&
+              TERRAIN_PROFILE[tile.terrain].buildable && (
+                <FiefBuildings
+                  tile={tile}
+                  game={game}
+                  state={state}
+                  world={world}
+                />
               )}
-            </div>
-          ) : (
-            <div className="panel__owner panel__muted">Unclaimed</div>
-          )}
+          </div>
+        )}
 
-          <TileFacts tile={tile} state={state} world={world} city={city} />
+        {tabbed && tab === "buildings" && city && (
+          <div className="panel__body">
+            <CityBuildings
+              city={city}
+              tile={tile}
+              game={game}
+              state={state}
+              world={world}
+            />
+          </div>
+        )}
 
-          {/* Info reports; it never acts. Every button lives in a tab of its own. */}
-          <ProgressLines city={city} tile={tile} state={state} />
+        {tabbed && tab === "armies" && city && (
+          <div className="panel__body">
+            {playersArmy && (
+              <ArmyCard
+                army={playersArmy}
+                game={game}
+                state={state}
+                world={world}
+                onMarch={onMarch}
+              />
+            )}
+            <Garrison city={city} game={game} state={state} world={world} />
+          </div>
+        )}
 
-          {/* A tile with no city has no tabs, so its army and its actions belong here. */}
-          {!tabbed && playersArmy && (
-            <ArmyCard army={playersArmy} game={game} state={state} world={world} onMarch={onMarch} />
-          )}
-          {!tabbed && isPlayers && TERRAIN_PROFILE[tile.terrain].buildable && (
-            <FiefBuildings tile={tile} game={game} state={state} world={world} />
-          )}
-        </div>
-      )}
-
-      {tabbed && tab === 'buildings' && city && (
-        <div className="panel__body">
-          <CityBuildings city={city} tile={tile} game={game} state={state} world={world} />
-        </div>
-      )}
-
-      {tabbed && tab === 'armies' && city && (
-        <div className="panel__body">
-          {playersArmy && (
-            <ArmyCard army={playersArmy} game={game} state={state} world={world} onMarch={onMarch} />
-          )}
-          <Garrison city={city} game={game} state={state} world={world} />
-        </div>
-      )}
-
-      {tabbed && tab === 'navy' && city && coastal && (
-        <div className="panel__body">
-          <Navy city={city} game={game} state={state} coastal={coastal} />
-        </div>
-      )}
-    </aside>
+        {tabbed && tab === "navy" && city && coastal && (
+          <div className="panel__body">
+            <Navy city={city} game={game} state={state} coastal={coastal} />
+          </div>
+        )}
+      </aside>
+    </BuildGridScope>
   );
 }
 
@@ -226,18 +282,23 @@ function TileFacts({
   world: World;
   city: CityState | undefined;
 }): JSX.Element {
-  const node = tile.feature?.kind === 'resource' ? tile.feature.resource : null;
+  const node = tile.feature?.kind === "resource" ? tile.feature.resource : null;
   const kind = improvementAt(state, tile.index);
   const level = state.improvementLevel[tile.index] ?? 0;
   const profile = TERRAIN_PROFILE[tile.terrain];
   const water = adjacentWaterCount(world, tile.x, tile.y);
 
-  const output = tileOutput({ terrain: tile.terrain, improvement: kind, level, node });
+  const output = tileOutput({
+    terrain: tile.terrain,
+    improvement: kind,
+    level,
+    node,
+  });
   const outputText =
     Object.entries(output)
       .filter(([, amount]) => amount > 0)
       .map(([resource, amount]) => `+${amount} ${resource}`)
-      .join(', ') || '—';
+      .join(", ") || "—";
 
   const buildings = city ? summariseBuildings(city.buildings) : undefined;
 
@@ -245,7 +306,9 @@ function TileFacts({
     <>
       <Row label="Terrain" value={TERRAIN_LABEL[tile.terrain]} />
       <Row label="Defence" value={`+${Math.round(profile.defence * 100)}%`} />
-      {node && <Row label="Node" value={`${node[0]?.toUpperCase()}${node.slice(1)}`} />}
+      {node && (
+        <Row label="Node" value={`${node[0]?.toUpperCase()}${node.slice(1)}`} />
+      )}
       <Row label="Tile yields" value={`${outputText} / month`} />
       {water > 0 && <Row label="Adjacent water" value={`${water} tiles`} />}
 
@@ -256,11 +319,19 @@ function TileFacts({
           <Row label="Growth" value={growthText(state, city)} />
           <Row
             label="Housing"
-            value={buildings.housingLevel > 0 ? `Level ${buildings.housingLevel}` : 'None'}
+            value={
+              buildings.housingLevel > 0
+                ? `Level ${buildings.housingLevel}`
+                : "None"
+            }
           />
           <Row
             label="Walls"
-            value={buildings.defenceTenths > 0 ? `+${buildings.defenceTenths * 10}%` : 'None'}
+            value={
+              buildings.defenceTenths > 0
+                ? `+${buildings.defenceTenths * 10}%`
+                : "None"
+            }
           />
           {buildings.goldPerWaterTile > 0 && (
             <Row
@@ -272,13 +343,13 @@ function TileFacts({
             <>
               <Row
                 label="Under siege"
-                value={`${city.siege.monthsRemaining} month${city.siege.monthsRemaining === 1 ? '' : 's'} left`}
+                value={`${city.siege.monthsRemaining} month${city.siege.monthsRemaining === 1 ? "" : "s"} left`}
               />
               <p className="panel__note panel__note--bad">
                 Invested for {city.siege.monthsHeld} month
-                {city.siege.monthsHeld === 1 ? '' : 's'}. It pays nothing, finishes nothing and is
-                starving. When the clock runs out its defenders must come out and fight in the
-                open — or surrender.
+                {city.siege.monthsHeld === 1 ? "" : "s"}. It pays nothing,
+                finishes nothing and is starving. When the clock runs out its
+                defenders must come out and fight in the open — or surrender.
               </p>
             </>
           )}
@@ -292,7 +363,7 @@ function growthText(state: SimState, city: CityState): string {
   const tenths = cityGrowthTenths(state, city);
   const people = Math.floor((city.populationMilli * tenths) / 1000 / MILLI);
   // A settlement under siege starves, so this is the one growth figure that can be negative.
-  const percent = `${tenths < 0 ? '−' : '+'}${Math.abs(tenths / 10).toFixed(1)}%`;
+  const percent = `${tenths < 0 ? "−" : "+"}${Math.abs(tenths / 10).toFixed(1)}%`;
   return `${percent} · ${signed(people)} / month`;
 }
 
@@ -315,18 +386,27 @@ function monthFraction(state: SimState): number {
   return calendarAt(state.tick).monthProgress;
 }
 
-function Meter({ item, waiting }: { item: ProgressItem; waiting: boolean }): JSX.Element {
-  const percent = item.total > 0 ? Math.min(100, (item.done / item.total) * 100) : 0;
+function Meter({
+  item,
+  waiting,
+}: {
+  item: ProgressItem;
+  waiting: boolean;
+}): JSX.Element {
+  const percent =
+    item.total > 0 ? Math.min(100, (item.done / item.total) * 100) : 0;
   const left = Math.max(1, Math.ceil(item.total - item.done));
   return (
     <div className="bar-item">
       <div className="bar-item__top">
         <span className="bar-item__label">{item.label}</span>
-        <span className="panel__muted">{waiting ? 'waiting' : `${left} mo`}</span>
+        <span className="panel__muted">
+          {waiting ? "waiting" : `${left} mo`}
+        </span>
       </div>
       <div className="meter">
         <div
-          className={`meter__fill${waiting ? ' meter__fill--idle' : ''}`}
+          className={`meter__fill${waiting ? " meter__fill--idle" : ""}`}
           style={{ width: `${percent}%` }}
         />
       </div>
@@ -338,7 +418,10 @@ function Meter({ item, waiting }: { item: ProgressItem; waiting: boolean }): JSX
 function creeping(items: ProgressItem[], fraction: number): ProgressItem[] {
   const head = items[0];
   if (!head) return items;
-  return [{ ...head, done: Math.min(head.total, head.done + fraction) }, ...items.slice(1)];
+  return [
+    { ...head, done: Math.min(head.total, head.done + fraction) },
+    ...items.slice(1),
+  ];
 }
 
 /**
@@ -364,10 +447,10 @@ function ProgressLines({
   if (city) {
     lines.push(
       {
-        heading: 'Building',
+        heading: "Building",
         items: city.queue.map((order) => ({
           label:
-            order.kind === 'building'
+            order.kind === "building"
               ? (buildingById(order.id)?.name ?? labelOf(order.id))
               : `Upgrade to ${TIER_NAME[order.targetTier]}`,
           done: totalMonths(order) - order.monthsRemaining,
@@ -375,7 +458,7 @@ function ProgressLines({
         })),
       },
       {
-        heading: 'Recruiting',
+        heading: "Recruiting",
         items: city.recruitQueue.map((order) => ({
           label: unitById(order.id)?.name ?? order.id,
           done: (unitById(order.id)?.months ?? 0) - order.monthsRemaining,
@@ -383,7 +466,7 @@ function ProgressLines({
         })),
       },
       {
-        heading: 'Shipyard',
+        heading: "Shipyard",
         items: city.shipQueue.map((order) => ({
           label: shipById(order.id)?.name ?? order.id,
           done: (shipById(order.id)?.months ?? 0) - order.monthsRemaining,
@@ -399,10 +482,10 @@ function ProgressLines({
     const target = state.improvementTarget[tile.index] ?? 0;
     const total = improvementMonths(target);
     lines.push({
-      heading: 'Improvement',
+      heading: "Improvement",
       items: [
         {
-          label: `${kind ? IMPROVEMENT_NAME[kind] : 'Work'} → level ${target}`,
+          label: `${kind ? IMPROVEMENT_NAME[kind] : "Work"} → level ${target}`,
           done: total - monthsLeft,
           total,
         },
@@ -421,7 +504,11 @@ function ProgressLines({
         <div className="panel__section" key={line.heading}>
           <div className="panel__heading">{line.heading}</div>
           {line.items.map((item, position) => (
-            <Meter key={`${item.label}-${position}`} item={item} waiting={position > 0} />
+            <Meter
+              key={`${item.label}-${position}`}
+              item={item}
+              waiting={position > 0}
+            />
           ))}
         </div>
       ))}
@@ -447,9 +534,13 @@ function Garrison({
   state: SimState;
   world: World;
 }): JSX.Element {
-  const defenders = Object.entries(defenceOf(city)).filter(([, count]) => count > 0);
+  const defenders = Object.entries(defenceOf(city)).filter(
+    ([, count]) => count > 0,
+  );
   const units = Object.entries(city.garrison).filter(([, count]) => count > 0);
-  const recruitable = new Set(recruitableUnits(city.tier, city.buildings).map((u) => u.id));
+  const recruitable = new Set(
+    recruitableUnits(city.tier, city.buildings).map((u) => u.id),
+  );
 
   // The whole roster, so a player can read what a Barracks would eventually buy them rather
   // than only what they can already afford today.
@@ -463,24 +554,33 @@ function Garrison({
     return {
       id: unit.id,
       name: unit.name,
-      state: unlocked && affordable ? 'available' : 'blocked',
-      footnote: `${num(unit.cost.gold)}g · ${unit.months} mo`,
+      state: unlocked && affordable ? "available" : "blocked",
       blurb: artFor(unit.id).blurb,
       facts: [
-        { label: 'Class', value: labelOf(unit.class) },
-        { label: 'Soldiers', value: `${num(unit.size)} men` },
-        { label: 'Per soldier', value: `${unit.hp} HP · ${unit.damage} damage` },
-        { label: 'Unit strength', value: `${num(unit.size * unit.hp)} HP total` },
-        ...(unit.range > 0 ? [{ label: 'Range', value: String(unit.range) }] : []),
-        { label: 'Speed', value: `${unit.strategicSpeed} tiles a month` },
-        { label: 'Cost', value: costText(unit.cost) },
-        { label: 'Takes', value: `${unit.months} months` },
-        { label: 'Upkeep', value: `${unit.upkeep} gold a month` },
+        { label: "Class", value: labelOf(unit.class) },
+        { label: "Soldiers", value: `${num(unit.size)} men` },
         {
-          label: 'Needs',
+          label: "Per soldier",
+          value: `${unit.hp} HP · ${unit.damage} damage`,
+        },
+        {
+          label: "Unit strength",
+          value: `${num(unit.size * unit.hp)} HP total`,
+        },
+        ...(unit.range > 0
+          ? [{ label: "Range", value: String(unit.range) }]
+          : []),
+        { label: "Speed", value: `${unit.strategicSpeed} tiles a month` },
+        { label: "Cost", value: costText(unit.cost) },
+        { label: "Takes", value: `${unit.months} months` },
+        { label: "Upkeep", value: `${unit.upkeep} gold a month` },
+        {
+          label: "Needs",
           value:
             unit.requires.length > 0
-              ? unit.requires.map((id) => buildingById(id)?.name ?? id).join(' + ')
+              ? unit.requires
+                  .map((id) => buildingById(id)?.name ?? id)
+                  .join(" + ")
               : `${TIER_NAME[unit.minTier as 1 | 2 | 3 | 4]} tier`,
         },
         ...unitTraits(unit),
@@ -489,10 +589,10 @@ function Garrison({
         unit.minTier > city.tier
           ? `Needs a ${TIER_NAME[unit.minTier as 1 | 2 | 3 | 4]}. This settlement is a ${TIER_NAME[city.tier]}.`
           : missing.length > 0
-            ? `Needs ${missing.join(' and ')}, built in the Buildings tab.`
+            ? `Needs ${missing.join(" and ")}, built in the Buildings tab.`
             : affordable
               ? undefined
-              : 'Not enough in the treasury.',
+              : "Not enough in the treasury.",
       action: `Recruit ${unit.name}`,
       onAction: () => game.command((s) => queueUnit(s, city, unit.id)),
     };
@@ -522,8 +622,8 @@ function Garrison({
           </div>
         ))}
         <p className="panel__note">
-          Free, and they never leave. A settlement's tier and its Barracks, Archery Range,
-          Stables and Town Hall decide who stands on the walls.
+          Free, and they never leave. A settlement's tier and its Barracks,
+          Archery Range, Stables and Town Hall decide who stands on the walls.
         </p>
       </div>
 
@@ -531,8 +631,8 @@ function Garrison({
         <div className="panel__heading">Garrison</div>
         {units.length === 0 ? (
           <p className="panel__note">
-            Nothing recruited here yet. Finished units muster into this garrison, and an army is
-            raised from it.
+            Nothing recruited here yet. Finished units muster into this
+            garrison, and an army is raised from it.
           </p>
         ) : (
           <>
@@ -541,7 +641,10 @@ function Garrison({
                 <span className="panel__label">{unitById(id)?.name ?? id}</span>
                 <span className="panel__value">
                   ×{count}
-                  <span className="panel__muted"> · {(unitById(id)?.upkeep ?? 0) * count}g/mo</span>
+                  <span className="panel__muted">
+                    {" "}
+                    · {(unitById(id)?.upkeep ?? 0) * count}g/mo
+                  </span>
                   <button
                     type="button"
                     className="panel__mini"
@@ -577,7 +680,11 @@ function Garrison({
                 type="button"
                 className="panel__close"
                 title="Cancel, full refund"
-                onClick={() => game.command((s) => cancelProduction(s, city, 'recruit', position))}
+                onClick={() =>
+                  game.command((s) =>
+                    cancelProduction(s, city, "recruit", position),
+                  )
+                }
               >
                 ✕
               </button>
@@ -597,11 +704,19 @@ function Garrison({
 /** A unit's combat quirks, in words. Read from the roster so they cannot drift from the rules. */
 function unitTraits(unit: Unit): { label: string; value: string }[] {
   const traits: string[] = [];
-  if (unit.antiCavalry > 1) traits.push(`×${unit.antiCavalry} damage against cavalry`);
-  if (unit.rangedResist > 0) traits.push(`−${Math.round(unit.rangedResist * 100)}% damage from missiles`);
-  if (unit.chargeBonus > 0) traits.push(`+${unit.chargeBonus} damage on the charge`);
-  if (unit.chargeMultiplier > 1) traits.push(`×${unit.chargeMultiplier} damage on the charge`);
-  return traits.length > 0 ? [{ label: 'In battle', value: traits.join(' · ') }] : [];
+  if (unit.antiCavalry > 1)
+    traits.push(`×${unit.antiCavalry} damage against cavalry`);
+  if (unit.rangedResist > 0)
+    traits.push(
+      `−${Math.round(unit.rangedResist * 100)}% damage from missiles`,
+    );
+  if (unit.chargeBonus > 0)
+    traits.push(`+${unit.chargeBonus} damage on the charge`);
+  if (unit.chargeMultiplier > 1)
+    traits.push(`×${unit.chargeMultiplier} damage on the charge`);
+  return traits.length > 0
+    ? [{ label: "In battle", value: traits.join(" · ") }]
+    : [];
 }
 
 /** A field army: what it is made of, where it is going, and the orders it can be given. */
@@ -630,8 +745,9 @@ function ArmyCard({
   const siege = besiegeable?.siege;
   const investing = siege?.byIndex === army.ownerIndex;
 
-  const winter = calendarAt(state.tick).season === 'winter';
-  const effective = (speed * (SEASON_MOVEMENT[calendarAt(state.tick).season] ?? 100)) / 100;
+  const winter = calendarAt(state.tick).season === "winter";
+  const effective =
+    (speed * (SEASON_MOVEMENT[calendarAt(state.tick).season] ?? 100)) / 100;
 
   return (
     <div className="panel__section panel__section--first">
@@ -642,12 +758,18 @@ function ArmyCard({
           <span className="panel__label">{unitById(id)?.name ?? id}</span>
           <span className="panel__value">
             ×{count}
-            <span className="panel__muted"> · {(unitById(id)?.upkeep ?? 0) * count}g/mo</span>
+            <span className="panel__muted">
+              {" "}
+              · {(unitById(id)?.upkeep ?? 0) * count}g/mo
+            </span>
           </span>
         </div>
       ))}
 
-      <Row label="Strength" value={`${stackSize(army.units)} / ${MAX_ARMY_UNITS} units`} />
+      <Row
+        label="Strength"
+        value={`${stackSize(army.units)} / ${MAX_ARMY_UNITS} units`}
+      />
       <Row label="Soldiers" value={num(stackSoldiers(army.units))} />
       <Row label="Upkeep" value={`${num(stackUpkeep(army.units))} g/month`} />
       <Row
@@ -662,23 +784,27 @@ function ArmyCard({
         label="Orders"
         value={
           investing
-            ? `Besieging · ${siege?.monthsRemaining} month${siege?.monthsRemaining === 1 ? '' : 's'} until they must come out`
+            ? `Besieging · ${siege?.monthsRemaining} month${siege?.monthsRemaining === 1 ? "" : "s"} until they must come out`
             : army.path.length > 0
               ? `Marching · ${army.path.length} tiles to go`
-              : 'Holding'
+              : "Holding"
         }
       />
 
       {besiegeable && (
         <p className="panel__note">
           {investing
-            ? 'The settlement pays its owner nothing, finishes nothing and starves. When the clock runs out its defenders must sortie into the open — or surrender, if the odds are hopeless.'
-            : `Assaulting ${world.cities[besiegeable.cityIndex]?.name ?? 'it'} means storming the walls, and the walls count. A siege takes ${siegeMonths(besiegeable.tier)} month${siegeMonths(besiegeable.tier) === 1 ? '' : 's'}, but the fight at the end of it is fought in the open.`}
+            ? "The settlement pays its owner nothing, finishes nothing and starves. When the clock runs out its defenders must sortie into the open — or surrender, if the odds are hopeless."
+            : `Assaulting ${world.cities[besiegeable.cityIndex]?.name ?? "it"} means storming the walls, and the walls count. A siege takes ${siegeMonths(besiegeable.tier)} month${siegeMonths(besiegeable.tier) === 1 ? "" : "s"}, but the fight at the end of it is fought in the open.`}
         </p>
       )}
 
       <div className="army-orders">
-        <button type="button" className="action" onClick={() => onMarch(army.id)}>
+        <button
+          type="button"
+          className="action"
+          onClick={() => onMarch(army.id)}
+        >
           March…
         </button>
         {besiegeable && !investing && (
@@ -695,7 +821,11 @@ function ArmyCard({
           <button
             type="button"
             className="action action--danger"
-            onClick={() => game.command((s) => assault(s, world, army.id, besiegeable.tileIndex))}
+            onClick={() =>
+              game.command((s) =>
+                assault(s, world, army.id, besiegeable.tileIndex),
+              )
+            }
             title="Storm the walls now, with every army of yours within two tiles"
           >
             Assault
@@ -734,8 +864,8 @@ function ArmyCard({
   );
 }
 
-function totalMonths(order: CityState['queue'][number]): number {
-  if (order.kind === 'building') return buildingById(order.id)?.months ?? 1;
+function totalMonths(order: CityState["queue"][number]): number {
+  if (order.kind === "building") return buildingById(order.id)?.months ?? 1;
   return settlementUpgradeTo(order.targetTier)?.months ?? 1;
 }
 
@@ -772,7 +902,7 @@ function FiefBuildings({
         <div className="panel__heading">Fief Buildings</div>
         <Meter
           item={{
-            label: `${kind ? IMPROVEMENT_NAME[kind] : 'Work'} → level ${target}`,
+            label: `${kind ? IMPROVEMENT_NAME[kind] : "Work"} → level ${target}`,
             done: Math.min(total, total - monthsLeft + monthFraction(state)),
             total,
           }}
@@ -799,23 +929,25 @@ function FiefBuildings({
     return {
       id: choice,
       name: IMPROVEMENT_NAME[choice],
-      state: beyondCap || !affordable ? 'blocked' : 'available',
-      footnote: level > 0 ? `level ${level} → ${nextLevel}` : `${improvementMonths(nextLevel)} mo`,
+      state: beyondCap || !affordable ? "blocked" : "available",
       blurb: artFor(choice).blurb,
       facts: [
-        { label: 'Cost', value: costText(cost) },
-        { label: 'Takes', value: `${improvementMonths(nextLevel)} months` },
-        { label: 'Level', value: `${level} → ${nextLevel} of ${MAX_IMPROVEMENT_LEVEL}` },
-        { label: 'Ground', value: TERRAIN_LABEL[tile.terrain] },
+        { label: "Cost", value: costText(cost) },
+        { label: "Takes", value: `${improvementMonths(nextLevel)} months` },
         {
-          label: 'Terrain effect',
+          label: "Level",
+          value: `${level} → ${nextLevel} of ${MAX_IMPROVEMENT_LEVEL}`,
+        },
+        { label: "Ground", value: TERRAIN_LABEL[tile.terrain] },
+        {
+          label: "Terrain effect",
           value:
             modifier === 1
-              ? 'no change'
-              : `${modifier > 1 ? '+' : ''}${Math.round((modifier - 1) * 100)}% yield here`,
+              ? "no change"
+              : `${modifier > 1 ? "+" : ""}${Math.round((modifier - 1) * 100)}% yield here`,
         },
         {
-          label: 'Yield at this level',
+          label: "Yield at this level",
           value: yieldText(tile, choice, nextLevel),
         },
       ],
@@ -823,10 +955,15 @@ function FiefBuildings({
         ? `Level ${nextLevel} needs a tier-${nextLevel} settlement somewhere in your realm. Your best is tier ${cap}.`
         : affordable
           ? undefined
-          : 'Not enough in the treasury.',
-      action: level === 0 ? `Build ${IMPROVEMENT_NAME[choice]}` : `Upgrade to level ${nextLevel}`,
+          : "Not enough in the treasury.",
+      action:
+        level === 0
+          ? `Build ${IMPROVEMENT_NAME[choice]}`
+          : `Upgrade to level ${nextLevel}`,
       onAction: () =>
-        game.command((s) => queueImprovement(s, world, player, tile.x, tile.y, choice)),
+        game.command((s) =>
+          queueImprovement(s, world, player, tile.x, tile.y, choice),
+        ),
     };
   });
 
@@ -836,7 +973,7 @@ function FiefBuildings({
       tiles={tiles}
       note={
         kind === null
-          ? 'A tile holds one of these three, and the choice is permanent. Improve the land around a settlement by selecting those tiles on the map.'
+          ? "A tile holds one of these three, and the choice is permanent. Improve the land around a settlement by selecting those tiles on the map."
           : `This land is worked as a ${IMPROVEMENT_NAME[kind].toLowerCase()}, level ${level}.`
       }
     />
@@ -844,18 +981,32 @@ function FiefBuildings({
 }
 
 /** What one tile would yield with the given improvement at the given level. */
-function yieldText(tile: TileInfo, kind: ImprovementKind, level: number): string {
-  const node = tile.feature?.kind === 'resource' ? tile.feature.resource : null;
-  const before = tileOutput({ terrain: tile.terrain, improvement: kind, level: level - 1, node });
-  const after = tileOutput({ terrain: tile.terrain, improvement: kind, level, node });
+function yieldText(
+  tile: TileInfo,
+  kind: ImprovementKind,
+  level: number,
+): string {
+  const node = tile.feature?.kind === "resource" ? tile.feature.resource : null;
+  const before = tileOutput({
+    terrain: tile.terrain,
+    improvement: kind,
+    level: level - 1,
+    node,
+  });
+  const after = tileOutput({
+    terrain: tile.terrain,
+    improvement: kind,
+    level,
+    node,
+  });
 
-  const parts = (['gold', 'wood', 'iron', 'stone'] as const)
+  const parts = (["gold", "wood", "iron", "stone"] as const)
     .filter((resource) => after[resource] > 0)
     .map((resource) => {
       const gain = after[resource] - before[resource];
-      return `${after[resource]} ${resource}${gain > 0 ? ` (+${gain})` : ''}`;
+      return `${after[resource]} ${resource}${gain > 0 ? ` (+${gain})` : ""}`;
     });
-  return parts.length > 0 ? `${parts.join(', ')} / month` : '—';
+  return parts.length > 0 ? `${parts.join(", ")} / month` : "—";
 }
 
 function CityBuildings({
@@ -874,7 +1025,9 @@ function CityBuildings({
   const available = new Set(buildOptions(world, city).map((b) => b.id));
   const built = new Set(city.buildings);
   const queued = new Set(
-    city.queue.flatMap((order) => (order.kind === 'building' ? [order.id] : [])),
+    city.queue.flatMap((order) =>
+      order.kind === "building" ? [order.id] : [],
+    ),
   );
   const coastal = isCoastal(world, tile.x, tile.y);
 
@@ -885,34 +1038,36 @@ function CityBuildings({
     .filter((building) => !building.coastal || coastal)
     .map((building) => {
       const affordable = canAfford(state, city.ownerIndex, building.cost);
-      const state_: BuildTile['state'] = built.has(building.id)
-        ? 'built'
+      const state_: BuildTile["state"] = built.has(building.id)
+        ? "built"
         : queued.has(building.id)
-          ? 'queued'
+          ? "queued"
           : available.has(building.id) && affordable
-            ? 'available'
-            : 'blocked';
+            ? "available"
+            : "blocked";
 
       return {
         id: building.id,
         name: building.name,
         state: state_,
-        footnote: built.has(building.id)
-          ? 'standing'
-          : queued.has(building.id)
-            ? 'building'
-            : `${num(building.cost.gold)}g · ${building.months} mo`,
         blurb: artFor(building.id).blurb,
         facts: [
-          { label: 'Line', value: `${labelOf(building.line)} · level ${building.level}` },
-          { label: 'Cost', value: costText(building.cost) },
-          { label: 'Takes', value: `${building.months} months` },
-          { label: 'Needs', value: `${TIER_NAME[building.minTier as 1 | 2 | 3 | 4]} or better` },
+          {
+            label: "Line",
+            value: `${labelOf(building.line)} · level ${building.level}`,
+          },
+          { label: "Cost", value: costText(building.cost) },
+          { label: "Takes", value: `${building.months} months` },
+          {
+            label: "Needs",
+            value: `${TIER_NAME[building.minTier as 1 | 2 | 3 | 4]} or better`,
+          },
           ...buildingEffects(building),
         ],
         reason: buildingReason(building, built, queued, available, affordable),
         action: `Build ${building.name}`,
-        onAction: () => game.command((s) => queueBuilding(s, world, city, building.id)),
+        onAction: () =>
+          game.command((s) => queueBuilding(s, world, city, building.id)),
       };
     });
 
@@ -922,16 +1077,26 @@ function CityBuildings({
     tiles.unshift({
       id: settlementArtKey(upgrade.toTier),
       name: upgrade.name,
-      state: blocked === 'already-building' ? 'queued' : blocked ? 'blocked' : 'available',
-      footnote: `${num(upgrade.minPopulation)} people`,
+      state:
+        blocked === "already-building"
+          ? "queued"
+          : blocked
+            ? "blocked"
+            : "available",
       blurb: artFor(settlementArtKey(upgrade.toTier)).blurb,
       facts: [
-        { label: 'Expands', value: `${TIER_NAME[city.tier]} → ${upgrade.name}` },
-        { label: 'Needs', value: `${num(upgrade.minPopulation)} people` },
-        { label: 'Population', value: `${num(whole(city.populationMilli))} here now` },
-        { label: 'Cost', value: costText(upgrade.cost) },
-        { label: 'Takes', value: `${upgrade.months} months` },
-        ...(upgrade.unique ? [{ label: 'Limit', value: 'One per realm' }] : []),
+        {
+          label: "Expands",
+          value: `${TIER_NAME[city.tier]} → ${upgrade.name}`,
+        },
+        { label: "Needs", value: `${num(upgrade.minPopulation)} people` },
+        {
+          label: "Population",
+          value: `${num(whole(city.populationMilli))} here now`,
+        },
+        { label: "Cost", value: costText(upgrade.cost) },
+        { label: "Takes", value: `${upgrade.months} months` },
+        ...(upgrade.unique ? [{ label: "Limit", value: "One per realm" }] : []),
       ],
       reason: upgradeReason(blocked, upgrade, city),
       action: `Expand into a ${upgrade.name}`,
@@ -942,7 +1107,7 @@ function CityBuildings({
   const underway = creeping(
     city.queue.map((order) => ({
       label:
-        order.kind === 'building'
+        order.kind === "building"
           ? (buildingById(order.id)?.name ?? labelOf(order.id))
           : `Expanding into a ${TIER_NAME[order.targetTier]}`,
       done: totalMonths(order) - order.monthsRemaining,
@@ -963,7 +1128,9 @@ function CityBuildings({
                 type="button"
                 className="panel__close"
                 title="Cancel, full refund"
-                onClick={() => game.command((s) => cancelOrder(s, city, position))}
+                onClick={() =>
+                  game.command((s) => cancelOrder(s, city, position))
+                }
               >
                 ✕
               </button>
@@ -977,44 +1144,65 @@ function CityBuildings({
       <FiefBuildings tile={tile} game={game} state={state} world={world} />
 
       <p className="panel__note">
-        Treasury {num(whole(state.factions[city.ownerIndex]?.stock.gold ?? 0))} gold
+        Treasury {num(whole(state.factions[city.ownerIndex]?.stock.gold ?? 0))}{" "}
+        gold
       </p>
     </>
   );
 }
 
 /** The mechanical effects a building carries, as rows. Derived, so they cannot go stale. */
-function buildingEffects(building: Building): { label: string; value: string }[] {
+function buildingEffects(
+  building: Building,
+): { label: string; value: string }[] {
   const rows: { label: string; value: string }[] = [];
   // Housing and halls both pay through growthTenths, so one row covers either.
   if (building.growthTenths > 0) {
-    rows.push({ label: 'Growth', value: `+${(building.growthTenths / 10).toFixed(1)}% a month` });
+    rows.push({
+      label: "Growth",
+      value: `+${(building.growthTenths / 10).toFixed(1)}% a month`,
+    });
   }
   if (building.goldPerMonth > 0) {
-    rows.push({ label: 'Income', value: `+${num(building.goldPerMonth)} gold a month` });
+    rows.push({
+      label: "Income",
+      value: `+${num(building.goldPerMonth)} gold a month`,
+    });
   }
   if (building.goldPerWaterTile > 0) {
     rows.push({
-      label: 'Income',
+      label: "Income",
       value: `+${building.goldPerWaterTile} gold a month per adjacent water tile`,
     });
   }
   if (building.defenceTenths > 0) {
-    rows.push({ label: 'Defence', value: `+${building.defenceTenths * 10}% for the defender` });
+    rows.push({
+      label: "Defence",
+      value: `+${building.defenceTenths * 10}% for the defender`,
+    });
   }
 
-  const trains = loadUnits().filter((unit) => unit.requires.includes(building.id));
+  const trains = loadUnits().filter((unit) =>
+    unit.requires.includes(building.id),
+  );
   if (trains.length > 0) {
-    rows.push({ label: 'Unlocks', value: trains.map((unit) => unit.name).join(', ') });
+    rows.push({
+      label: "Unlocks",
+      value: trains.map((unit) => unit.name).join(", "),
+    });
   }
   const launches = loadShips().filter((ship) => ship.requires === building.id);
   if (launches.length > 0) {
-    rows.push({ label: 'Unlocks', value: launches.map((ship) => ship.name).join(', ') });
+    rows.push({
+      label: "Unlocks",
+      value: launches.map((ship) => ship.name).join(", "),
+    });
   }
   if (defenceBuildings().includes(building.id)) {
-    rows.push({ label: 'Garrison', value: '+1 permanent defender' });
+    rows.push({ label: "Garrison", value: "+1 permanent defender" });
   }
-  if (building.coastal) rows.push({ label: 'Requires', value: 'A coastal settlement' });
+  if (building.coastal)
+    rows.push({ label: "Requires", value: "A coastal settlement" });
   return rows;
 }
 
@@ -1029,9 +1217,9 @@ function buildingReason(
   if (!available.has(building.id)) {
     return CHAIN_LINES.includes(building.line)
       ? `The ${labelOf(building.line).toLowerCase()} line has to be built in order — finish level ${building.level - 1} first.`
-      : 'Not available at this settlement yet.';
+      : "Not available at this settlement yet.";
   }
-  return affordable ? undefined : 'Not enough in the treasury.';
+  return affordable ? undefined : "Not enough in the treasury.";
 }
 
 function upgradeReason(
@@ -1041,16 +1229,16 @@ function upgradeReason(
 ): string | undefined {
   switch (blocked) {
     case null:
-    case 'already-building':
+    case "already-building":
       return undefined;
-    case 'too-few-people':
+    case "too-few-people":
       return `A ${upgrade.name} needs ${num(upgrade.minPopulation)} people. This settlement holds ${num(whole(city.populationMilli))} — it has to grow into it.`;
-    case 'already-have-one':
+    case "already-have-one":
       return `A realm may only ever have one ${upgrade.name}.`;
-    case 'insufficient-resources':
-      return 'Not enough in the treasury.';
+    case "insufficient-resources":
+      return "Not enough in the treasury.";
     default:
-      return 'Cannot expand any further.';
+      return "Cannot expand any further.";
   }
 }
 
@@ -1084,22 +1272,24 @@ function Navy({
     return {
       id: ship.id,
       name: ship.name,
-      state: unlocked && affordable ? 'available' : 'blocked',
-      footnote: `${num(ship.cost.gold)}g · ${ship.months} mo`,
+      state: unlocked && affordable ? "available" : "blocked",
       blurb: artFor(ship.id).blurb,
       facts: [
-        { label: 'Cost', value: costText(ship.cost) },
-        { label: 'Takes', value: `${ship.months} months` },
-        { label: 'Upkeep', value: `${ship.upkeep} gold a month` },
-        { label: 'Needs', value: buildingById(ship.requires)?.name ?? ship.requires },
+        { label: "Cost", value: costText(ship.cost) },
+        { label: "Takes", value: `${ship.months} months` },
+        { label: "Upkeep", value: `${ship.upkeep} gold a month` },
+        {
+          label: "Needs",
+          value: buildingById(ship.requires)?.name ?? ship.requires,
+        },
       ],
       reason: !coastal
-        ? 'This settlement does not border water.'
+        ? "This settlement does not border water."
         : !unlocked
           ? `Needs a ${buildingById(ship.requires)?.name ?? ship.requires}, built in the Buildings tab.`
           : affordable
             ? undefined
-            : 'Not enough in the treasury.',
+            : "Not enough in the treasury.",
       action: `Lay down a ${ship.name}`,
       onAction: () => game.command((s) => queueShip(s, city, ship.id)),
     };
@@ -1117,7 +1307,10 @@ function Navy({
               <span className="panel__label">{shipById(id)?.name ?? id}</span>
               <span className="panel__value">
                 ×{count}
-                <span className="panel__muted"> · {(shipById(id)?.upkeep ?? 0) * count}g/mo</span>
+                <span className="panel__muted">
+                  {" "}
+                  · {(shipById(id)?.upkeep ?? 0) * count}g/mo
+                </span>
               </span>
             </div>
           ))
@@ -1137,7 +1330,11 @@ function Navy({
                 type="button"
                 className="panel__close"
                 title="Cancel, full refund"
-                onClick={() => game.command((s) => cancelProduction(s, city, 'ship', position))}
+                onClick={() =>
+                  game.command((s) =>
+                    cancelProduction(s, city, "ship", position),
+                  )
+                }
               >
                 ✕
               </button>
@@ -1155,7 +1352,6 @@ function Navy({
   );
 }
 
-
 function labelOf(id: string): string {
-  return id.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  return id.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }

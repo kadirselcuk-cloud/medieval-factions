@@ -9,6 +9,17 @@ Delete an entry when it ships, and say so in `CHANGELOG.md`.
 
 ## Debts — promised for a phase that has already shipped
 
+### 0. **REMOVE BEFORE RELEASE — the maximum-speed cheat**
+`MAX_SPEED` in [src/sim/game.ts](../src/sim/game.ts), `CHEAT_SEQUENCE` in
+[src/ui/BottomBar.tsx](../src/ui/BottomBar.tsx), and the note in the game menu's Options.
+
+Added in 0.10.1 at the owner's request, for judging balance by eye instead of by projection: it
+runs a century in about two and a half minutes. Unlocked by clicking **Pause three times, then
+10× three times**, and hidden until then. Session-only — deliberately not part of a save.
+
+Every piece of it is commented `CHEAT — remove before release`, so `grep -rn "CHEAT" src/`
+finds the lot. **This must not ship in 1.0.0.**
+
 ### 1. Nothing has been visually verified
 There is no browser automation in this environment, so **Claude has never seen the game
 render.** Everything shipped so far is verified by typecheck, unit tests and a production
@@ -16,6 +27,11 @@ build only. Layout, colour and readability are unconfirmed.
 
 Owed: either the owner confirms each build visually, or a screenshot-capable check gets set up.
 Do not describe the game's appearance as confirmed until one of those happens.
+
+There is no browser in this environment at all — no Playwright, no screenshot tool, no headless
+Chrome. The only web tool available fetches a public URL and converts it to markdown, which
+returns an empty `<div id="root">` for a Vite app and cannot reach localhost regardless. Every
+layout change is therefore written from the CSS outwards and confirmed by the owner.
 
 ---
 
