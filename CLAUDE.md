@@ -12,6 +12,7 @@ Read these before doing any work. They are the source of truth, not this file.
 
 | File | Contents |
 |---|---|
+| [docs/NEXT.md](docs/NEXT.md) | **Start here.** Where the build is and what to do next |
 | [docs/DESIGN.md](docs/DESIGN.md) | Locked game-design decisions, and the decision log |
 | [docs/MECHANICS.md](docs/MECHANICS.md) | Time, territory, terrain, economy, combat, saves |
 | [docs/CONTENT.md](docs/CONTENT.md) | Factions, settlements, buildings, units, ships |
