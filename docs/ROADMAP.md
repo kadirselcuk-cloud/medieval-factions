@@ -23,9 +23,10 @@ Outstanding commitments and slipped work are tracked separately in [OWED.md](OWE
 | 0.10.0 | Siege & the fight for a city | Ranged accuracy, sieges, the 5 × 5 relief rule, per-formation ground | ✅ shipped |
 | 0.10.1 | Quality of life | Menu, stable bars, map overscroll, full screen, three-across build grid | ✅ shipped |
 | 0.11.0 | Flat population | Growth becomes whole people per month; the runaway is gone | ✅ shipped |
-| 0.12.0 | AI | The 12 rival factions actually play — economy, expansion, army composition, war | next |
-| 0.13.0 | Naval | Four ship types, transports, embarkation; unblocks Britons and Moors | |
-| 0.14.0 | Identity & polish | Per-faction unit names, faction bonuses, 10 elite units, the owner's real art, balance pass | |
+| 0.12.0 | Manpower & AI | Recruiting draws people; the 12 rivals play — economy, expansion, war, five difficulties, five personalities | ✅ shipped |
+| 0.13.0 | Fog of war & the shape of a realm | Line of sight; rivals consolidate their borders instead of running corridors; every defence bonus halved; personalities brought close together | ✅ shipped |
+| 0.14.0 | Naval | Four ship types, transports, embarkation; unblocks Britons and Moors — **and the AI, which cannot reach Scandinavia, Ireland or Africa at all** | next |
+| 0.15.0 | Identity & polish | Per-faction unit names, faction bonuses, 10 elite units, the owner's real art, balance pass | |
 | 1.0.0 | Release | Capacitor wrap for Android/iOS, ad and premium hooks wired but inert, phone performance pass | |
 | 2.0.0 | Phase B | Tactical battle map — regiment-level units, move/attack/hold orders | |
 
@@ -34,6 +35,16 @@ renumbered rather than the versions rewound. The order is unchanged.
 
 Recruitment shipped in 0.5.0 but had nowhere to go until armies landed in 0.7.0 — units with
 nowhere to stand are inventory, not gameplay.
+
+Fog of war was not planned as a phase either; the owner asked for it, along with halving every
+defence bonus so that attacking is a realistic thing to do, and consolidation — realms that hold a
+country rather than a corridor across the map.
+
+Naval moved up the priority list without moving in the table. Building the AI showed that
+**every settlement no realm can reach is across water** — a century-long campaign settles down
+with a dozen independent cities in Scandinavia, Ireland, Cyprus and North Africa that nobody can
+touch, and Iberia and Britain each cut off from the other. That is a map problem the naval phase
+fixes, not an AI one.
 
 Flat population was not planned either. It became a phase once 0.8.3's balance panel measured
 the compounding curve and found it unbounded at any rate above zero — half a trillion people in

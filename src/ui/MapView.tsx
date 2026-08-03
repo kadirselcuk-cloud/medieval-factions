@@ -6,6 +6,8 @@ interface MapViewProps {
   world: World;
   territory: TerritoryView | null;
   armies: ArmyView | null;
+  /** Fog-of-war mask, 1 per visible tile. `null` draws the whole map. */
+  vision: Uint8Array | null;
   selection: number | null;
   onHover: (tile: TileInfo | null) => void;
   onSelect: (tile: TileInfo | null) => void;
@@ -17,6 +19,7 @@ export function MapView({
   world,
   territory,
   armies,
+  vision,
   selection,
   onHover,
   onSelect,
@@ -56,6 +59,10 @@ export function MapView({
   useEffect(() => {
     renderer?.setArmies(armies);
   }, [renderer, armies]);
+
+  useEffect(() => {
+    renderer?.setVision(vision);
+  }, [renderer, vision]);
 
   useEffect(() => {
     renderer?.setSelection(selection);

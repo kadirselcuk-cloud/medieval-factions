@@ -1,3 +1,6 @@
+import { LEVEL_DIFFICULTY } from '../data/ai';
+import { neutralFaction } from '../data/factions';
+import { rolledPersonality } from './state';
 import type { CityState, SimState } from './types';
 
 /**
@@ -13,8 +16,9 @@ import type { CityState, SimState } from './types';
  * 2 → 3: battles. A v2 save has fought none, and every faction it knows about is still alive.
  * 3 → 4: sieges. A v3 save has no settlement invested, because nothing could invest one.
  * 4 → 5: population became whole people, because growth stopped being a percentage.
+ * 5 → 6: the rivals gained an AI. A v5 campaign was played against realms that did nothing.
  */
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 
 const DB_NAME = 'medieval-factions';
 const DB_VERSION = 1;
@@ -137,6 +141,23 @@ export function migrate(file: SaveFile): SaveFile {
         city.population = Math.floor(city.populationMilli / 1000);
       }
       delete city.populationMilli;
+    }
+  }
+
+  // v5 was played against realms that never did anything. They wake up at the level rung: a
+  // campaign is not silently made harder or easier by being loaded, and the personalities roll
+  // from the same seed they would have had, so the same save always meets the same Europe.
+  if (file.version < 6) {
+    const neutralId = neutralFaction().id;
+    for (const faction of state.factions) {
+      if (faction.ai !== undefined) continue;
+      const idle = faction.index === state.playerFactionIndex || faction.id === neutralId;
+      faction.ai = idle
+        ? null
+        : {
+            difficulty: LEVEL_DIFFICULTY,
+            personality: rolledPersonality(state.seed, faction.id, faction.index),
+          };
     }
   }
 

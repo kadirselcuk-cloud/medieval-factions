@@ -1,3 +1,4 @@
+import { AI_PERSONALITIES, difficultyProfile, LEVEL_DIFFICULTY } from '../data/ai';
 import { summariseBuildings } from '../data/buildings';
 import type { Faction } from '../data/factions';
 import { tileOutput } from '../data/improvements';
@@ -12,6 +13,9 @@ import { improvementAt, totalUpkeep } from './construction';
 import {
   emptyLedger,
   MILLI,
+  RESOURCES,
+  type AiDifficulty,
+  type AiPersonality,
   type CityState,
   type FactionState,
   type SimState,
@@ -42,11 +46,29 @@ const STARTING_CLAIM_OFFSETS: readonly (readonly [number, number])[] = [
   [-1, 0],
 ];
 
+/**
+ * The character a realm is played with, when the roster does not name one.
+ *
+ * Deterministic in the campaign seed and the faction's own id, so the same seed always meets
+ * the same Europe and a different one meets a different one. It deliberately does **not** draw
+ * from `state.rng`: creating a campaign must not consume the simulation's stream, or the first
+ * battle of a campaign would depend on how many factions the roster happened to contain.
+ */
+export function rolledPersonality(seed: number, id: string, index: number): AiPersonality {
+  let hash = (seed ^ 0x9e3779b9) | 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = Math.imul(hash ^ id.charCodeAt(i), 0x85ebca6b);
+  }
+  hash = Math.imul(hash ^ index, 0xc2b2ae35);
+  return AI_PERSONALITIES[(hash >>> 0) % AI_PERSONALITIES.length] ?? 'balanced';
+}
+
 export function createInitialState(
   world: World,
   roster: readonly Faction[],
   playerFactionId: string,
   seed = 1,
+  difficulty: AiDifficulty = LEVEL_DIFFICULTY,
 ): SimState {
   const playerFactionIndex = roster.findIndex((f) => f.id === playerFactionId);
   if (playerFactionIndex < 0) throw new Error(`Unknown faction "${playerFactionId}"`);
@@ -60,6 +82,14 @@ export function createInitialState(
     stock: { ...emptyLedger(), gold: faction.neutral ? 0 : STARTING_GOLD * MILLI },
     carry: emptyLedger(),
     monthlyIncome: emptyLedger(),
+    // Neither the player's realm nor the Independents is played by anyone.
+    ai:
+      faction.neutral || index === playerFactionIndex
+        ? null
+        : {
+            difficulty,
+            personality: faction.personality ?? rolledPersonality(seed, faction.id, index),
+          },
   }));
 
   const tileOwner = new Int8Array(world.width * world.height).fill(-1);
@@ -200,8 +230,20 @@ export function recomputeIncome(state: SimState, world: World): void {
     faction.monthlyIncome.stone += output.stone;
   }
 
-  // Upkeep is netted off income, so the top bar shows what a faction actually banks.
+  // The difficulty handicap, and then upkeep.
+  //
+  // The multiplier lands on **gross** income, before wages, so a hard opponent is richer rather
+  // than immune to its own army. Nothing else in the simulation knows about it: this is the one
+  // place a rival's economy differs from the player's, and at Knight it does not differ at all.
   for (const faction of state.factions) {
+    const scale = faction.ai ? difficultyProfile(faction.ai.difficulty).incomePermille : 1000;
+    if (scale !== 1000) {
+      for (const resource of RESOURCES) {
+        faction.monthlyIncome[resource] = Math.floor(
+          (faction.monthlyIncome[resource] * scale) / 1000,
+        );
+      }
+    }
     faction.monthlyIncome.gold -= totalUpkeep(state, faction.index);
   }
 }

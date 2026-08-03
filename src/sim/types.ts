@@ -24,6 +24,30 @@ export const TIER_NAME: Record<SettlementTier, string> = {
 
 export type ResourceLedger = Record<Resource, number>;
 
+/**
+ * A settlement never falls below this, however deep the debt or how many men it has levied.
+ * **[GEN]**
+ */
+export const MIN_POPULATION = 100;
+
+/**
+ * How well a realm is played — docs/MECHANICS.md §8. Knight is the honest rung: no handicap
+ * and no assistance, the same rules the player has.
+ */
+export type AiDifficulty = 'recruit' | 'squire' | 'knight' | 'baron' | 'king';
+
+/** What kind of realm it is. Decides what it builds, whom it attacks, and later how it talks. */
+export type AiPersonality = 'ambitious' | 'defensive' | 'balanced' | 'peaceful' | 'honorable';
+
+/**
+ * Difficulty is one setting across every rival; personality is per realm. Part of the save,
+ * because a campaign reloaded against different opponents is a different campaign.
+ */
+export interface AiProfile {
+  difficulty: AiDifficulty;
+  personality: AiPersonality;
+}
+
 export interface FactionState {
   /** Index into SimState.factions — also the value stored in SimState.tileOwner. */
   readonly index: number;
@@ -35,6 +59,13 @@ export interface FactionState {
   carry: ResourceLedger;
   /** Whole units per month. Recomputed on month rollover and on ownership change. */
   monthlyIncome: ResourceLedger;
+  /**
+   * Who is playing this realm, or `null` for the player and for the neutral Independents.
+   *
+   * The Independents deliberately have none: they hold 47 settlements and are the unclaimed
+   * ground every realm expands into, not a rival with ambitions of their own.
+   */
+  ai: AiProfile | null;
 }
 
 /** Work in progress in a settlement. Durations count down in whole months. */

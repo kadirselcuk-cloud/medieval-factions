@@ -57,6 +57,7 @@ import { assault, halt, SEASON_MOVEMENT } from "../sim/movement";
 import {
   buildOptions,
   cancelImprovement,
+  availableManpower,
   cancelOrder,
   cancelProduction,
   canAfford,
@@ -89,6 +90,13 @@ interface SelectionPanelProps {
   state: SimState;
   world: World;
   roster: readonly Faction[];
+  /**
+   * Whether this tile is inside the player's line of sight — docs/MECHANICS.md §9.
+   *
+   * The panel is the other half of the fog: darkening the map would be worth nothing if
+   * clicking a shrouded tile still read out its owner, its garrison and what it is building.
+   */
+  visible: boolean;
   /** Hands the map a march order to collect a destination for. */
   onMarch: (armyId: number) => void;
   onClose: () => void;
@@ -124,17 +132,19 @@ function Row({ label, value }: { label: string; value: string }): JSX.Element {
 }
 
 export function SelectionPanel(props: SelectionPanelProps): JSX.Element {
-  const { tile, game, state, world, roster, onMarch, onClose } = props;
+  const { tile, game, state, world, roster, visible, onMarch, onClose } = props;
   const [tab, setTab] = useState<Tab>("info");
 
-  const ownerIndex = state.tileOwner[tile.index] ?? -1;
+  // Ground the player cannot see reads as unclaimed, because that is all they know about it.
+  const ownerIndex = visible ? (state.tileOwner[tile.index] ?? -1) : -1;
   const owner = ownerIndex >= 0 ? roster[ownerIndex] : undefined;
   const isPlayers = ownerIndex === state.playerFactionIndex;
 
   const cityFeature = tile.feature?.kind === "city" ? tile.feature : undefined;
-  const city = cityFeature
-    ? state.cities.find((c) => c.tileIndex === tile.index)
-    : undefined;
+  const city =
+    cityFeature && visible
+      ? state.cities.find((c) => c.tileIndex === tile.index)
+      : undefined;
   const tabbed = Boolean(city && isPlayers);
 
   // Landlocked settlements have no navy to speak of, so they do not carry the tab at all.
@@ -201,8 +211,10 @@ export function SelectionPanel(props: SelectionPanelProps): JSX.Element {
                   </span>
                 )}
               </div>
-            ) : (
+            ) : visible ? (
               <div className="panel__owner panel__muted">Unclaimed</div>
+            ) : (
+              <div className="panel__owner panel__muted">Beyond your sight</div>
             )}
 
             <TileFacts tile={tile} state={state} world={world} city={city} />
@@ -327,8 +339,8 @@ function TileFacts({
           <Row
             label="Walls"
             value={
-              buildings.defenceTenths > 0
-                ? `+${buildings.defenceTenths * 10}%`
+              buildings.defencePercent > 0
+                ? `+${buildings.defencePercent}%`
                 : "None"
             }
           />
@@ -540,8 +552,11 @@ function Garrison({
 
   // The whole roster, so a player can read what a Barracks would eventually buy them rather
   // than only what they can already afford today.
+  const manpower = availableManpower(city);
+
   const tiles: BuildTile[] = loadUnits().map((unit) => {
     const affordable = canAfford(state, city.ownerIndex, unit.cost);
+    const enoughPeople = manpower >= unit.size;
     const unlocked = recruitable.has(unit.id);
     const missing = unit.requires
       .filter((id) => !city.buildings.includes(id))
@@ -550,11 +565,15 @@ function Garrison({
     return {
       id: unit.id,
       name: unit.name,
-      state: unlocked && affordable ? "available" : "blocked",
+      state: unlocked && affordable && enoughPeople ? "available" : "blocked",
       blurb: artFor(unit.id).blurb,
       facts: [
         { label: "Class", value: labelOf(unit.class) },
         { label: "Soldiers", value: `${num(unit.size)} men` },
+        {
+          label: "Drawn from",
+          value: `${num(unit.size)} of this settlement's people`,
+        },
         {
           label: "Per soldier",
           value: `${unit.hp} HP · ${unit.damage} damage`,
@@ -586,9 +605,11 @@ function Garrison({
           ? `Needs a ${TIER_NAME[unit.minTier as 1 | 2 | 3 | 4]}. This settlement is a ${TIER_NAME[city.tier]}.`
           : missing.length > 0
             ? `Needs ${missing.join(" and ")}, built in the Buildings tab.`
-            : affordable
-              ? undefined
-              : "Not enough in the treasury.",
+            : !affordable
+              ? "Not enough in the treasury."
+              : enoughPeople
+                ? undefined
+                : `Not enough people. ${num(unit.size)} men must come from somewhere, and only ${num(manpower)} can be spared.`,
       action: `Recruit ${unit.name}`,
       onAction: () => game.command((s) => queueUnit(s, city, unit.id)),
     };
@@ -692,7 +713,16 @@ function Garrison({
         </div>
       )}
 
-      <BuildGrid heading="Recruit" tiles={tiles} />
+      <BuildGrid
+        heading="Recruit"
+        tiles={tiles}
+        note={
+          <>
+            Every unit is men, and the men come out of this settlement — {num(manpower)} can be
+            spared. They do not come back, so an army is a permanent choice against growth.
+          </>
+        }
+      />
     </>
   );
 }
@@ -1171,10 +1201,10 @@ function buildingEffects(
       value: `+${building.goldPerWaterTile} gold a month per adjacent water tile`,
     });
   }
-  if (building.defenceTenths > 0) {
+  if (building.defencePercent > 0) {
     rows.push({
       label: "Defence",
-      value: `+${building.defenceTenths * 10}% for the defender`,
+      value: `+${building.defencePercent}% for the defender`,
     });
   }
 

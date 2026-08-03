@@ -13,6 +13,227 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.13.0] — 2026-08-03
+
+**Fog of war, and realms that hold a country instead of a corridor.** Every defence bonus halved
+so that attacking is a realistic thing to do, and the five personalities brought close together.
+
+### Added
+
+- **Fog of war.** The player sees **3 tiles beyond every tile the realm holds**, and further from
+  a settlement: **+1 per tier above Village**, so a Village sees 3 and a Capitol 6. A field army
+  sees 3 of its own, because a march into open country would otherwise be blind.
+  - The shroud hides **who owns the ground**, **armies**, and **whose city that is**. Clicking a
+    shrouded tile says *"Beyond your sight"* rather than reading out its owner, garrison and
+    building queue — darkening the map would be worth nothing if the panel still told you.
+  - It does **not** hide the geography. Terrain, coastlines and city dots stay faintly readable
+    under the wash: a medieval king knows where the mountains are, and a map that goes black is
+    unnavigable rather than mysterious.
+  - **The rivals have none of it and see everything**, which is stated in the docs rather than
+    hidden.
+  - **It is a presentation filter and nothing more** — derived from state, never stored in it, and
+    never read by the simulation. A test asserts the point directly: two identical campaigns stay
+    byte-identical whatever the player can see. Wiring fog into the simulation would put what each
+    realm knows into the save, into every migration and into every determinism guarantee, for a
+    feature that only ever needed to change what is drawn.
+
+- **Realms consolidate before they campaign.** Each month one army — the weakest, since claiming
+  ground needs feet rather than soldiers — goes to the nearest unclaimed tile within 3 tiles of one
+  of its own settlements, its own distance breaking the tie. The rest follow the realm's objective.
+  - Without it an army walked a one-tile corridor to the first city it could beat, and a realm
+    ended up holding a line across the map rather than a country: no income from the ground beside
+    it, no border its armies could be brought back through, nothing worth improving.
+  - Measured over a century, the realms now hold roughly **1,000 tiles between them** rather than
+    a couple of hundred.
+
+### Changed
+
+- **Every defence bonus in the game is halved** — terrain, the city tile, the fortification line
+  and winter, all of them, so that attacking is a realistic thing to do.
+
+  | | Was | Now |
+  |---|---:|---:|
+  | Plains / Steppe / Tundra | 10% | **5%** |
+  | Forest / Desert | 20% | **10%** |
+  | Mountain | 30% | **15%** |
+  | City tile | 10% | **5%** |
+  | Winter | 10% | **5%** |
+  | Wooden Palisade | 10% | **5%** |
+  | Stone Walls | 30% | **15%** |
+  | City Walls | 40% | **20%** |
+  | Citadel | 60% | **30%** |
+
+  The scale moved together, so nothing about *relative* ground changed — a mountain is still three
+  times a plain, a Citadel still six times a Palisade. What changed is the ceiling: the worst
+  ground in the game is now **55%** rather than the 110% it used to reach, so **a fully walled
+  Capitol can be stormed** by a large enough army instead of only starved out. Four Heavy Cavalry
+  are still thrown back by its free defenders, where twelve used to be. Walls buy time now, not
+  immunity.
+
+  Fortification is stored as a **percentage** rather than the tenths it used to be, because half
+  of "3 tenths" is not a whole number of tenths.
+
+- **The five personalities now lean off a common centre** rather than being five different games.
+  Every one of them builds an economy, keeps an army, settles unclaimed ground, expands its
+  settlements and makes war when the odds are good. Balanced *is* the centre; the others are a
+  tilt away from it, and the widest gap in aggression is now 0.90× against 1.15× rather than
+  0.85× against 2.20×.
+  - **Peaceful is an economy lean, not a pacifist.** It builds housing and commerce harder than
+    anyone and keeps a smaller army — but it recruits, it expands, and it goes to war. It no
+    longer refuses to attack another realm at all.
+  - **Honorable plays exactly as Balanced does.** Honour turned out to be the wrong kind of trait
+    for a war engine: refusing to starve a city out, or to attack a realm somebody else already
+    had by the throat, is a question of **who a realm will deal with** rather than how it fights.
+    It besieges like everyone else now. The rules for it — `dogpiles`, `attacksRealms`,
+    `bullyFloorPermille` — stay wired, tested and permissive, so **diplomacy** can turn them back
+    on for the realms they belong to.
+
+- **A realm gets its first field army as soon as it has two units.** The caution about founding a
+  stack now applies to the second one and after. A Defensive realm previously held three units at
+  home before it would field anything, needed a fourth before there was a surplus and a seventh
+  before that surplus was worth founding a stack with — and spent its first six years holding the
+  five tiles it started on, unable to claim an acre or take a village.
+
+### Fixed
+
+- **Consolidation no longer starves the war.** Every conquest opens a fresh ring of unclaimed
+  ground around the city just taken, so a realm where *every* idle army consolidated never ran out
+  of ground to consolidate and never fought again. It also inverted the difficulty ladder outright
+  — a King fielded six armies and had six of them filling in fields while a Recruit's single army
+  got on with the war. One army does it; the rest campaign.
+
+### Known limits
+
+- **The AI still cannot cross water.** Scandinavia, Ireland, Cyprus and North Africa survive every
+  campaign, and Britain and Iberia are cut off from each other. Naval, now 0.14.0.
+- Nothing here has been verified in a browser. There is no browser in this environment, so the
+  fog overlay in particular is written from the canvas outwards and unconfirmed by eye.
+
+### Measured
+
+A century at each rung, from the same seed:
+
+| | Recruit | Knight | King |
+|---|---:|---:|---:|
+| Realms alive at 100 years | 11 | 9 | 8 |
+| Independent cities left | 17 | 14 | 12 |
+| Tiles held by the realms | 940 | 994 | 1,081 |
+| Battles fought | 44 | 136 | **484** |
+
+King no longer settles down at all — cities were still changing hands in the last decade of the
+century. Knight and Recruit reach a balance of power after twenty to thirty years, which is what
+the ladder should do.
+
+---
+
+## [0.12.0] — 2026-08-03
+
+**Recruiting draws people, and the twelve rival realms play.** Five difficulties, five
+personalities, and an economy, a war and a frontier for every one of them.
+
+### Added
+
+- **Recruiting a unit consumes population** equal to its `size`, paid when the order is placed —
+  100 people for a Light Infantry, 40 for cavalry. Never returned; the settlement does not get
+  them back when the unit dies or disbands. Cancelling an order that has not finished *does*
+  return them, the same bargain the treasury already gets. Ships draw nobody: crew size was never
+  specified for them, and that stays **[OPEN]**.
+  - A settlement can never be recruited below **100 people**, the floor debt and siege stop at.
+  - The recruit panel shows what each unit costs in people and how many the settlement can spare,
+    and refuses with a reason rather than a greyed-out square.
+  - One Light Infantry is **twenty months of a bare Village's entire growth**, permanently. Flat
+    growth never earns it back, which is the whole weight of the decision.
+
+- **The AI** — `src/sim/ai.ts`, tuned entirely from `data/ai.json`. It runs once a month per
+  realm and plays **through the same functions the player's UI calls**: `queueBuilding`,
+  `queueUnit`, `mobilise`, `orderMove`, `beginSiege`. There is no back door, so a rule that binds
+  the player binds the rivals.
+  - **Builds** by personality weight per building line, and will decline to spend and save up
+    instead when the thing it most wants is within its difficulty's patience horizon. Without
+    that an AI buys palisades forever and never becomes a Town.
+  - **Develops one tile a month**, realm-wide, choosing farm, mine or sawmill by what the ground
+    actually yields.
+  - **Recruits** within its income and its people, and **musters** garrison surpluses into armies.
+  - **Campaigns** on **one objective for the whole realm**, not one per army — no single army it
+    may raise can take a defended city alone.
+  - **Besieges** what it cannot storm, and **marches to relieve** its own invested settlements.
+
+- **Five difficulties** — Recruit, Squire, Knight, Baron, King. One setting for every rival,
+  chosen on the start screen and kept in the save. They vary income, the odds a realm wants
+  before committing, how many armies it fields and how big, how often it wastes a month, how far
+  ahead it saves, whether it relieves its own sieges and whether it develops its land.
+  - **Knight is the honest rung: no handicap and no assistance, the player's own economy
+    exactly.** Below it the AI is crippled, above it subsidised, and the subsidy multiplies gross
+    income before wages, so a hard opponent is richer rather than immune to its own payroll.
+
+- **Five personalities** — Ambitious, Defensive, Balanced, Peaceful, Honorable. One per realm,
+  fixed for the campaign, rolled from the campaign seed so the same seed always meets the same
+  Europe. `data/factions.json` accepts an optional `personality` per faction; none is set yet,
+  because deciding that the Golden Horde is Ambitious is a design call — **[OPEN]**.
+  - **Peaceful** never starts a war with another realm. It settles unclaimed ground and defends
+    what it holds, which is what stops "peaceful" meaning "inert".
+  - **Honorable** storms walls rather than starving a city out, never piles onto a realm somebody
+    else already has a settlement of under siege, and will not attack one worth under 40% of
+    itself. It is the only character whose principles cost it something.
+  - **Ambitious** ranges twelve tiles beyond its border, expands hardest and finishes off anything
+    already bleeding; **Defensive** builds walls, holds three units in every settlement and will
+    not campaign more than four tiles from home.
+
+- **Balance panel: an "Every realm" table** — cities, units, soldiers, gold and net income for
+  every faction, with its personality and difficulty. Extinguished realms are struck through.
+
+- **Difficulty on the start screen**, with the blurb for the selected rung, and named again under
+  Menu → Options.
+
+### Changed
+
+- **Save format v5 → v6.** Factions carry an `ai` profile. A v5 campaign was played against realms
+  that did nothing; on load they wake up at **Knight**, so loading never silently makes a campaign
+  harder or easier, and their personalities roll from the seed they would have had.
+- `MIN_POPULATION` moved from `tick.ts` to `types.ts` — it is now the floor for two separate
+  rules, debt and the levy, and belongs with the other simulation constants.
+
+### Fixed
+
+- **The AI's estimate of what a defender is worth is now measured against the resolver rather
+  than reasoned about.** Two guesses came first and each broke the campaign in its own direction.
+  Reading the ground as a flat "1 + advantage" made it suicidal — a ruined realm recruited one
+  Light Infantry, marched it at a village held by one Light Infantry, lost it to the last man, and
+  did it again every eight months for a century. Reading it as the damage formula's ratio,
+  "(1 + advantage) / (1 − advantage)", made it inert: it priced a walled city at nineteen times
+  its garrison, and no realm ever attacked another.
+
+  Measured on real battles across the whole range of defender's advantage, an attacker needs
+  **1.25 to 1 on level ground, rising to 3.5 to 1 at the 90% ceiling** — very nearly a straight
+  line, and nothing like either guess. `ai.test.ts` re-measures it and fails if the combat rules
+  ever drift away from it.
+- **Reach is measured from a realm's borders, not from where an army stands.** Measured from the
+  army, every frontier on the map set inside fifteen years: armies with nothing in sight walked
+  home, and home was never near anything new.
+- **Idle armies no longer all pile onto one settlement.** Sending every one of them to the biggest
+  garrison put each realm's entire strength on a single tile — and a city with a realm's whole
+  army parked on it is a city no neighbour will ever attack. Understrength stacks still go to the
+  muster point to fill up; full ones stay where they are.
+- **A realm no longer recruits itself into ruin.** It wants the army it can actually field plus
+  the garrison it means to keep, and never levies a settlement below **the population that earned
+  it its current tier** — a Town was allowed to become a Town at 2,000 people, so it is never
+  levied below 2,000. Without that a King-difficulty realm stripped five Towns to seven hundred
+  people between them.
+- **An honourable realm no longer besieges by accident.** Arriving at a wall it cannot storm, it
+  now waits for the rest of the army instead of investing the place.
+
+### Known limits
+
+- **The AI cannot cross water.** Every settlement it can never reach is in Scandinavia, Ireland,
+  Cyprus or across Gibraltar, so a dozen independent cities survive any campaign, and Britain and
+  Iberia are cut off from each other. That is the naval phase (0.13.0), not an AI limitation.
+- **Two large realms correctly decline to attack each other**, so a century-long campaign settles
+  into a balance of power that only the player breaks. Whether that is the right shape, or wants
+  something to unfreeze it, is logged in `docs/OPEN-QUESTIONS.md`.
+- Nothing here has been verified in a browser. There is no browser in this environment.
+
+---
+
 ## [0.11.0] — 2026-08-03
 
 **Population growth is a flat number of people a month.** No percentages, no compounding, no

@@ -113,7 +113,10 @@ describe('projection', () => {
       people: state.cities.map((c) => c.population),
     });
 
-    const result = project(state, world, FRANKS, 10);
+    // Three years, not ten: since 0.12.0 the rivals play, and a realm that does absolutely
+    // nothing for a decade is liable to be conquered inside the projection — which is correct,
+    // and the projection reporting it is the point, but it leaves nothing here to assert on.
+    const result = project(state, world, FRANKS, 3);
 
     expect(JSON.stringify({
       tick: state.tick,
@@ -122,7 +125,7 @@ describe('projection', () => {
       people: state.cities.map((c) => c.population),
     })).toBe(before);
 
-    expect(result.years).toBe(10);
+    expect(result.years).toBe(3);
     expect(result.cities).toBe(1);
     expect(result.population).toBeGreaterThan(1_000);
   });

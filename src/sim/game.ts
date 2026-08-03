@@ -1,10 +1,11 @@
+import { LEVEL_DIFFICULTY } from '../data/ai';
 import type { Faction } from '../data/factions';
 import type { World } from '../data/world';
 import { calendarAt } from './calendar';
 import { autosave, serialise, SAVE_VERSION, writeSave, type SaveFile } from './save';
 import { createInitialState } from './state';
 import { advance } from './tick';
-import type { SimState } from './types';
+import type { AiDifficulty, SimState } from './types';
 
 export const SPEEDS = [0, 1, 2, 5, 10] as const;
 
@@ -54,8 +55,17 @@ export class Game {
     readonly roster: readonly Faction[],
     playerFactionId: string,
     seed = 1,
+    difficulty: AiDifficulty = LEVEL_DIFFICULTY,
   ) {
-    this.state = createInitialState(world, roster, playerFactionId, seed);
+    this.state = createInitialState(world, roster, playerFactionId, seed, difficulty);
+  }
+
+  /**
+   * The rung every rival is playing at — read off the realms themselves rather than stored
+   * beside them, so a loaded campaign reports what it is actually being played against.
+   */
+  get difficulty(): AiDifficulty {
+    return this.state.factions.find((faction) => faction.ai)?.ai?.difficulty ?? LEVEL_DIFFICULTY;
   }
 
   get speed(): Speed {

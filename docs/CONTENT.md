@@ -151,21 +151,26 @@ wood, iron or stone, so anything else would deadlock the first move.
 
 Fortification bonus, added to terrain defender's advantage — **[GEN]**:
 
-| Tier | Bonus |
-|---|---|
-| Village — Wooden Palisade | +10% |
-| Town — Stone Walls | **+30%** |
-| City — City Walls | +40% |
-| Capitol — Citadel | +60% |
+| Tier | Bonus | Was, before 0.13.0 |
+|---|---|---|
+| Village — Wooden Palisade | +5% | +10% |
+| Town — Stone Walls | **+15%** | +30% |
+| City — City Walls | +20% | +40% |
+| Capitol — Citadel | +30% | +60% |
 
-Plus the flat +10% "city tile" bonus from [MECHANICS.md](MECHANICS.md) §4, and the terrain
-under the settlement. Stone Walls read +25% here until 0.9.0; the data has always held +30%,
-because the value is stored in tenths and 25% is not expressible. The data wins.
+Plus the flat +5% "city tile" bonus from [MECHANICS.md](MECHANICS.md) §4, and the terrain under
+the settlement.
 
-**These are the sharpest numbers in the game.** A Capitol with a Citadel reaches the 90% ceiling
-on hilly ground, and **no army in the game can storm it** — twenty Heavy Cavalry, the largest
-stack the rules allow, lose 787 men and kill 148. That is deliberate: a fortified capital is
-taken by **siege**, not by assault. See [MECHANICS.md](MECHANICS.md) §6.
+**Every defence bonus in the game was halved in 0.13.0** so that attacking is a realistic thing
+to do. The scale moved together, so relative ground is unchanged — a Citadel is still six times a
+Palisade. The figures are stored as a percentage rather than the tenths they used to be, because
+half of "3 tenths" is not a whole number of tenths.
+
+What changed is what a wall *buys*. A Citadel Capitol used to reach the 90% ceiling and be
+unstormable by any army the rules allow; it now reaches 55% at worst, and **a large enough army
+can go over the walls** — four Heavy Cavalry are still thrown back by its free defenders, where
+twelve used to be. Walls buy time now rather than immunity, and **siege** is the cheap way in
+rather than the only one. See [MECHANICS.md](MECHANICS.md) §6.
 
 Owner-authored endurance under siege, by tier:
 
@@ -181,6 +186,10 @@ Owner-authored endurance under siege, by tier:
 ## 3. Land units
 
 `HP` and `Dmg` are **per soldier**. `Time` is in months. Speeds are **[GEN]**.
+
+**`Size` is also the population cost.** Recruiting draws that many people out of the settlement
+training the unit, paid when the order is placed and never returned — see
+[MECHANICS.md](MECHANICS.md) §5. A Light Infantry is a tenth of a starting village.
 
 ### Village tier
 

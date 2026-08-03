@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type JSX } from 'react';
+import { difficultyProfile } from '../data/ai';
 import { calendarAt } from '../sim/calendar';
 import type { Game } from '../sim/game';
 import {
@@ -126,6 +127,14 @@ export function GameMenu({
             <input type="checkbox" checked={fullscreen} onChange={onFullscreen} />
             Full screen
           </label>
+          <div className="panel__row">
+            <span className="panel__label">Difficulty</span>
+            <span className="panel__value">{difficultyProfile(game.difficulty).name}</span>
+          </div>
+          <p className="panel__note">
+            {difficultyProfile(game.difficulty).blurb} It is fixed for the campaign — every rival
+            realm was created at this level and carries it in the save.
+          </p>
           {game.cheatsUnlocked && (
             <p className="panel__note">
               Maximum speed is unlocked. It is a testing cheat and will not ship.

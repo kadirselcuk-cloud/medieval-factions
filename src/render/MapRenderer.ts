@@ -10,6 +10,7 @@ import {
   RESOURCE_GLYPH,
   SHADE_COUNT,
   TERRAIN_SHADES,
+  FOG_COLOR,
   VOID_COLOR,
   shadeVariant,
 } from './palette';
@@ -93,6 +94,8 @@ export class MapRenderer {
 
   private territory: TerritoryView | null = null;
   private armies: ArmyView | null = null;
+  /** 1 per visible tile, or null for no fog at all. See `setVision`. */
+  private vision: Uint8Array | null = null;
   /** True while any of the player's armies has a route to draw — see `frame`. */
   private marching = false;
   private selectedIndex: number | null = null;
@@ -142,6 +145,22 @@ export class MapRenderer {
   zoomBy(factor: number): void {
     this.camera.zoomAt(factor, this.viewW / 2, this.viewH / 2, this.viewW, this.viewH);
     this.invalidate();
+  }
+
+  /**
+   * Fog of war — a 1-per-visible-tile mask, or `null` to draw everything.
+   *
+   * Purely a drawing concern. The renderer hides ownership, armies and a city's allegiance
+   * outside the mask and shrouds the ground, but the geography underneath stays faintly legible:
+   * a medieval king knows where the mountains are, and a map that goes black is unnavigable.
+   */
+  setVision(vision: Uint8Array | null): void {
+    this.vision = vision;
+    this.dirty = true;
+  }
+
+  private sees(index: number): boolean {
+    return this.vision === null || this.vision[index] === 1;
   }
 
   /** Ownership overlay. The array is read live each frame, so mutating it in place is fine. */
@@ -245,7 +264,39 @@ export class MapRenderer {
     if (zoom >= SHOW_GRID_AT) this.drawGrid(x0, y0, x1, y1, origin, zoom);
     this.drawFeatures(x0, y0, x1, y1, zoom);
     if (this.armies) this.drawArmies(zoom, this.armies);
+    // The shroud goes on last of the map layers, so it dims everything drawn under it, and
+    // before the selection ring, which the player must always be able to find.
+    this.drawFog(x0, y0, x1, y1, origin, zoom);
     this.drawSelection(zoom);
+  }
+
+  /**
+   * Darken everything out of sight.
+   *
+   * A wash rather than a blackout: terrain, coastlines and city dots stay faintly readable, so
+   * the map is still a map. What the wash cannot hide — ownership, armies, whose city that is —
+   * is withheld by the layers underneath instead of being painted and then covered up.
+   */
+  private drawFog(
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    origin: { x: number; y: number },
+    zoom: number,
+  ): void {
+    if (!this.vision) return;
+    const { ctx, world } = this;
+    const size = Math.ceil(zoom) + 1;
+
+    ctx.fillStyle = FOG_COLOR;
+    for (let y = y0; y <= y1; y++) {
+      const sy = Math.floor(origin.y + (y - y0) * zoom);
+      for (let x = x0; x <= x1; x++) {
+        if (this.sees(y * world.width + x)) continue;
+        ctx.fillRect(Math.floor(origin.x + (x - x0) * zoom), sy, size, size);
+      }
+    }
   }
 
   /**
@@ -307,6 +358,9 @@ export class MapRenderer {
     const w = Math.max(9, zoom * 0.62);
     const h = Math.max(7, zoom * 0.48);
     for (const marker of armies.markers) {
+      // An army out of sight is not drawn at all. The player's own always are: an army reveals
+      // the tile it stands on, so this only ever hides somebody else's.
+      if (!this.sees(marker.tileIndex)) continue;
       const x = marker.tileIndex % world.width;
       const y = Math.floor(marker.tileIndex / world.width);
       const p = camera.worldToScreen(x + 0.28, y + 0.28, viewW, viewH);
@@ -350,8 +404,10 @@ export class MapRenderer {
     for (let y = y0; y <= y1; y++) {
       const sy = Math.floor(origin.y + (y - y0) * zoom);
       for (let x = x0; x <= x1; x++) {
-        const owner = territory.owner[y * world.width + x] ?? -1;
-        if (owner < 0) continue;
+        const index = y * world.width + x;
+        const owner = territory.owner[index] ?? -1;
+        // Who holds ground you cannot see is not your business — docs/MECHANICS.md §9.
+        if (owner < 0 || !this.sees(index)) continue;
         ctx.fillStyle = territory.colors[owner] ?? '#fff';
         ctx.fillRect(Math.floor(origin.x + (x - x0) * zoom), sy, size, size);
       }
@@ -363,7 +419,7 @@ export class MapRenderer {
     for (let y = y0; y <= y1; y++) {
       for (let x = x0; x <= x1; x++) {
         const owner = territory.owner[y * world.width + x] ?? -1;
-        if (owner < 0) continue;
+        if (owner < 0 || !this.sees(y * world.width + x)) continue;
         const left = Math.floor(origin.x + (x - x0) * zoom);
         const top = Math.floor(origin.y + (y - y0) * zoom);
         ctx.strokeStyle = territory.colors[owner] ?? '#fff';
@@ -463,7 +519,8 @@ export class MapRenderer {
     for (const city of world.cities) {
       if (city.x < x0 || city.x > x1 || city.y < y0 || city.y > y1) continue;
       const p = camera.worldToScreen(city.x + 0.5, city.y + 0.5, viewW, viewH);
-      const owner = this.territory?.owner[city.index] ?? -1;
+      // A city out of sight is drawn as a place, not as somebody's place.
+      const owner = this.sees(city.index) ? (this.territory?.owner[city.index] ?? -1) : -1;
 
       // A city is drawn in its owner's colour inside a light ring, so ownership reads even
       // where the territory wash is hidden under a border or a label.

@@ -115,15 +115,27 @@ Modifier scale, as restated by the owner — note it is **not symmetric**:
 | Terrain | Def. adv. | Move penalty | Farms | Mines | Sawmill | Roads |
 |---|---|---|---|---|---|---|
 | Water `~` | — | — | unbuildable | unbuildable | unbuildable | ships only |
-| Plains `.` | 10% | — | `++` | `--` | base | path, paved, stone |
-| Forest `*` | 20% | 25% | base | `--` | `++` | path, paved |
-| Steppe `:` | 10% | — | `+` | `-` | base | path, paved, stone |
-| Desert `_` | 20% | 50% | `--` | `--` | `--` | **[OPEN]** tiers |
-| Tundra `%` | 10% | 25% | `-` | `+` | `++` | **[OPEN]** tiers |
-| Mountain `^` | 30% | 50% | `--` | `++` | `+` | **[OPEN]** tiers |
+| Plains `.` | 5% | — | `++` | `--` | base | path, paved, stone |
+| Forest `*` | 10% | 25% | base | `--` | `++` | path, paved |
+| Steppe `:` | 5% | — | `+` | `-` | base | path, paved, stone |
+| Desert `_` | 10% | 50% | `--` | `--` | `--` | **[OPEN]** tiers |
+| Tundra `%` | 5% | 25% | `-` | `+` | `++` | **[OPEN]** tiers |
+| Mountain `^` | 15% | 50% | `--` | `++` | `+` | **[OPEN]** tiers |
 
-**City tile:** underlying terrain's defender advantage **+10%**, plus the settlement's
+**City tile:** underlying terrain's defender advantage **+5%**, plus the settlement's
 fortification bonus (see [CONTENT.md](CONTENT.md) §2).
+
+#### Every defence bonus was halved in 0.13.0
+
+Terrain, the city tile, the fortification line and winter — all of them, so that attacking is a
+realistic thing to do. The whole scale moved together, which means nothing about *relative*
+ground changed: a mountain is still three times a plain, a Citadel still three times a wall.
+
+What changed is the ceiling. The worst ground in the game — a Citadel Capitol on a mountain in
+winter — is now **55%** rather than the 110% it used to reach, so the 90% cap on the defender's
+advantage almost never binds. A fully walled Capitol can now be **stormed** by a large enough
+army rather than only starved out: four Heavy Cavalry are still thrown back by its free
+defenders, where twelve used to be. Walls buy time now, not immunity.
 
 ### Resource nodes
 
@@ -216,8 +228,31 @@ Roughly how long each population gate takes, measured on the real simulation:
 | Town + housing + Town Hall, 20k banked | +46 | 2,000 → 5,000 | 5.5 years |
 | City + housing + City Hall, 100k banked | +91 | 5,000 → 10,000 | 4.6 years |
 
-Whether recruiting consumes population is still **[OPEN]**, and matters more than it did: 100
-soldiers out of a linear pool is a permanent cost that cannot be compounded away.
+#### Recruitment draws people — the manpower cost
+
+**A unit is men, and the men come out of the settlement that trains them.** Recruiting costs the
+unit's whole `size` in population, paid the month the order is placed, exactly like its gold.
+
+| Unit | Soldiers, and people |
+|---|---:|
+| Light Infantry | 100 |
+| Skirmisher | 80 |
+| Spear, Sword, Two-handed Infantry, Archer | 60 |
+| Light Cavalry, Cavalry Archer, Heavy Cavalry | 40 |
+
+Under flat growth this is the heaviest decision in the game. One Light Infantry is **twenty
+months of a bare Village's entire growth**, spent permanently — there is no compounding to earn it
+back, and the men do not return when the unit dies or disbands. Cancelling an order *before* it
+finishes does return them: the levy is wasted months, not wasted people, which is the same bargain
+the treasury already gets.
+
+Two floors protect a settlement:
+
+- It can never be recruited below **100 people** — the same floor debt and siege stop at.
+- The rival realms stop far higher than that. See §8.
+
+**Ships draw nobody.** Crew size was never specified for them, so inventing one would be
+inventing a rule — **[OPEN]**.
 
 ### Tile improvements
 
@@ -344,12 +379,13 @@ Costs are paid up front when the item is queued.
 
 | Season | Months | Movement | Farm income | Other |
 |---|---|---|---|---|
-| Winter | Dec–Feb | −40% | −60% | **+10% defender's advantage** |
+| Winter | Dec–Feb | −40% | −60% | **+5% defender's advantage** |
 | Spring | Mar–May | — | — | — |
 | Summer | Jun–Aug | — | — | — |
 | Autumn | Sep–Nov | — | +25% (harvest) | — |
 
-Movement and farm numbers approved by the owner; winter defender bonus is owner-specified.
+Movement and farm numbers approved by the owner. The winter defender bonus is owner-specified;
+it was halved in 0.13.0 along with every other defence bonus (§4).
 
 ---
 
@@ -523,9 +559,10 @@ casualties = floor(modified / target.hpPerSoldier)
   attacker's damage is reduced by X% and the defender's raised by X%. It belongs to the
   **defending formation, not to the battle**: a relieving army fighting in the open beside men
   on a wall carries a different figure from theirs, and both apply when that formation strikes
-  and when it is struck. **Capped at 90%**,
-  because a Citadel Capitol on a mountain in winter otherwise reaches 110%, at which point the
-  attacker deals negative damage and heals the defenders. **[GEN]**
+  and when it is struck. **Capped at 90%**, because the attacker's
+  damage is scaled by  and anything past 100% would have the attacker healing the
+  defenders. Since 0.13.0 halved every defence bonus the worst ground reaches 55%, so the cap is
+  a guard rail rather than a balance lever and almost never binds. **[GEN]**
 
 Every step is integer arithmetic: the fractions are held as **per-mille multipliers** and
 floored at each step. A battle that resolved differently on two machines would break the one
@@ -563,3 +600,178 @@ stretching three years back.
 Determinism is a hard requirement: seeded RNG, integer tick counter, no wall-clock or float
 drift in simulation state. The same save plus the same inputs must produce the same outcome
 at any speed setting or frame rate.
+
+---
+
+## 8. The rival realms — AI
+
+Twelve realms are played by the simulation. The player's is not, and neither is the neutral
+**Independents**: they hold 47 settlements, never act, and are the unclaimed ground every realm
+expands into rather than a rival with ambitions of their own.
+
+The AI runs **once a month, per realm, in faction-index order**, inside the same tick that
+advances construction and sieges. Every loop under it runs in a fixed order and every tie breaks
+on an id, because determinism is a hard requirement and a save must replay exactly.
+
+**It plays through the same functions the player's UI calls** — `queueBuilding`, `queueUnit`,
+`mobilise`, `orderMove`, `beginSiege`. There is no back door. A rule the player is bound by binds
+the rivals too, and a bug in one is a bug in both.
+
+All tuning lives in **`data/ai.json`**; `src/sim/ai.ts` holds no constants of its own.
+
+### What a realm does each month
+
+1. **Builds.** One order per settlement, when its queue is empty, chosen by the personality's
+   weight on each building line. It will decline to spend and save up instead, if the thing it
+   most wants is within its difficulty's patience horizon.
+2. **Develops one tile**, realm-wide, choosing the improvement by what the ground actually yields.
+3. **Recruits**, within what its income and its people can bear.
+4. **Musters** garrison surpluses into field armies.
+5. **Campaigns** — one objective for the whole realm, and every army sent at it.
+
+### Difficulty — five rungs, one setting for every rival
+
+**Knight is the honest rung: no handicap and no assistance, the player's own economy exactly.**
+Below it the AI is crippled, above it subsidised, and the subsidy is stated openly rather than
+hidden. It multiplies **gross** income, before wages, so a hard opponent is richer rather than
+immune to its own payroll.
+
+| | Recruit | Squire | Knight | Baron | King |
+|---|---:|---:|---:|---:|---:|
+| Income | ×0.70 | ×0.85 | **×1.00** | ×1.30 | ×1.60 |
+| Odds it wants | 2.20 | 1.70 | 1.35 | 1.20 | 1.10 |
+| Field armies | 1 | 2 | 3 | 4 | 6 |
+| Units in each | 5 | 8 | 12 | 16 | 20 |
+| Wastes a month | 50% | 30% | 15% | 5% | never |
+| Saves up for | 3 mo | 6 mo | 12 mo | 18 mo | 24 mo |
+| Relieves its own sieges | no | no | yes | yes | yes |
+| Develops its tiles | no | yes | yes | yes | yes |
+
+Difficulty is chosen before the campaign starts, written into every rival, and **kept in the
+save** — a campaign is always played against the opponents it was begun against.
+
+### Personality — one per realm, fixed for the campaign
+
+Rolled from the campaign seed, so the same seed always meets the same Europe.
+`data/factions.json` may name one instead; none does yet, because deciding that the Golden Horde
+is Ambitious is a design call rather than one to invent — **[OPEN]**.
+
+**They lean off a common centre rather than being five different games.** Every one of them
+builds an economy, keeps an army, settles unclaimed ground, expands its settlements and makes war
+when the odds are good. Balanced *is* the centre; the other four are a tilt away from it.
+
+| | Attacks at | Reach | Keeps home | Leaves standing | Leans |
+|---|---|---:|---:|---:|---|
+| **Ambitious** | 0.90× the odds | 10 | 1 unit | 450 people | outward — expansion, the smallest garrison |
+| **Defensive** | 1.15× | 6 | 3 units | 550 | inward — walls, a heavy garrison, its own ground |
+| **Balanced** | 1.00× | 8 | 2 units | 500 | nowhere; this is the centre |
+| **Peaceful** | 1.15× | 7 | 2 units | 600 | economy — housing and commerce first, fewer troops |
+| **Honorable** | 1.00× | 8 | 2 units | 500 | nowhere yet; see below |
+
+- **Reach** is measured **from the realm's own borders**, not from where an army stands. Armies
+  cross their own territory to reach the frontier, and every settlement taken moves the frontier
+  outward and brings the next ring into view.
+- **Peaceful is an economy lean, not a pacifist.** It builds and settles harder than anyone and
+  keeps a smaller army — but it recruits, it expands, and it goes to war when the numbers are
+  there.
+- **Honorable plays exactly as Balanced does**, deliberately. Honour turned out to be the wrong
+  kind of trait for a war engine: refusing to starve a city out, or to attack a realm somebody
+  else already had by the throat, is a question of **who a realm will deal with** rather than how
+  it fights. The rules for it are still in `data/ai.json` and still wired up — `dogpiles`,
+  `attacksRealms` and `bullyFloorPermille`, permissive for all five today — so diplomacy can turn
+  them back on for the realms they belong to.
+
+Build weights, unit preferences and the rest are in `data/ai.json`. All of it is **[GEN]**.
+
+### Consolidating before campaigning
+
+A realm **fills in the unclaimed ground around its own settlements before it marches on anybody**.
+Each month one army — the weakest one, since claiming ground needs feet rather than soldiers —
+goes to the nearest unclaimed tile within **3 tiles of one of its settlements**, breaking ties on
+its own distance from that tile. Everything else follows the realm's objective.
+
+It matters more than it sounds. Without it an army walks a one-tile corridor to the first city it
+can beat, and the realm ends up holding **a line across the map rather than a country**: no income
+from the ground beside it, no border its armies can be brought back through, and nothing worth
+improving. With it, realms hold roughly **a thousand tiles between them** after a century instead
+of a couple of hundred.
+
+The rule stops of its own accord — once the ring around every settlement is claimed there are no
+candidates left and the realm goes to war. And **only one army does it**, because every conquest
+opens a fresh ring around the city just taken: a realm where every idle army consolidated never
+ran out of ground to consolidate and never fought again, and it inverted the difficulty ladder
+outright, a King fielding six armies having six of them filling in fields while a Recruit's single
+army got on with the war.
+
+### Judging a fight
+
+The AI needs one number the rest of the game already decides: **what a defender is worth on its
+own ground.** Measured against the resolver rather than reasoned about — equal Light Infantry on
+open ground, across the whole range of defender's advantage:
+
+| Defender's advantage | 0% | 20% | 40% | 60% | 80% | 90% |
+|---|---:|---:|---:|---:|---:|---:|
+| Attackers needed, per defender | 1.25 | 1.50 | 2.00 | 2.50 | 3.50 | 3.50 |
+
+Very nearly a straight line: **1.25 at level, plus 2.5 per unit of advantage**. The 1.25 floor is
+the attacker's structural handicap — moving and striking are separate actions, so whoever closes
+gives up the first blow. `ai.test.ts` re-measures this and fails if the combat rules ever drift
+away from it.
+
+The difficulty's odds figure is a **margin on top of that estimate**, not a raw force ratio.
+
+### What the AI cannot do yet
+
+- **It cannot cross water.** Every remaining independent settlement in a long campaign is in
+  Scandinavia, Ireland, Cyprus or across Gibraltar, and no realm can reach any of them. This is
+  the naval phase (0.14.0), not an AI limitation, and it is the main reason a century-long
+  campaign settles down.
+- **It does not split or manoeuvre armies**, garrison a captured city deliberately, or raid.
+- **It has no diplomacy.** The personalities are written to drive it when it arrives.
+
+---
+
+## 9. Fog of war
+
+The player sees **three tiles beyond every tile the realm holds**, and further from a settlement:
+**one more per tier above Village**. Owner-authored.
+
+| Sight from | Tiles |
+|---|---:|
+| Any owned tile | 3 |
+| A Village | 3 |
+| A Town | 4 |
+| A City | 5 |
+| A Capitol | 6 |
+| A field army | 3 |
+
+Range is Chebyshev — a square of sight, matching the square tiles and the 5 × 5 relief box.
+Armies see for themselves because a march into open country would otherwise be blind, and a
+player could not see what their own army had run into. **[GEN]**, as is the absence of an
+"explored" memory: territory only shrinks by being lost, so sight that came with a tile leaves
+with it, and a shroud remembering a city you no longer overlook would be a second kind of truth
+to keep in step.
+
+**The rivals have none of it. They see everything.** That is stated here rather than hidden,
+because it is a real asymmetry and the alternative — a realm that has to scout — is a different
+and much larger feature.
+
+### It is a presentation filter, and deliberately nothing more
+
+Vision is **derived from state and never stored in it**, and no rule in the simulation reads it.
+Wiring fog into the simulation would put what each realm knows into the save, into every
+migration and into every determinism guarantee, for a feature that only ever needed to change
+what is drawn. A test asserts the point directly: two identical campaigns stay byte-identical
+whatever the player can see.
+
+What the shroud hides:
+
+- **who owns the ground** — an unseen tile reads as unclaimed, and its border is not drawn;
+- **armies** — a rival's marker is not drawn at all outside sight;
+- **whose city that is** — an unseen settlement is drawn as a place, not as somebody's place;
+- **everything the selection panel would say about it** — clicking a shrouded tile says
+  *"Beyond your sight"* rather than reading out its owner, garrison and building queue.
+
+What it does not hide is the **geography**. Terrain, coastlines and city dots stay faintly
+readable under the wash: a medieval king knows where the mountains are, and a map that goes black
+is unnavigable rather than mysterious.

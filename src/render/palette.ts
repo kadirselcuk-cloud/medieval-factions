@@ -36,6 +36,15 @@ export const LABEL_SHADOW = 'rgba(12, 9, 6, 0.85)';
 export const GRID_COLOR = 'rgba(10, 8, 5, 0.16)';
 export const VOID_COLOR = '#0d0b08';
 
+/**
+ * The fog-of-war shroud, laid over everything out of sight.
+ *
+ * A wash, not a blackout: the terrain beneath stays readable enough to navigate by, which is
+ * what keeps the map a map. What must genuinely be hidden — ownership, armies, whose city that
+ * is — is withheld before this is drawn rather than painted and covered over.
+ */
+export const FOG_COLOR = 'rgba(8, 7, 5, 0.62)';
+
 const SHADE_STEPS = 4;
 
 /**

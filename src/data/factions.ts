@@ -16,6 +16,16 @@ const factionSchema = z.object({
   color: z.string().regex(/^#[0-9a-f]{6}$/i),
   playable: z.boolean(),
   neutral: z.boolean(),
+  /**
+   * The character this realm is played with, if the owner has authored one.
+   *
+   * Absent everywhere for now, and rolled from the campaign seed instead — deciding that the
+   * Golden Horde is Ambitious and Byzantium Defensive is a design call, not one to invent.
+   * **[OPEN]**, see docs/OPEN-QUESTIONS.md. Filling this field in is a data-only change.
+   */
+  personality: z
+    .enum(['ambitious', 'defensive', 'balanced', 'peaceful', 'honorable'])
+    .optional(),
 });
 
 const rosterSchema = z.object({ factions: z.array(factionSchema).min(1) });

@@ -41,8 +41,13 @@ const buildingSchema = z.object({
    * stops a settlement compounding into the billions given long enough.
    */
   growthPeople: z.number().int().nonnegative().default(0),
-  /** Fortification line: defender's advantage, in tenths. 3 means +30%. */
-  defenceTenths: z.number().int().nonnegative().default(0),
+  /**
+   * Fortification line: defender's advantage, **as a percentage**. 15 means +15%.
+   *
+   * Percent rather than the tenths this used to be, because 0.13.0 halved every defence bonus
+   * in the game and half of "3 tenths" is not a whole number of tenths.
+   */
+  defencePercent: z.number().int().nonnegative().default(0),
   /** Naval line: gold per month for every water tile adjacent to the settlement. */
   goldPerWaterTile: z.number().int().nonnegative().default(0),
   /** Requires the settlement to border water. */
@@ -145,8 +150,8 @@ export interface BuildingSummary {
   growthPeople: number;
   /** Gold per month from commerce. */
   goldPerMonth: number;
-  /** Defender's advantage from fortification, in tenths. */
-  defenceTenths: number;
+  /** Defender's advantage from fortification, as a percentage. */
+  defencePercent: number;
   /** Gold per month per adjacent water tile, from the naval line. */
   goldPerWaterTile: number;
 }
@@ -157,7 +162,7 @@ export function summariseBuildings(ids: readonly string[]): BuildingSummary {
     housingLevel: 0,
     growthPeople: 0,
     goldPerMonth: 0,
-    defenceTenths: 0,
+    defencePercent: 0,
     goldPerWaterTile: 0,
   };
 
@@ -165,7 +170,7 @@ export function summariseBuildings(ids: readonly string[]): BuildingSummary {
     const building = buildingById(id);
     if (!building) continue;
     // Chain lines replace rather than stack, so take the best rather than the sum.
-    summary.defenceTenths = Math.max(summary.defenceTenths, building.defenceTenths);
+    summary.defencePercent = Math.max(summary.defencePercent, building.defencePercent);
     summary.goldPerMonth = Math.max(summary.goldPerMonth, building.goldPerMonth);
     summary.goldPerWaterTile = Math.max(summary.goldPerWaterTile, building.goldPerWaterTile);
     if (building.line === 'housing') {

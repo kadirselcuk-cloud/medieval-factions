@@ -1,6 +1,8 @@
 import { useState, type JSX } from 'react';
+import { difficultyProfile, personalityProfile } from '../data/ai';
 import type { Faction } from '../data/factions';
 import type { World } from '../data/world';
+import { aiSummary } from '../sim/ai';
 import {
   growthBreakdown,
   incomeBreakdown,
@@ -98,6 +100,52 @@ export function BalancePanel({
             />
             <Fact label="Armies" value={String(state.armies.filter((a) => a.ownerIndex === factionIndex).length)} />
             <Fact label="Free defenders" value={String(totalDefenders(state, factionIndex))} />
+          </Section>
+
+          <Section title="Every realm">
+            <div className="balance__scroll">
+              <table className="balance__table">
+                <thead>
+                  <tr>
+                    <th>Realm</th>
+                    <th>Played as</th>
+                    <th>Cities</th>
+                    <th>Units</th>
+                    <th>Soldiers</th>
+                    <th>Gold</th>
+                    <th>Net</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {state.factions.map((f) => {
+                    const summary = aiSummary(state, f.index);
+                    return (
+                      <tr key={f.id} className={f.alive ? undefined : 'balance__dead'}>
+                        <td>{roster[f.index]?.name ?? f.id}</td>
+                        <td>
+                          {f.index === state.playerFactionIndex
+                            ? 'you'
+                            : f.ai
+                              ? `${personalityProfile(f.ai.personality).name} · ${difficultyProfile(f.ai.difficulty).name}`
+                              : '—'}
+                        </td>
+                        <td>{summary.cities}</td>
+                        <td>{summary.units}</td>
+                        <td>{num(summary.soldiers)}</td>
+                        <td>{num(whole(f.stock.gold))}</td>
+                        <td>{signed(f.monthlyIncome.gold)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="panel__note">
+              Personality decides what a realm builds and whom it attacks; difficulty is one
+              setting across all of them and is the only place a rival's economy differs from
+              yours — at Knight it does not differ at all. Soldiers counts free defenders, so a
+              realm of walled cities reads large with no army in the field.
+            </p>
           </Section>
 
           <Section title="Income, per month">

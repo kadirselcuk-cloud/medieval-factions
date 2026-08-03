@@ -62,7 +62,7 @@
       "minTier": 1,
       "months": 12,
       "cost": { "gold": 100 },
-      "defenceTenths": 1
+      "defencePercent": 5
     },
     {
       "id": "stone_walls",
@@ -72,7 +72,7 @@
       "minTier": 2,
       "months": 18,
       "cost": { "gold": 450, "stone": 60 },
-      "defenceTenths": 3
+      "defencePercent": 15
     },
     {
       "id": "city_walls",
@@ -82,7 +82,7 @@
       "minTier": 3,
       "months": 24,
       "cost": { "gold": 1200, "stone": 150 },
-      "defenceTenths": 4
+      "defencePercent": 20
     },
     {
       "id": "citadel",
@@ -92,7 +92,7 @@
       "minTier": 4,
       "months": 30,
       "cost": { "gold": 3000, "stone": 400 },
-      "defenceTenths": 6
+      "defencePercent": 30
     },
 
     {

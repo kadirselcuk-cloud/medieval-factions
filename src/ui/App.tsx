@@ -6,7 +6,8 @@ import type { ArmyView, MapRenderer, TerritoryView, TileInfo } from '../render/M
 import { stackSize } from '../sim/armies';
 import { Game, type Speed } from '../sim/game';
 import { orderMove } from '../sim/movement';
-import type { BattleReport, GameEvent, SimState } from '../sim/types';
+import type { AiDifficulty, BattleReport, GameEvent, SimState } from '../sim/types';
+import { visibleTiles } from '../sim/vision';
 import { BalancePanel } from './BalancePanel';
 import { BattleView } from './BattleView';
 import { BottomBar } from './BottomBar';
@@ -32,7 +33,8 @@ export function App(): JSX.Element {
     }
   }, []);
 
-  const [factionId, setFactionId] = useState<string | null>(null);
+  /** Chosen together on the start screen, and fixed for the campaign. */
+  const [start, setStart] = useState<{ factionId: string; difficulty: AiDifficulty } | null>(null);
 
   if ('error' in load) {
     return (
@@ -47,23 +49,40 @@ export function App(): JSX.Element {
     );
   }
 
-  if (factionId === null) {
-    return <StartScreen playable={playableFactions()} onChoose={setFactionId} />;
+  if (start === null) {
+    return (
+      <StartScreen
+        playable={playableFactions()}
+        onChoose={(factionId, difficulty) => setStart({ factionId, difficulty })}
+      />
+    );
   }
 
-  return <Campaign world={load.world} roster={load.roster} factionId={factionId} />;
+  return (
+    <Campaign
+      world={load.world}
+      roster={load.roster}
+      factionId={start.factionId}
+      difficulty={start.difficulty}
+    />
+  );
 }
 
 function Campaign({
   world,
   roster,
   factionId,
+  difficulty,
 }: {
   world: World;
   roster: readonly Faction[];
   factionId: string;
+  difficulty: AiDifficulty;
 }): JSX.Element {
-  const game = useMemo(() => new Game(world, roster, factionId), [world, roster, factionId]);
+  const game = useMemo(
+    () => new Game(world, roster, factionId, 1, difficulty),
+    [world, roster, factionId, difficulty],
+  );
   const state = useGameState(game);
 
   useEffect(() => {
@@ -115,6 +134,19 @@ function Campaign({
   const territory = useMemo<TerritoryView>(
     () => ({ owner: state.tileOwner, colors: roster.map((f) => f.color) }),
     [state.tileOwner, roster],
+  );
+
+  /**
+   * Fog of war — docs/MECHANICS.md §9.
+   *
+   * Recomputed whenever the simulation ticks, because territory, settlements and armies all move
+   * the edge of it. It costs a pass over the ground the player holds rather than over the map, so
+   * it stays cheap however large the realm gets. **The rivals get none of this**: it is never
+   * passed to the simulation, so nothing the AI does depends on it.
+   */
+  const vision = useMemo(
+    () => visibleTiles(state, world, state.playerFactionIndex),
+    [game.version, state, world],
   );
 
   const selectedArmyId = selected
@@ -217,6 +249,7 @@ function Campaign({
           world={world}
           territory={territory}
           armies={armies}
+          vision={vision}
           selection={selected?.index ?? null}
           onHover={setHovered}
           onSelect={handleMapSelect}
@@ -237,6 +270,7 @@ function Campaign({
             state={state}
             world={world}
             roster={roster}
+            visible={vision[selected.index] === 1}
             onMarch={setMarching}
             onClose={() => setSelected(null)}
           />

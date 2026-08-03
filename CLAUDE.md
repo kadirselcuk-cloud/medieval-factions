@@ -40,8 +40,8 @@ integer state.** Seeded RNG, integer tick counter, fixed-point money. No `Date.n
 floats in simulation state, no React state owning simulation data. This is what makes
 save/load correct, 10x speed safe and battles replayable — and it cannot be retrofitted.
 
-- `data/` — owner-authored content (maps, and later factions/units/buildings). Deliberately
-  outside `src/`: it is content, not code.
+- `data/` — owner-authored content (maps, factions, units, buildings, and the AI's tuning
+  tables). Deliberately outside `src/`: it is content, not code.
 - `src/data/` — Zod schemas and the loaders that turn content into runtime structures.
 - `src/render/` — Canvas 2D campaign map. Owns the camera and all pointer interaction.
 - `src/ui/` — React chrome: bars, panels, dialogs. DOM for UI, canvas for the map.

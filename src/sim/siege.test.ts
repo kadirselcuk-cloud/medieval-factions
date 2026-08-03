@@ -291,14 +291,18 @@ describe('fighting for a city', () => {
     city.tier = 4;
     city.buildings = ['citadel'];
 
-    // Storming the walls: twelve Heavy Cavalry are thrown back by five free defenders.
-    const storm = place({ heavy_cavalry: 12 }, FRANKS, ringAround(city, 1)[0]!);
+    // Storming the walls: four Heavy Cavalry are thrown back by five free defenders.
+    //
+    // Four rather than the twelve this used to take. 0.13.0 halved every defence bonus, so the
+    // worst ground in the game is now 55% rather than the 90% ceiling and a Citadel Capitol can
+    // be stormed outright by a large enough army — the walls buy time now, not immunity.
+    const storm = place({ heavy_cavalry: 4 }, FRANKS, ringAround(city, 1)[0]!);
     expect(resolveEngagement(state, world, storm, city.tileIndex).report.winner).toBe('defender');
     expect(city.ownerIndex).toBe(NEUTRAL);
 
     // Sitting outside it for a year: the same army, and the walls no longer count.
     state.factions[FRANKS]!.stock.gold = 1_000_000 * MILLI; // upkeep, not the point of the test
-    const besieger = place({ heavy_cavalry: 12 }, FRANKS, ringAround(city, 1)[0]!);
+    const besieger = place({ heavy_cavalry: 4 }, FRANKS, ringAround(city, 1)[0]!);
     expect(beginSiege(state, world, besieger.id).ok).toBe(true);
     advanceBy(state, world, TICKS_PER_MONTH * siegeMonths(4));
 

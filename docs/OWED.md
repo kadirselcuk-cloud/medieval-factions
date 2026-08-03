@@ -47,6 +47,9 @@ layout change is therefore written from the CSS outwards and confirmed by the ow
 - **Recruitment** — shipped in 0.5.0, and given somewhere to go in 0.7.0.
 - **The starting unit** — shipped in 0.7.0. Every playable faction opens with one Light
   Infantry in its capital's garrison, deferred four times before it had an army to join.
+- **AI opponents** — shipped in 0.12.0, owed since the roadmap was written. All twelve rivals
+  build, develop their land, recruit, muster, campaign, besiege and relieve, at five difficulties
+  and with five personalities. They play through the same functions the player's UI calls.
 
 ---
 
@@ -78,6 +81,14 @@ it is tagged **[GEN]** at its definition. None of it is owner-authored truth.
 | Range used as written (50-tile field) | `docs/MECHANICS.md` §6 | **live** — owner-approved field width |
 | Advanced Farms / Irrigation yields | `docs/OPEN-QUESTIONS.md` | not yet implemented |
 | Season boundaries and modifiers | `docs/MECHANICS.md` §5 | **approved by owner** |
+| Halving every defence bonus (the halved figures themselves) | `src/data/terrain.ts`, `data/buildings.json` | **live** — the owner asked for half; where the scale lands is [GEN] |
+| Consolidation: radius 3 around each settlement, weakest army only | `src/sim/ai.ts` | **live** — decides how blobby the map is and how soon wars start |
+| A field army sees for itself, and there is no memory of ground once seen | `src/sim/vision.ts` | **live** — the sight figures themselves are owner-authored |
+| Every AI tuning number — income, odds, army sizes, reach, build weights, levy floors | `data/ai.json` | **live** — the five difficulties and five personalities are owner-named |
+| Which realm gets which personality (rolled from the seed) | `src/sim/state.ts` | **live** — `data/factions.json` accepts an owner-authored `personality` instead |
+| Knight as the rung with no handicap either way | `data/ai.json` | **live** — the anchor the other four bend around |
+| The AI keeps `garrisonKeep` units by sorted id, not by strength | `src/sim/ai.ts` | **live** |
+| Tile yield valued as gold + 3× each material | `src/sim/ai.ts` | **live** — decides which improvement it digs |
 
 ---
 
@@ -85,12 +96,15 @@ it is tagged **[GEN]** at its definition. None of it is owner-authored truth.
 
 Tracked in [ROADMAP.md](ROADMAP.md); listed here so nothing quietly disappears.
 
-- Per-faction unit names and the 10 elite units — 0.14.0, to be designed with the owner
-- Faction strengths and weaknesses — 0.14.0
-- The owner's 2D art, dropped into `data/art.json` as image paths — 0.14.0
-- AI opponents — 0.12.0. Currently the 12 rivals do nothing at all: they never muster, never
-  march, never besiege and never take ground
-- Naval — 0.13.0. Britons and Moors cannot leave their landmass until this exists
+- Per-faction unit names and the 10 elite units — 0.15.0, to be designed with the owner
+- Faction strengths and weaknesses — 0.15.0
+- The owner's 2D art, dropped into `data/art.json` as image paths — 0.15.0
+- **Diplomacy**, which is where honour goes. `dogpiles`, `attacksRealms` and `bullyFloorPermille`
+  are wired, tested and permissive for all five personalities; the Honorable realm gets its
+  character back when there is something to be honourable *about*
+- Naval — 0.14.0. Britons and Moors cannot leave their landmass until this exists — **and now
+  neither can the AI**: a dozen independent cities in Scandinavia, Ireland, Cyprus and North
+  Africa survive every campaign because no realm can reach them
 - Capacitor mobile wrap, ad and premium-unlock hooks — 1.0.0
 - Tactical battle map — 2.0.0
 

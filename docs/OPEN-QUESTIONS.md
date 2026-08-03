@@ -9,19 +9,62 @@ Nothing here blocks starting the build. Each item is due before the phase that n
 
 ---
 
+## The AI — shipped in 0.12.0
+
+The difficulties and personalities are the owner's. Everything under them is **[GEN]** and lives
+in [`data/ai.json`](../data/ai.json), so retuning any of it is a data change.
+
+- **Which realm has which personality.** — `OPEN`. Rolled from the campaign seed today, because
+  deciding that the Golden Horde is Ambitious and Byzantium Defensive is a design call, not one to
+  invent. `data/factions.json` already accepts an optional `personality` field per faction; filling
+  it in is a data-only change and would make the roster read like a setting rather than a shuffle.
+- **Every AI tuning number.** — `PROPOSED`, **[GEN]**. Income multipliers, odds, army sizes,
+  reach, build weights, levy floors, unit preferences. The whole table is in
+  [MECHANICS.md](MECHANICS.md) §8 for approval or retuning.
+- **Is Knight the right anchor?** — `PROPOSED`. Knight gives the AI **no economic handicap at
+  all**, so it is the rung where the game is honest and the four others bend around it. Named
+  after the middle of the five titles the owner gave, which put the anchor in the middle by
+  accident rather than by decision.
+- ~~**Peaceful and Honorable as distinct war behaviours.**~~ — **revised in 0.13.0 by the owner.**
+  The five personalities now lean off a common centre rather than being five games: Peaceful is an
+  economy lean that still recruits, expands and fights, and Honorable is mechanically identical to
+  Balanced because honour belongs to **diplomacy**, not to how a realm fights. The rules for it
+  (`dogpiles`, `attacksRealms`, `bullyFloorPermille`) are still wired and permissive.
+- **Where honour lands in diplomacy.** — `OPEN`, and due with that phase. The three traits above
+  are the seam; what an honourable realm actually refuses to *agree to* was never specified.
+- **Consolidation radius.** — `PROPOSED`, **[GEN]**. A realm fills unclaimed ground within **3
+  tiles** of each settlement before campaigning, and only its weakest army does it. Both numbers
+  decide how blobby the map looks and how soon wars start.
+- **Fog of war sight.** — the figures are owner-authored (3 tiles, +1 per tier). **[GEN]**: that a
+  field army sees for itself, and that there is no "explored" memory of ground once seen.
+- **Should the player be told a rival's personality?** — `OPEN`. It is visible in the balance
+  panel, which is a developer tool. Learning it through play — or through diplomacy, later — is
+  probably the intent, but nothing says so.
+- **Should difficulty be changeable mid-campaign?** — `PROPOSED`: no. It is written into every
+  rival at creation and kept in the save, so a campaign is always played against the opponents it
+  was begun against.
+- ~~**Can the AI reach every settlement?**~~ — **no, and it is not an AI problem.** Scandinavia,
+  Ireland, Cyprus and North Africa are unreachable by land, so a dozen independent cities survive
+  any campaign and Iberia is cut off from Britain. The naval phase (0.14.0) fixes it.
+- **Do rival realms deserve a smarter endgame?** — `OPEN`. Two large realms with walls and
+  garrisons correctly decline to attack each other, so a long campaign settles into a balance of
+  power that only the player breaks. That may be the right shape for a game about being the one
+  who breaks it, or it may want something — attrition, ambition, a claim system — to unfreeze it.
+
 ## Combat — shipped in 0.9.0, and now measured
 
 The algorithm is the owner's. The constants under it were never approved, and running them
 produces three results that want a decision. All figures are from real battles on plains, in
 summer, fought by the shipped resolver.
 
-- **The defender wins mirror matches decisively.** — `PROPOSED`. One Light Infantry attacking
-  one Light Infantry on open plains: the **attacker is wiped out for 38 casualties**. A 10%
-  terrain edge becomes a 2.6-to-1 kill ratio, for two compounding reasons: damage scales with
-  the attacker's *current* soldiers, so falling behind accelerates; and moving and attacking
-  are separate actions, so whoever closes gives up the first blow. Levers, in order of bluntness:
-  reduce terrain defence, base damage on *starting* strength, or let a formation that closes
-  into contact strike in the same activation (which is what "charge" arguably means).
+- **The defender still wins mirror matches.** — `PROPOSED`, and **eased in 0.13.0**: the owner
+  took the bluntest of the levers below and halved every defence bonus in the game, so plains are
+  worth 5% rather than 10%. An attacker now needs **1.25 to 1 on level ground** rather than 1.5,
+  measured across the whole range in `ai.test.ts`. The 1.25 floor is structural and remains:
+  damage scales with a formation's *current* soldiers, so falling behind accelerates, and moving
+  and striking are separate actions, so whoever closes gives up the first blow. The two levers
+  left are basing damage on *starting* strength, or letting a formation that closes into contact
+  strike in the same activation (which is what "charge" arguably means).
 - ~~**Ranged dominates the 50-tile field.**~~ — **answered in 0.10.0** by owner-authored
   accuracy. An Archer no longer wins for free: one Light Infantry still loses to one Archer but
   now costs it 10 men over 20 turns instead of nothing over 10, **two** Light Infantry beat it
@@ -29,11 +72,11 @@ summer, fought by the shipped resolver.
   Three Archers against three Sword Infantry runs to turn 42 of 48 — genuinely close. Remaining:
   a lone Light Cavalry still dies to a lone Archer without landing a blow, which is 40 tiles of
   open ground under arrows and arguably correct.
-- ~~**Fortified settlements cannot be taken.**~~ — **answered in 0.10.0** by siege. Storming is
-  still impossible on purpose: a full Capitol reaches the 90% ceiling, and twenty Heavy Cavalry
-  — the largest stack the rules allow — lose **787 men and kill 148**. Starving it out drops the
-  field to 40%, where ten Heavy Cavalry win, and even twenty Light Infantry do. The walls are
-  now a reason to bring time rather than a reason to give up.
+- ~~**Fortified settlements cannot be taken.**~~ — **answered in 0.10.0** by siege, and again in
+  0.13.0 by halving the walls. A Citadel Capitol used to reach the 90% ceiling and be unstormable
+  by any army the rules allow; it now tops out at **55%**, and a large enough army can go over the
+  walls — four Heavy Cavalry are still thrown back where twelve used to be. Walls buy time now
+  rather than immunity, and siege is the cheap way in rather than the only one.
 
 Two things that work as intended: **spears wreck cavalry** (two Light Cavalry lose 80 men to
 two Spear Infantry and kill 8), and the **3× rout rule** fires cleanly in larger battles.
@@ -58,7 +101,7 @@ two Spear Infantry and kill 8), and the **3× rout rule** fires cleanly in large
 - **Should a siege stop reinforcement?** — `OPEN`. A besieged settlement cannot finish
   recruitment, but nothing stops a relieving army marching in and standing on the city tile.
 
-## Due before naval (build phase 0.12.0)
+## Due before naval (build phase 0.14.0)
 
 - **Ship statistics.** — `OPEN`. Only cost, upkeep and building requirement were given. Need
   HP, damage, crew size, build time, and strategic speed for all four ship types.
@@ -87,11 +130,9 @@ two Spear Infantry and kill 8), and the **3× rout rule** fires cleanly in large
   population is bounded by time × rate and cannot run away at any setting. It falls under debt
   and under siege. A century of doing nothing now ends at **12,190 people** rather than 531
   trillion. See [MECHANICS.md](MECHANICS.md) §5.
-- **Does recruitment consume population?** — `OPEN`, and **sharper since 0.11.0**. Light
-  Infantry is 100 soldiers against a starting population of 1,000. Under flat growth that is
-  twenty months of a Village's entire output, permanently — there is no compounding to earn it
-  back. If units draw from population it becomes one of the biggest decisions in the game; if
-  not, population stays purely an income multiplier and a tier gate.
+- ~~**Does recruitment consume population?**~~ — **answered in 0.12.0: yes.** A unit costs its
+  whole `size` in people, paid when the order is placed and never returned. One Light Infantry is
+  twenty months of a bare Village's entire growth. See [MECHANICS.md](MECHANICS.md) §5.
 - **"Highest city level" for improvement upgrades.** — `OPEN`. The faction's best settlement
   anywhere, or the level of the city that owns that tile?
 - **Do improvements cost resources to build**, and how much? Only durations are specified.
@@ -143,8 +184,9 @@ two Spear Infantry and kill 8), and the **3× rout rule** fires cleanly in large
 - **Is there a floor on debt?** — `OPEN`. A realm can now sink arbitrarily deep. The
   population floor of 100 per settlement caps the bleeding, but nothing stops the number
   itself running away.
-- **Do units draw from a settlement's population?** — `OPEN`, still, and now visible: a Light
-  Infantry unit is 100 soldiers trained out of a 1,000-person village at no demographic cost.
+- ~~**Do units draw from a settlement's population?**~~ — **answered in 0.12.0: yes**, the same
+  question as the one above it. **Ships still draw nobody** — crew size was never specified for
+  them, and that half stays `OPEN`.
 
 ## Minor, any time
 

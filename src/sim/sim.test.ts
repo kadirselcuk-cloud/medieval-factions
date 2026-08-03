@@ -194,14 +194,28 @@ describe('wealth growth bonus', () => {
   it('cannot run away, however long a campaign runs', () => {
     const state = newState();
     const city = state.cities.find((c) => c.ownerIndex === state.playerFactionIndex)!;
-    city.buildings.push('wooden_houses', 'stone_houses', 'villas', 'manors');
-    state.factions[state.playerFactionIndex]!.stock.gold = 10_000_000 * MILLI;
 
-    const perMonth = cityGrowth(state, city);
+    // Built out to the **maximum growth a settlement can ever reach** — top tier, every housing
+    // level and every hall, and a treasury in the highest wealth band. The ceiling rather than
+    // today's rate, because a century is long enough for the settlement to change hands and its
+    // new owner to keep building, and nothing either of them can do may raise it further.
+    city.tier = 4;
+    city.buildings.push(
+      'wooden_houses',
+      'stone_houses',
+      'villas',
+      'manors',
+      'town_hall',
+      'city_hall',
+      'palace',
+    );
+    for (const faction of state.factions) faction.stock.gold = 10_000_000 * MILLI;
+
+    const ceiling = cityGrowth(state, city);
     advanceBy(state, world, TICKS_PER_MONTH * 12 * 100);
 
-    // A century at the best rate this settlement can reach, and not one person more.
-    expect(city.population).toBeLessThanOrEqual(STARTING_POPULATION + perMonth * 12 * 100);
+    // A century at the best rate any settlement can reach, and not one person more.
+    expect(city.population).toBeLessThanOrEqual(STARTING_POPULATION + ceiling * 12 * 100);
   });
 });
 

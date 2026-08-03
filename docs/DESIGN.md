@@ -41,14 +41,18 @@ This is the single most important architectural constraint. See [MECHANICS.md](M
 - Economy: gold, wood, iron, stone; resource nodes; seasonal effects
 - Army movement, one army per tile, up to 20 units
 - Battles: **auto-resolve, simulated turn by turn and watchable**
+- Rival realms played by the simulation, at **five difficulties** and with **five personalities**
 - Save / load / continue with export/import
 - Landscape UI: top bar (resources, menu), bottom bar (speed controls), map between
 
 ### Out of v1 (deferred, deliberately)
 - Tactical battle map — **Phase B**, after the strategic layer is complete. Regiment-level
   units with move/attack/hold orders. Not individually simulated soldiers.
-- Sieges, characters/generals, fog of war, random events, diplomacy
+- Characters/generals, random events, diplomacy
 - Victory conditions beyond total conquest
+
+Sieges landed in 0.10.0 and fog of war in 0.13.0, both at the owner's request. They are listed
+here as deferred no longer.
 
 ## 4. Standing constraints
 
@@ -137,7 +141,7 @@ This is the single most important architectural constraint. See [MECHANICS.md](M
 | 71 | **Survivors are reformed into whole units** — a formation below half strength is struck off, and a side that held the field keeps at least one unit. **[GEN]** | 12 |
 | 72 | A **captured settlement keeps its people and buildings** and loses its queues, garrison and fleet. The **losing army is destroyed**; there is no retreat | 12 |
 | 73 | A realm is **extinguished** when it holds neither settlement nor army, and its remaining ground reverts to no-one rather than to the conqueror | 12 |
-| 74 | The defender's advantage is **capped at 90%**, so the ground can never heal an attacker. **[GEN]** | 12 |
+| 74 | ~~The defender's advantage is **capped at 90%**, so the ground can never heal an attacker.~~ Still capped, but 0.13.0 halved every bonus under it, so the cap is a guard rail rather than a lever — see 90 | 12 |
 | 75 | Ranged units have an **accuracy**: Skirmisher 30%, Archer 50%, Cavalry Archer 40%. A straight multiplier on the volley, not a roll per shot | 12 |
 | 76 | **Siege.** An army at the gates invests a settlement. It pays nothing, finishes nothing and starves at 1%/month. Endurance by tier: Village 1, Town 3, City 6, Capitol 12 months | 12 |
 | 77 | At the end of a siege the defenders **surrender** if outnumbered more than 3 to 1, and otherwise **sortie into an open-field battle** where nobody has the fortification bonus | 12 |
@@ -145,3 +149,19 @@ This is the single most important architectural constraint. See [MECHANICS.md](M
 | 79 | The defender's advantage belongs to the **defending formation, not the battle**: troops behind the walls keep the fortification, a relieving army from outside does not | 12 |
 | 80 | A settlement is taken by **assault** (walls count, immediate) or by **siege** (walls do not count, but it takes months) | 12 |
 | 81 | **Population growth is a flat number of people per month, never a percentage.** Base +2, +3 per tier, buildings +8 to +40 each, treasury ±5/±10/±15. Compounding was unbounded at any rate above zero; the exponential in this game comes from conquest. Supersedes 24, 33 and 65 | 13 |
+| 82 | **Recruiting a unit consumes population** equal to its size, paid when the order is placed and never returned. Cancelling an unfinished order gives the people back. Ships draw nobody — crew size was never specified | 14 |
+| 83 | **Five AI difficulties** — Recruit, Squire, Knight, Baron, King. One setting for every rival, chosen at the start and kept in the save. **Knight is the honest rung**: no income handicap either way, the player's own economy | 14 |
+| 84 | **Five AI personalities** — Ambitious, Defensive, Balanced, Peaceful, Honorable. One per realm, fixed for the campaign, rolled from the seed unless the roster names one. They decide what a realm builds and whom it attacks, and will drive diplomacy when it lands | 14 |
+| 85 | **Peaceful never starts a war with another realm** — it settles unclaimed ground and defends what it holds. **Honorable storms rather than starves**, never piles onto a realm already besieged by a third party, and will not attack one worth under 40% of itself | 14 |
+| 86 | The AI plays **through the same functions the player's UI calls**. No back door: a rule that binds the player binds the rivals | 14 |
+| 87 | The AI decides **once a month, per realm**, and picks **one objective for the whole realm** rather than one per army — no single army it may raise can take a defended city alone | 14 |
+| 88 | AI **reach is measured from a realm's own borders**, not from where an army stands, so conquest extends the frontier and opens the next ring of targets | 14 |
+| 89 | The AI's estimate of a defender's worth is **measured against the resolver**, not reasoned about: 1.25 attackers per defender on level ground, plus 2.5 per unit of defender's advantage | 14 |
+| 90 | **Every defence bonus in the game is halved** — terrain, the city tile, fortification and winter. The scale moves together, so relative ground is unchanged; what changes is that a walled Capitol can now be **stormed** by a large enough army rather than only starved. Supersedes the figures in 74 | 15 |
+| 91 | **The five personalities lean off a common centre** rather than being five games. All of them build, settle, expand and make war; Balanced is the centre and the others are a tilt. Supersedes 85 | 15 |
+| 92 | **Peaceful is an economy lean, not a pacifist** — housing and commerce first and a smaller army, but it still recruits, expands and fights | 15 |
+| 93 | **Honorable plays exactly as Balanced** for now. Honour is about who a realm will deal with, not how it fights, so it becomes a **diplomacy** trait; `dogpiles`, `attacksRealms` and `bullyFloorPermille` stay wired and permissive until then | 15 |
+| 94 | A realm **fills in unclaimed ground around its own settlements before campaigning** — nearest to a settlement first, its army's own distance breaking the tie. It holds a country rather than a corridor | 15 |
+| 95 | **Only one army consolidates at a time**, the weakest. Every conquest opens a fresh ring to fill, so a realm that consolidated with all of them never fought again — and it inverted the difficulty ladder | 15 |
+| 96 | **Fog of war**: 3 tiles of sight from every owned tile and from every army, +1 per settlement tier above Village. **The AI has none and sees everything** | 15 |
+| 97 | Fog is a **presentation filter** — derived, never stored, never read by the simulation. It hides ownership, armies and a settlement's allegiance, but not the geography | 15 |

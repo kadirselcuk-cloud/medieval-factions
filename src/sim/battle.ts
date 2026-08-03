@@ -49,11 +49,22 @@ export const BATTLE_TURNS_PER_TICK = 6;
 /**
  * Ceiling on the defender's advantage, per-mille. **[GEN]**
  *
- * A Citadel Capitol on a mountain in winter otherwise reaches 110%, at which point the attacker
- * deals negative damage and heals the defenders. At the cap the attacker still lands a tenth of
- * its damage and the defender nearly double — impregnable without being nonsense.
+ * It exists because the attacker's damage is scaled by `1 − advantage`: past 100% the attacker
+ * would deal negative damage and heal the defenders. At the cap it still lands a tenth of its
+ * damage and the defender nearly double.
+ *
+ * **Since 0.13.0 it almost never binds.** Every defence bonus in the game was halved, so the
+ * worst ground on the map — a Citadel Capitol on a mountain in winter — now reaches 55% rather
+ * than the 110% that made this necessary. It stays as the guard rail it always was, not as a
+ * balance lever, and it is deliberately *not* halved: halving a ceiling is not the same thing as
+ * halving the bonuses under it.
  */
 export const MAX_DEFENDER_ADVANTAGE = 900;
+
+/**
+ * What winter adds to the defence, per-mille. Halved in 0.13.0 with everything else.
+ */
+export const WINTER_DEFENCE = 50;
 
 export const ATTACKER: BattleSide = 0;
 export const DEFENDER: BattleSide = 1;
@@ -80,8 +91,8 @@ export function defenderAdvantage(
 
   const city = state.cities.find((c) => c.tileIndex === tileIndex);
   const settlement = city ? permille(CITY_TILE_DEFENCE_BONUS) : 0;
-  const fortification = city ? summariseBuildings(city.buildings).defenceTenths * 100 : 0;
-  const winter = calendarAt(state.tick).season === 'winter' ? 100 : 0;
+  const fortification = city ? summariseBuildings(city.buildings).defencePercent * 10 : 0;
+  const winter = calendarAt(state.tick).season === 'winter' ? WINTER_DEFENCE : 0;
 
   const total = Math.min(MAX_DEFENDER_ADVANTAGE, terrain + settlement + fortification + winter);
   return { terrain, settlement, fortification, winter, total };

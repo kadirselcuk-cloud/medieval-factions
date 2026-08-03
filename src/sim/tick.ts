@@ -1,6 +1,7 @@
 import { summariseBuildings } from '../data/buildings';
 import { unitById } from '../data/units';
 import type { World } from '../data/world';
+import { runAi } from './ai';
 import { removeArmy } from './armies';
 import { isMonthBoundary, TICKS_PER_MONTH } from './calendar';
 import { advanceConstruction } from './construction';
@@ -10,15 +11,13 @@ import { advanceArmies } from './movement';
 import { recomputeIncome } from './state';
 import {
   MILLI,
+  MIN_POPULATION,
   nextRandom,
   RESOURCES,
   type CityState,
   type SettlementTier,
   type SimState,
 } from './types';
-
-/** A settlement never falls below this, however deep the debt. **[GEN]** */
-export const MIN_POPULATION = 100;
 
 /**
  * Advance the simulation by exactly one tick.
@@ -39,6 +38,9 @@ export function advance(state: SimState, world: World): void {
     // Last of the month, because a siege that ends this month resolves into a battle, and a
     // battle can take the settlement — after which nothing else about it is worth computing.
     advanceSieges(state, world);
+    // The rivals decide after everything else has settled, so they act on this month's true
+    // world rather than on a half-updated one — and their orders play out over the next month.
+    runAi(state, world);
     recomputeIncome(state, world);
   }
 }

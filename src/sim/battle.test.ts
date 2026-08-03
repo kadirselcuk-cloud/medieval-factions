@@ -97,9 +97,10 @@ describe("defender's advantage", () => {
     state.tick = 0; // January — winter
 
     const advantage = defenderAdvantage(state, world, city.tileIndex);
-    expect(advantage.settlement).toBe(100);
-    expect(advantage.fortification).toBe(600);
-    expect(advantage.winter).toBe(100);
+    // Every defence bonus in the game was halved in 0.13.0 — see docs/MECHANICS.md §4.
+    expect(advantage.settlement).toBe(50);
+    expect(advantage.fortification).toBe(300);
+    expect(advantage.winter).toBe(50);
     // Terrain under the city plus the three above, capped.
     expect(advantage.total).toBe(
       Math.min(
@@ -119,11 +120,12 @@ describe("defender's advantage", () => {
     );
   });
 
-  it('gives open plains a tenth to whoever is standing on it', () => {
+  it('gives open plains a twentieth to whoever is standing on it', () => {
     const { to } = openGround(world);
     const advantage = defenderAdvantage(state, world, to);
-    expect(advantage).toMatchObject({ terrain: 100, settlement: 0, fortification: 0, winter: 0 });
-    expect(advantage.total).toBe(100);
+    // 5%, not the 10% it was before 0.13.0 halved every defence bonus.
+    expect(advantage).toMatchObject({ terrain: 50, settlement: 0, fortification: 0, winter: 0 });
+    expect(advantage.total).toBe(50);
   });
 });
 
@@ -201,11 +203,12 @@ describe('auto-resolve', () => {
       setup({ light_infantry: 1 }, { light_infantry: 1 }, to),
     );
 
-    // Plains gives the defender +10%. A full-strength Light Infantry is 100 soldiers doing 20
-    // damage each into 100 HP a man: 2,000 raw, ×1.1 for the ground, 22 dead. The attacker's
-    // first blow is the same sum at ×0.9 against a target already down to 78 men.
+    // Plains gives the defender +5% since 0.13.0 halved every defence bonus. A full-strength
+    // Light Infantry is 100 soldiers doing 20 damage each into 100 HP a man: 2,000 raw, ×1.05
+    // for the ground, 21 dead. The attacker's first blow is the same sum at ×0.95, against a
+    // target already down to 79 men.
     const blows = report.turns.flatMap((t) => t.actions).filter((a) => a.kind === 'strike');
-    expect(blows[0]).toMatchObject({ casualties: 22, charge: false });
+    expect(blows[0]).toMatchObject({ casualties: 21, charge: false });
   });
 
   it('fires the charge bonus once and only once', () => {

@@ -8,6 +8,7 @@ import { TICKS_PER_MONTH } from './calendar';
 import {
   buildOptions,
   cancelOrder,
+  cancelProduction,
   improvementAt,
   improvementCap,
   queueBuilding,
@@ -20,8 +21,8 @@ import {
 } from './construction';
 import { deserialise, serialise } from './save';
 import { createInitialState, recomputeIncome } from './state';
-import { advanceBy, MIN_POPULATION } from './tick';
-import { MILLI, whole, type CityState, type SimState } from './types';
+import { advanceBy, cityGrowth } from './tick';
+import { MILLI, MIN_POPULATION, whole, type CityState, type SimState } from './types';
 
 const world = loadEurope1350();
 const roster = loadFactions();
@@ -307,6 +308,61 @@ describe('recruitment and shipyards', () => {
     expect(state.events.some((e) => e.kind === 'unit' && e.text.includes('Paris'))).toBe(true);
   });
 
+  it('draws the unit out of the settlement, the month the order is placed', () => {
+    enrich();
+    const before = paris.population;
+    expect(queueUnit(state, paris, 'light_infantry')).toEqual({ ok: true });
+
+    // Levied up front like every other cost — the men leave their fields when the order goes
+    // out, not when the unit is ready.
+    expect(paris.population).toBe(before - 100);
+    advanceBy(state, world, TICKS_PER_MONTH * 4);
+    expect(paris.garrison['light_infantry']).toBe(2);
+  });
+
+  it('gives the people back if the order is cancelled', () => {
+    enrich();
+    const before = paris.population;
+    queueUnit(state, paris, 'light_infantry');
+    cancelProduction(state, paris, 'recruit', 0);
+
+    // Cancelling wastes the months already spent, not the people — the same bargain the
+    // treasury gets.
+    expect(paris.population).toBe(before);
+    expect(paris.recruitQueue).toEqual([]);
+  });
+
+  it('refuses to raise more men than the settlement can spare', () => {
+    enrich();
+    paris.population = MIN_POPULATION + 99;
+    expect(queueUnit(state, paris, 'light_infantry')).toEqual({
+      ok: false,
+      reason: 'too-few-people',
+    });
+
+    // One more villager and the hundredth man can be found.
+    paris.population = MIN_POPULATION + 100;
+    expect(queueUnit(state, paris, 'light_infantry')).toEqual({ ok: true });
+    expect(paris.population).toBe(MIN_POPULATION);
+  });
+
+  it('never lets recruitment empty a settlement, however rich the realm', () => {
+    enrich(10_000_000);
+    for (let i = 0; i < 40; i++) queueUnit(state, paris, 'light_infantry');
+    expect(paris.population).toBeGreaterThanOrEqual(MIN_POPULATION);
+  });
+
+  it('costs a bare village twenty months of growth for one unit', () => {
+    // Deliberately not enriched: a Light Infantry is 50 gold and the realm opens with 250, so
+    // this is the opening position exactly — a Village with nothing built and 250 in the bank.
+    expect(cityGrowth(state, paris)).toBe(5);
+    expect(queueUnit(state, paris, 'light_infantry')).toEqual({ ok: true });
+
+    // Flat growth never earns the manpower back, which is the whole weight of the decision.
+    expect(Math.ceil(100 / 5)).toBe(20);
+    expect(paris.population).toBe(900);
+  });
+
   it('runs building and recruitment queues in parallel', () => {
     enrich();
     queueBuilding(state, world, paris, 'wooden_houses'); // 12 months
@@ -375,6 +431,11 @@ describe('recruitment and shipyards', () => {
   });
 
   it('shrinks a settlement that is deep in debt, but never below the floor', () => {
+    // The rivals are stood down for this one. Thirty-three years is long enough for one of them
+    // to march on a realm that is bankrupt, undefended and doing nothing, and a Paris that has
+    // changed hands is no longer testing what debt does to a population.
+    for (const rival of state.factions) rival.ai = null;
+
     const faction = state.factions[FRANKS]!;
     faction.stock.gold = -2_000_000 * MILLI;
     const before = paris.population;

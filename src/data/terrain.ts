@@ -28,7 +28,7 @@ export const IMPROVEMENT_LABEL: Record<ImprovementKind, string> = {
 export interface TerrainProfile {
   /** Whether improvements can be built here at all. */
   buildable: boolean;
-  /** Defender's advantage, as a fraction: attacker −X%, defender +X%. */
+  /** Defender's advantage, as a fraction: attacker −X%, defender +X%. Halved in 0.13.0. */
   defence: number;
   /** Movement cost multiplier — 1.25 is the owner's "25% movement penalty". */
   moveCost: number;
@@ -45,41 +45,41 @@ export const TERRAIN_PROFILE: Record<Terrain, TerrainProfile> = {
   },
   plains: {
     buildable: true,
-    defence: 0.1,
+    defence: 0.05,
     moveCost: 1,
     output: { farm: MODIFIER.plusPlus, mine: MODIFIER.minusMinus, sawmill: MODIFIER.base },
   },
   forest: {
     buildable: true,
-    defence: 0.2,
+    defence: 0.1,
     moveCost: 1.25,
     output: { farm: MODIFIER.base, mine: MODIFIER.minusMinus, sawmill: MODIFIER.plusPlus },
   },
   steppe: {
     buildable: true,
-    defence: 0.1,
+    defence: 0.05,
     moveCost: 1,
     output: { farm: MODIFIER.plus, mine: MODIFIER.minus, sawmill: MODIFIER.base },
   },
   desert: {
     buildable: true,
-    defence: 0.2,
+    defence: 0.1,
     moveCost: 1.5,
     output: { farm: MODIFIER.minusMinus, mine: MODIFIER.minusMinus, sawmill: MODIFIER.minusMinus },
   },
   tundra: {
     buildable: true,
-    defence: 0.1,
+    defence: 0.05,
     moveCost: 1.25,
     output: { farm: MODIFIER.minus, mine: MODIFIER.plus, sawmill: MODIFIER.plusPlus },
   },
   mountain: {
     buildable: true,
-    defence: 0.3,
+    defence: 0.15,
     moveCost: 1.5,
     output: { farm: MODIFIER.minusMinus, mine: MODIFIER.plusPlus, sawmill: MODIFIER.plus },
   },
 };
 
-/** A settlement adds this to its tile's terrain defence, before fortification. */
-export const CITY_TILE_DEFENCE_BONUS = 0.1;
+/** A settlement adds this to its tile's terrain defence, before fortification. Halved in 0.13.0. */
+export const CITY_TILE_DEFENCE_BONUS = 0.05;

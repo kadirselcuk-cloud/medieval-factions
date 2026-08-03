@@ -19,6 +19,7 @@ import { pushEvent } from './events';
 import {
   IMPROVEMENT_KINDS,
   MILLI,
+  MIN_POPULATION,
   RESOURCES,
   TIER_NAME,
   type CityState,
@@ -240,6 +241,31 @@ export function cancelImprovement(state: SimState, index: number): BuildResult {
 
 // ------------------------------------------------- recruitment and shipyards
 
+/**
+ * People a settlement gives up to put this unit in the field — **its whole `size`**.
+ *
+ * A unit is men, and the men come from somewhere. Under flat growth (docs/MECHANICS.md §5) that
+ * is a permanent cost rather than one the settlement compounds back: 100 Light Infantry is
+ * twenty months of a bare Village's entire output, which is exactly the weight the decision is
+ * meant to carry.
+ *
+ * Ships draw nobody. Crew size was never specified for them — **[OPEN]**, see
+ * docs/OPEN-QUESTIONS.md — and inventing one would be inventing a rule.
+ */
+export function manpowerCost(unitId: string): number {
+  return unitById(unitId)?.size ?? 0;
+}
+
+/**
+ * The most a settlement could levy right now without emptying itself.
+ *
+ * Population never falls below `MIN_POPULATION`, whether it is starved down there or recruited
+ * down there — one floor, for the same reason.
+ */
+export function availableManpower(city: CityState): number {
+  return Math.max(0, city.population - MIN_POPULATION);
+}
+
 export function queueUnit(state: SimState, city: CityState, unitId: string): BuildResult {
   const unit = unitById(unitId);
   if (!unit) return fail('not-available');
@@ -247,8 +273,12 @@ export function queueUnit(state: SimState, city: CityState, unitId: string): Bui
     return fail('not-available');
   }
   if (!canAfford(state, city.ownerIndex, unit.cost)) return fail('insufficient-resources');
+  if (availableManpower(city) < unit.size) return fail('too-few-people');
 
   pay(state, city.ownerIndex, unit.cost);
+  // Levied when the order is placed, like every other cost. The men leave their fields the
+  // month the order goes out, not the month the unit is ready.
+  city.population -= unit.size;
   city.recruitQueue.push({ id: unit.id, monthsRemaining: unit.months });
   return OK;
 }
@@ -276,6 +306,9 @@ export function cancelProduction(
 
   const cost = which === 'recruit' ? unitById(order.id)?.cost : shipById(order.id)?.cost;
   if (cost) refund(state, city.ownerIndex, cost);
+  // Men who were called up but never marched go home. Cancelling wastes the months already
+  // spent, not the people — the same bargain the treasury gets.
+  if (which === 'recruit') city.population += manpowerCost(order.id);
   queue.splice(position, 1);
   return OK;
 }
