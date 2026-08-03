@@ -1,7 +1,7 @@
 import type { JSX } from 'react';
 import { describeTile, type TileInfo, type World } from '../data/world';
 import { armiesOf, stackSize, stackSoldiers, stackUpkeep } from '../sim/armies';
-import { TIER_NAME, MILLI, type SimState } from '../sim/types';
+import { TIER_NAME, type SimState } from '../sim/types';
 import { num } from './format';
 
 export type RosterKind = 'cities' | 'armies' | 'navies';
@@ -117,7 +117,7 @@ export function RosterMenu({
                   <span className="save-row__main">
                     <span className="save-row__name">{location.name}</span>
                     <span className="panel__muted">
-                      {TIER_NAME[city.tier]} · {num(city.populationMilli / MILLI)} people
+                      {TIER_NAME[city.tier]} · {num(city.population)} people
                       {busy ? ` · building, ${busy.monthsRemaining} mo` : ''}
                     </span>
                   </span>

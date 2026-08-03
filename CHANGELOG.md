@@ -13,6 +13,69 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.11.0] — 2026-08-03
+
+**Population growth is a flat number of people a month.** No percentages, no compounding, no
+runaway. Owner-approved figures.
+
+### Changed
+
+- **Growth is now whole people per month**, summed from flat terms:
+
+  | Source | People / month |
+  |---|---:|
+  | Base | +2 |
+  | Per tier | +3 each — Village +3 … Capitol +12 |
+  | Wooden Houses / Stone Houses / Villas / Manors | +10 / +15 / +25 / +40 |
+  | Town Hall / City Hall / Palace | +8 / +12 / +20 |
+  | Treasury, by decade of wealth | +5 / +10 / +15 |
+
+  Housing and halls accumulate. Debt costs exactly what wealth gains: −5 / −10 / −15.
+- **A siege starves a settlement by tier** — 10 / 25 / 50 / 100 people a month — replacing the
+  old 1%. Roughly what a well-built settlement of that size gains, so a siege undoes a
+  generation of building.
+- **Population is stored as whole people.** `populationMilli` is gone: the fixed-point field
+  existed only because a compounding percentage needed sub-person precision.
+- Save format **v4 → v5**, with a migration that divides the old thousandths back to people.
+- `monthsToNextTier` is now exact division rather than a compounding loop, and the balance
+  panel's growth column shows people rather than a rate, still split into its terms.
+
+### Why
+
+Measured on the real simulation, the old model was unbounded at any rate above zero. A
+do-nothing village reached **531 trillion people in a century**: the rate flattened at 3.2% a
+month, as designed, and then simply kept doubling every 22 months. Tapering `r` cannot fix
+`pop × (1 + r)`; only changing the shape can.
+
+Three things came with the change:
+
+- **The numbers are comparable.** "+10 people a month" sits beside "+10 gold a month" and means
+  something. A percentage means nothing without knowing the treasury, the tier, and how long you
+  intend to sit there.
+- **The exponential comes from conquest**, which is where victory already lives. Each city taken
+  adds its own trickle; a realm grows by taking more of them, not by waiting.
+- **Cities end up historically plausible** — a great capital reaches around 100,000 people over
+  a long campaign, against a real Paris of roughly 200,000 in 1350.
+
+### Measured
+
+| | before | after |
+|---|---|---|
+| A century of doing nothing | 531 trillion people | **12,190 people, 108k gold** |
+| Village, nothing built | 0.2%/mo → ~35 years to Town | +5/mo → 16.7 years |
+| Village + Wooden Houses | 1.2%/mo → ~5 years | **+15/mo → 5.6 years** |
+| Town + housing + hall, 20k banked | — | +46/mo → 5.5 years to City |
+| City + housing + hall, 100k banked | — | +91/mo → 4.6 years to Capitol |
+| Capitol, fully built, 1M banked | 7.0%/mo, doubling every 11 months | +159/mo — about 1,900 a year |
+
+Wooden Houses is still the single biggest decision in an opening: it triples what a Village
+gains, for 120 gold.
+
+### Still open
+
+**Does recruiting consume population?** It matters much more now — 100 soldiers is twenty months
+of a Village's entire output, permanently, with no compounding to earn it back.
+
 ## [0.10.1] — 2026-08-03
 
 Quality of life, all at the owner's request. No rules changed.

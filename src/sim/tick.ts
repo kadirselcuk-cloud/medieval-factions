@@ -13,6 +13,7 @@ import {
   nextRandom,
   RESOURCES,
   type CityState,
+  type SettlementTier,
   type SimState,
 } from './types';
 
@@ -41,16 +42,6 @@ export function advance(state: SimState, world: World): void {
     recomputeIncome(state, world);
   }
 }
-
-/**
- * What a month under siege costs a settlement — owner-specified.
- *
- * It pays its owner nothing, finishes nothing, and starves: growth is replaced outright by a
- * loss, so time is the besieger's weapon and not merely an inconvenience. The **1% a month** is
- * **[GEN]** — the owner chose starvation but not its rate. Over the year a Capitol can hold out
- * that is about a ninth of its people.
- */
-export const SIEGE_STARVATION_TENTHS = -10;
 
 /** Chance each unit deserts in a month its faction cannot pay for it. */
 export const DESERTION_CHANCE = 0.1;
@@ -112,27 +103,54 @@ function desertFrom(
 }
 
 /**
- * A settlement's monthly growth rate, in tenths of a percent.
+ * People a settlement gains next month — docs/MECHANICS.md §5.
+ *
+ * Flat, never a percentage. `pop × (1 + r)` with any `r` above zero is unbounded however hard
+ * the rate is tapered, which is what turned a village into half a trillion people over a
+ * century. A sum of flat terms cannot run away: population is bounded by time × rate, and
+ * "+10 people a month" on a building card is directly comparable to "+10 gold a month" on the
+ * card beside it.
+ *
+ * The exponential in this game is meant to come from **conquest** — each city taken adds its
+ * own trickle — not from one settlement compounding.
  *
  * Exported so the city panel can show the same number the simulation uses, rather than a
  * second implementation that drifts from it.
  */
-export function cityGrowthTenths(state: SimState, city: CityState): number {
+export function cityGrowth(state: SimState, city: CityState): number {
   const owner = state.factions[city.ownerIndex];
   if (!owner) return 0;
   // A settlement under siege does not grow at all — it starves, whatever it has built.
-  if (city.siege) return SIEGE_STARVATION_TENTHS;
-  const buildings = summariseBuildings(city.buildings);
-  // Housing and the hall line both contribute through `growthTenths`, which sums the standing
-  // buildings rather than reading a level — the two lines give diminishing amounts per step,
-  // so what matters is which buildings are up, not how high the chain has climbed.
+  if (city.siege) return -SIEGE_STARVATION[city.tier];
+
   return (
-    1 +
-    wealthGrowthTenths(Math.floor(owner.stock.gold / MILLI)) +
-    city.tier +
-    buildings.growthTenths
+    BASE_GROWTH +
+    GROWTH_PER_TIER * city.tier +
+    summariseBuildings(city.buildings).growthPeople +
+    wealthGrowth(Math.floor(owner.stock.gold / MILLI))
   );
 }
+
+/** Every settlement gains this much simply for existing. */
+export const BASE_GROWTH = 2;
+
+/** And this much again per tier, so a Capitol grows four times as fast as a Village. */
+export const GROWTH_PER_TIER = 3;
+
+/**
+ * What a month under siege costs a settlement, by tier — owner-specified that it starves, and
+ * **[GEN]** by how much.
+ *
+ * Growth is replaced outright by a loss rather than merely stopped, so time is the besieger's
+ * weapon and not an inconvenience. The figures are roughly what a well-built settlement of that
+ * size gains, so a siege undoes a generation of building.
+ */
+export const SIEGE_STARVATION: Record<SettlementTier, number> = {
+  1: 10,
+  2: 25,
+  3: 50,
+  4: 100,
+};
 
 export function advanceBy(state: SimState, world: World, ticks: number): void {
   for (let i = 0; i < ticks; i++) advance(state, world);
@@ -162,40 +180,34 @@ function accrueIncome(state: SimState): void {
 }
 
 /**
- * Treasury contribution to population growth, in tenths of a percent (docs/MECHANICS.md §5).
+ * Treasury contribution to population growth, in **people per month** (docs/MECHANICS.md §5).
  *
- * Diminishing by design: the owner's anchors are +1% at 10k, +2% at 100k and +3% at 1M, so
- * each decade of wealth is worth the same again rather than compounding away. Capped at ±3%.
+ * Diminishing by design: each decade of wealth is worth the same again rather than compounding
+ * away, so a fortune helps a settlement fill without deciding the game on its own. Capped.
  *
- * **Symmetric.** Debt hurts exactly as much as wealth helps — a realm 10,000 gold in the red
- * bleeds 1% of its people a month, and one a million in the red bleeds 3%.
+ * **Symmetric.** Debt costs exactly what wealth gains — a realm 10,000 gold in the red loses
+ * five people a month from every settlement it holds, and one a million in the red loses fifteen.
  */
-export function wealthGrowthTenths(goldWhole: number): number {
+export function wealthGrowth(goldWhole: number): number {
   const sign = goldWhole < 0 ? -1 : 1;
   const size = Math.abs(goldWhole);
 
-  if (size < 1_000) return 0;
-  if (size < 10_000) return sign * Math.floor(size / 1_000);
-  if (size < 100_000) return sign * (10 + Math.floor((size - 10_000) / 10_000));
-  if (size < 1_000_000) return sign * (20 + Math.floor((size - 100_000) / 100_000));
-  return sign * 30;
+  if (size < 10_000) return 0;
+  if (size < 100_000) return sign * 5;
+  if (size < 1_000_000) return sign * 10;
+  return sign * 15;
 }
 
 /**
  * Monthly population growth (docs/MECHANICS.md §5).
  *
- * Rate is accumulated in tenths of a percent so the whole calculation stays in integers:
- * base 1, plus the treasury bonus, plus city level, plus what the housing and hall lines add.
- *
- * Those two lines give **diminishing returns** — +1.0%, +0.5%, +0.2% for each successive
- * building — so the first house a settlement puts up is worth more than every later one
- * combined. That is the whole shape of an opening: build housing early or grow at a crawl.
+ * A plain integer addition, which is the entire point: no rate, no compounding, no fraction of
+ * a person to carry between months.
  */
 function growPopulation(state: SimState): void {
   for (const city of state.cities) {
-    const change = Math.floor((city.populationMilli * cityGrowthTenths(state, city)) / 1000);
-    // Debt can drive growth negative, but a settlement never empties out entirely — it
-    // shrinks back to a hamlet and stops there. [GEN]
-    city.populationMilli = Math.max(MIN_POPULATION * MILLI, city.populationMilli + change);
+    // Debt and sieges can drive growth negative, but a settlement never empties out entirely —
+    // it shrinks back to a hamlet and stops there. [GEN]
+    city.population = Math.max(MIN_POPULATION, city.population + cityGrowth(state, city));
   }
 }

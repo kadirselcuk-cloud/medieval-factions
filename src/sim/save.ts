@@ -1,4 +1,4 @@
-import type { SimState } from './types';
+import type { CityState, SimState } from './types';
 
 /**
  * Persistence.
@@ -12,8 +12,9 @@ import type { SimState } from './types';
  * 1 → 2: field armies. A v1 save has none, and its factions have never left home.
  * 2 → 3: battles. A v2 save has fought none, and every faction it knows about is still alive.
  * 3 → 4: sieges. A v3 save has no settlement invested, because nothing could invest one.
+ * 4 → 5: population became whole people, because growth stopped being a percentage.
  */
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 const DB_NAME = 'medieval-factions';
 const DB_VERSION = 1;
@@ -126,6 +127,17 @@ export function migrate(file: SaveFile): SaveFile {
   // v3 predates sieges. No settlement is invested, because nothing could invest one.
   if (file.version < 4) {
     for (const city of state.cities) city.siege = city.siege ?? null;
+  }
+
+  // v4 held population as thousandths of a person, because growth was a compounding percentage
+  // and needed the precision. Flat growth does not, so the fraction is dropped on the way in.
+  if (file.version < 5) {
+    for (const city of state.cities as (CityState & { populationMilli?: number })[]) {
+      if (city.population === undefined && city.populationMilli !== undefined) {
+        city.population = Math.floor(city.populationMilli / 1000);
+      }
+      delete city.populationMilli;
+    }
   }
 
   return { ...file, version: SAVE_VERSION, state };

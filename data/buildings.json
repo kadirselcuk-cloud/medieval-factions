@@ -1,4 +1,5 @@
 {
+  "_growth": "growthPeople is whole people per month. Population growth is flat, never compounding - see docs/MECHANICS.md section 5.",
   "_comment": "City buildings. All costs and durations are [GEN] proposals. minTier: 1 Village, 2 Town, 3 City, 4 Capitol. Housing and fortification are separately built lines, not granted by the tier.",
 
   "_siege": "Owner-authored. Months a settlement can hold out once it is invested. At zero its defenders must sortie or surrender.",
@@ -20,8 +21,7 @@
       "minTier": 1,
       "months": 12,
       "cost": { "gold": 120 },
-      "housingLevel": 1,
-      "growthTenths": 10
+      "growthPeople": 10
     },
     {
       "id": "stone_houses",
@@ -31,8 +31,7 @@
       "minTier": 2,
       "months": 18,
       "cost": { "gold": 350, "wood": 40, "stone": 40 },
-      "housingLevel": 2,
-      "growthTenths": 5
+      "growthPeople": 15
     },
     {
       "id": "villas",
@@ -42,8 +41,7 @@
       "minTier": 3,
       "months": 24,
       "cost": { "gold": 800, "wood": 80, "stone": 100 },
-      "housingLevel": 3,
-      "growthTenths": 2
+      "growthPeople": 25
     },
     {
       "id": "manors",
@@ -53,8 +51,7 @@
       "minTier": 4,
       "months": 30,
       "cost": { "gold": 1600, "wood": 150, "stone": 200 },
-      "housingLevel": 4,
-      "growthTenths": 1
+      "growthPeople": 40
     },
 
     {
@@ -147,7 +144,7 @@
       "minTier": 2,
       "months": 12,
       "cost": { "gold": 500, "wood": 50, "stone": 50 },
-      "growthTenths": 10
+      "growthPeople": 8
     },
     {
       "id": "city_hall",
@@ -157,7 +154,7 @@
       "minTier": 3,
       "months": 18,
       "cost": { "gold": 1200, "wood": 100, "stone": 120 },
-      "growthTenths": 5
+      "growthPeople": 12
     },
     {
       "id": "palace",
@@ -167,7 +164,7 @@
       "minTier": 4,
       "months": 24,
       "cost": { "gold": 3000, "wood": 200, "stone": 300 },
-      "growthTenths": 2
+      "growthPeople": 20
     },
 
     {

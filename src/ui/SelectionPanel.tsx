@@ -72,10 +72,9 @@ import {
   type BuildFailure,
 } from "../sim/construction";
 import type { Game } from "../sim/game";
-import { cityGrowthTenths } from "../sim/tick";
+import { cityGrowth } from "../sim/tick";
 import {
   MAX_ARMY_UNITS,
-  MILLI,
   TIER_NAME,
   whole,
   type ArmyState,
@@ -315,7 +314,7 @@ function TileFacts({
       {city && buildings && (
         <>
           <Row label="Settlement" value={TIER_NAME[city.tier]} />
-          <Row label="Population" value={num(city.populationMilli / MILLI)} />
+          <Row label="Population" value={num(city.population)} />
           <Row label="Growth" value={growthText(state, city)} />
           <Row
             label="Housing"
@@ -360,11 +359,8 @@ function TileFacts({
 }
 
 function growthText(state: SimState, city: CityState): string {
-  const tenths = cityGrowthTenths(state, city);
-  const people = Math.floor((city.populationMilli * tenths) / 1000 / MILLI);
-  // A settlement under siege starves, so this is the one growth figure that can be negative.
-  const percent = `${tenths < 0 ? "−" : "+"}${Math.abs(tenths / 10).toFixed(1)}%`;
-  return `${percent} · ${signed(people)} / month`;
+  // Whole people, and the one growth figure that can be negative — debt and sieges both bite.
+  return `${signed(cityGrowth(state, city))} people / month`;
 }
 
 interface ProgressItem {
@@ -1092,7 +1088,7 @@ function CityBuildings({
         { label: "Needs", value: `${num(upgrade.minPopulation)} people` },
         {
           label: "Population",
-          value: `${num(whole(city.populationMilli))} here now`,
+          value: `${num(city.population)} here now`,
         },
         { label: "Cost", value: costText(upgrade.cost) },
         { label: "Takes", value: `${upgrade.months} months` },
@@ -1156,11 +1152,11 @@ function buildingEffects(
   building: Building,
 ): { label: string; value: string }[] {
   const rows: { label: string; value: string }[] = [];
-  // Housing and halls both pay through growthTenths, so one row covers either.
-  if (building.growthTenths > 0) {
+  // Housing and halls both pay through growthPeople, so one row covers either.
+  if (building.growthPeople > 0) {
     rows.push({
       label: "Growth",
-      value: `+${(building.growthTenths / 10).toFixed(1)}% a month`,
+      value: `+${num(building.growthPeople)} people a month`,
     });
   }
   if (building.goldPerMonth > 0) {
@@ -1232,7 +1228,7 @@ function upgradeReason(
     case "already-building":
       return undefined;
     case "too-few-people":
-      return `A ${upgrade.name} needs ${num(upgrade.minPopulation)} people. This settlement holds ${num(whole(city.populationMilli))} — it has to grow into it.`;
+      return `A ${upgrade.name} needs ${num(upgrade.minPopulation)} people. This settlement holds ${num(city.population)} — it has to grow into it.`;
     case "already-have-one":
       return `A realm may only ever have one ${upgrade.name}.`;
     case "insufficient-resources":

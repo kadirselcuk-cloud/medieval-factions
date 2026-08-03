@@ -21,7 +21,6 @@ import {
   MILLI,
   RESOURCES,
   TIER_NAME,
-  whole,
   type CityState,
   type EventKind,
   type SettlementTier,
@@ -127,7 +126,7 @@ export function settlementUpgradeBlock(
 
   // Population is what a settlement grows *by*, so it gates what it can grow *into*. A realm
   // cannot buy its way to a Capitol; it has to have built somewhere people want to live.
-  if (whole(city.populationMilli) < upgrade.minPopulation) return 'too-few-people';
+  if (city.population < upgrade.minPopulation) return 'too-few-people';
 
   if (upgrade.unique && hasTier(state, city.ownerIndex, upgrade.toTier, city)) {
     return 'already-have-one';

@@ -47,9 +47,9 @@ two Spear Infantry and kill 8), and the **3× rout rule** fires cleanly in large
   matters more: an army that marched to the relief of a city is destroyed when the city falls.
 - **Does the garrison fight?** — `PROPOSED`. It does, currently. Recruited units standing in a
   city being stormed defend it, and their survivors go back behind the walls if it holds.
-- **Siege starvation rate.** — `PROPOSED`, **[GEN]**. 1% of the population a month. Over the
-  year a Capitol can hold out that is about a ninth of its people. The owner chose starvation
-  but not its rate.
+- **Siege starvation rate.** — `PROPOSED`, **[GEN]**. Flat, by tier: 10 / 25 / 50 / 100 people
+  a month — roughly what a well-built settlement of that size gains, so a siege undoes a
+  generation of building. The owner chose starvation but not its rate.
 - **Where is the line between surrender and sortie?** — `PROPOSED`, **[GEN]**. Currently the
   same 3-to-1 the battlefield uses for a rout: outnumbered by more than that, a starved-out
   settlement opens its gates rather than throwing its defenders away.
@@ -58,7 +58,7 @@ two Spear Infantry and kill 8), and the **3× rout rule** fires cleanly in large
 - **Should a siege stop reinforcement?** — `OPEN`. A besieged settlement cannot finish
   recruitment, but nothing stops a relieving army marching in and standing on the city tile.
 
-## Due before naval (build phase 0.11.0)
+## Due before naval (build phase 0.12.0)
 
 - **Ship statistics.** — `OPEN`. Only cost, upkeep and building requirement were given. Need
   HP, damage, crew size, build time, and strategic speed for all four ship types.
@@ -82,23 +82,24 @@ two Spear Infantry and kill 8), and the **3× rout rule** fires cleanly in large
 - **Capitol housing tier.** — `OPEN`. Housing runs Wooden Houses → Stone Houses → Villas
   (levels 1–3). A Capitol lists Palace and Guildhouse but no housing. Is there a level-4
   housing building, or does a Capitol stay on Villas?
-- **Is population capped, and can it fall?** — `OPEN`, and now **measured**. Growth compounds
-  with no ceiling, and the treasury bonus feeds it. Running a fresh campaign 50 years forward
-  with nobody doing anything leaves an untouched rival on **1.7 million gold** with **4.7
-  million people in a single Village** — still tier 1, no buildings, no armies. Population
-  pays gold, gold raises the growth rate, and nothing anywhere pushes back. This affects the
-  player exactly as much as the AI; it is a rule gap, not an AI gap. Needs either a cap per
-  settlement tier, or a drag that grows with size.
-- **Does recruitment consume population?** — `OPEN`. Light Infantry is 100 soldiers against a
-  starting population of 1,000. If units draw from population, that is a real strategic
-  constraint; if not, population is purely an income multiplier.
+- ~~**Is population capped, and can it fall?**~~ — **answered in 0.11.0**, by removing the
+  compounding rather than capping it. Growth is now a flat number of people a month, so
+  population is bounded by time × rate and cannot run away at any setting. It falls under debt
+  and under siege. A century of doing nothing now ends at **12,190 people** rather than 531
+  trillion. See [MECHANICS.md](MECHANICS.md) §5.
+- **Does recruitment consume population?** — `OPEN`, and **sharper since 0.11.0**. Light
+  Infantry is 100 soldiers against a starting population of 1,000. Under flat growth that is
+  twenty months of a Village's entire output, permanently — there is no compounding to earn it
+  back. If units draw from population it becomes one of the biggest decisions in the game; if
+  not, population stays purely an income multiplier and a tier gate.
 - **"Highest city level" for improvement upgrades.** — `OPEN`. The faction's best settlement
   anywhere, or the level of the city that owns that tile?
 - **Do improvements cost resources to build**, and how much? Only durations are specified.
 - **Can a settlement be downgraded, damaged or sacked?** — `OPEN`. Relevant once cities change
   hands.
-- **Non-military building effects.** — `OPEN`. Wooden/Stone Houses, Villas, Cottage Shops,
-  Merchants, Artisans, Guildhouse, Town/City Hall, Palace — costs and what each actually does.
+- **Non-military building effects.** — `PROPOSED`, and now concrete. Housing and halls give
+  **whole people per month** (10 / 15 / 25 / 40 and 8 / 12 / 20), commerce gives gold. Costs are
+  still **[GEN]**. Approve or retune — one number per building, all directly comparable.
 - **Skirmisher requirement.** — `OPEN`. Every other Town-tier unit names a military building;
   the Skirmisher lists none. Village-tier, or does it need one?
 - **Sawmill.** — `OPEN`. Referenced in every terrain row but not listed in any settlement

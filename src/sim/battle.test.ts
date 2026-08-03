@@ -284,7 +284,7 @@ describe('engagements', () => {
     const { city, approach } = independentTarget();
     city.garrison = { light_infantry: 1 };
     city.queue = [{ kind: 'building', id: 'wooden_houses', monthsRemaining: 4 }];
-    const people = city.populationMilli;
+    const people = city.population;
 
     const attacker = place({ heavy_cavalry: 8 }, FRANKS, approach);
     const { report, advance } = resolveEngagement(state, world, attacker, city.tileIndex);
@@ -294,7 +294,7 @@ describe('engagements', () => {
     expect(advance).toBe(true);
     expect(city.ownerIndex).toBe(FRANKS);
     // People and buildings stay; work the old owner paid for does not.
-    expect(city.populationMilli).toBe(people);
+    expect(city.population).toBe(people);
     expect(city.garrison).toEqual({});
     expect(city.queue).toEqual([]);
   });

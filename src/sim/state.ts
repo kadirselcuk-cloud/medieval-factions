@@ -88,9 +88,9 @@ export function createInitialState(
       tileIndex: tileIndex(world, city.x, city.y),
       ownerIndex,
       tier: 1,
-      populationMilli: STARTING_POPULATION * MILLI,
+      population: STARTING_POPULATION,
       // Nothing is pre-built. Housing and fortification are separate lines, so a fresh
-      // village grows at 0.2%/month until it puts up Wooden Houses.
+      // village gains 5 people a month until it puts up Wooden Houses, and 15 after.
       buildings: [],
       queue: [],
       recruitQueue: [],
@@ -165,7 +165,7 @@ export function recomputeIncome(state: SimState, world: World): void {
     const location = world.cities[city.cityIndex];
     const buildings = summariseBuildings(city.buildings);
 
-    faction.monthlyIncome.gold += Math.floor(city.populationMilli / MILLI / 100);
+    faction.monthlyIncome.gold += Math.floor(city.population / 100);
     faction.monthlyIncome.gold += buildings.goldPerMonth;
 
     // The naval line pays per adjacent water tile, which is what makes a coastal settlement

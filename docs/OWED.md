@@ -66,7 +66,8 @@ it is tagged **[GEN]** at its definition. None of it is owner-authored truth.
 | Fortification bonuses per settlement tier | `docs/CONTENT.md` §2 | **live** — a Citadel Capitol cannot be stormed, only starved |
 | Damage formula and its modifiers | `docs/MECHANICS.md` §6 | **live** — measured, see OPEN-QUESTIONS |
 | Accuracy as a volley multiplier, not a per-shot roll | `src/data/units.ts` | **live** — the figures themselves are owner-authored |
-| Siege starvation, 1% of the population a month | `src/sim/tick.ts` | **live** |
+| Siege starvation, 10/25/50/100 people a month by tier | `src/sim/tick.ts` | **live** |
+| Base +2 and +3 per tier in the flat growth sum | `src/sim/tick.ts` | **live** — the building figures are owner-approved |
 | Surrender at more than 3-to-1, sortie otherwise | `src/sim/conquest.ts` | **live** |
 | Investment means any of the 8 tiles around a settlement | `src/sim/conquest.ts` | **live** |
 | Relief range is Chebyshev distance 2, settlements only | `src/sim/conquest.ts` | **live** — the 5 × 5 box is owner-authored |
@@ -84,12 +85,12 @@ it is tagged **[GEN]** at its definition. None of it is owner-authored truth.
 
 Tracked in [ROADMAP.md](ROADMAP.md); listed here so nothing quietly disappears.
 
-- Per-faction unit names and the 10 elite units — 0.13.0, to be designed with the owner
-- Faction strengths and weaknesses — 0.13.0
-- The owner's 2D art, dropped into `data/art.json` as image paths — 0.13.0
-- AI opponents — 0.11.0. Currently the 12 rivals do nothing at all: they never muster, never
+- Per-faction unit names and the 10 elite units — 0.14.0, to be designed with the owner
+- Faction strengths and weaknesses — 0.14.0
+- The owner's 2D art, dropped into `data/art.json` as image paths — 0.14.0
+- AI opponents — 0.12.0. Currently the 12 rivals do nothing at all: they never muster, never
   march, never besiege and never take ground
-- Naval — 0.12.0. Britons and Moors cannot leave their landmass until this exists
+- Naval — 0.13.0. Britons and Moors cannot leave their landmass until this exists
 - Capacitor mobile wrap, ad and premium-unlock hooks — 1.0.0
 - Tactical battle map — 2.0.0
 

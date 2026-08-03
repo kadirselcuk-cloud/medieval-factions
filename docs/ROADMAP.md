@@ -21,9 +21,11 @@ Outstanding commitments and slipped work are tracked separately in [OWED.md](OWE
 | 0.8.0 | Settlement UI & growth gates | Square-tile build grid with detail windows, art manifest, Navy tab, population requirements for expanding a settlement | ✅ shipped |
 | 0.9.0 | Combat & conquest | Auto-resolve per the owner's algorithm, watchable battle viewer, city capture, victory | ✅ shipped |
 | 0.10.0 | Siege & the fight for a city | Ranged accuracy, sieges, the 5 × 5 relief rule, per-formation ground | ✅ shipped |
-| 0.11.0 | AI | The 12 rival factions actually play — economy, expansion, army composition, war | next |
-| 0.12.0 | Naval | Four ship types, transports, embarkation; unblocks Britons and Moors | |
-| 0.13.0 | Identity & polish | Per-faction unit names, faction bonuses, 10 elite units, the owner's real art, balance pass | |
+| 0.10.1 | Quality of life | Menu, stable bars, map overscroll, full screen, three-across build grid | ✅ shipped |
+| 0.11.0 | Flat population | Growth becomes whole people per month; the runaway is gone | ✅ shipped |
+| 0.12.0 | AI | The 12 rival factions actually play — economy, expansion, army composition, war | next |
+| 0.13.0 | Naval | Four ship types, transports, embarkation; unblocks Britons and Moors | |
+| 0.14.0 | Identity & polish | Per-faction unit names, faction bonuses, 10 elite units, the owner's real art, balance pass | |
 | 1.0.0 | Release | Capacitor wrap for Android/iOS, ad and premium hooks wired but inert, phone performance pass | |
 | 2.0.0 | Phase B | Tactical battle map — regiment-level units, move/attack/hold orders | |
 
@@ -32,6 +34,10 @@ renumbered rather than the versions rewound. The order is unchanged.
 
 Recruitment shipped in 0.5.0 but had nowhere to go until armies landed in 0.7.0 — units with
 nowhere to stand are inventory, not gameplay.
+
+Flat population was not planned either. It became a phase once 0.8.3's balance panel measured
+the compounding curve and found it unbounded at any rate above zero — half a trillion people in
+a village, in a century, from doing nothing. No amount of tuning fixes a shape.
 
 Sieges were not planned as a phase. They became one the moment 0.9.0 measured a fully walled
 Capitol as untakeable by any army the rules allow — a fortified realm could not be conquered,

@@ -142,69 +142,82 @@ production then runs for its stated number of months.
 
 ### Population
 
-Every city has a population. It starts at **1,000** and compounds **monthly**.
+Every city has a population. It starts at **1,000** and gains a **flat number of people every
+month**. It does not compound, and it is stored as whole people rather than fixed-point,
+because there is no fraction of a person to carry.
 
-Monthly growth rate is the sum of:
+| Source | People / month |
+|---|---:|
+| Base | **+2** |
+| Per tier | **+3** each — Village +3, Town +6, City +9, Capitol +12 |
+| Wooden Houses | +10 |
+| Stone Houses | +15 |
+| Villas | +25 |
+| Manors | +40 |
+| Town Hall | +8 |
+| City Hall | +12 |
+| Palace | +20 |
+| Treasury | see the wealth bands below |
 
-| Source | Rate |
-|---|---|
-| Base | +0.1% |
-| Treasury | see the wealth table below |
-| City level | +0.1% per level (Village 1 → Capitol 4) |
-| Housing line | **+1.0%, then +0.5%, then +0.2%, then +0.1%** |
-| Hall line | **+1.0%, then +0.5%, then +0.2%** |
+**Housing and halls accumulate.** A city with Wooden Houses, Stone Houses and Villas standing
+has all three, so it gains 50 people a month from housing alone.
 
-**Housing and halls give diminishing returns.** The first building in each line is worth far
-more than the ones above it: Wooden Houses adds a full +1.0% a month, Stone Houses only
-+0.5% more, Villas +0.2% more, Manors +0.1% more. Same for Town Hall, City Hall and Palace.
-Those are cumulative — a settlement with the whole housing line grows +1.8% from housing
-alone. The fourth housing step is **[GEN]**; the owner specified three values for four
-buildings, and +0.1% continues the taper.
+A starting city — Village, nothing built, 250 gold — gains **5 people a month**. Putting up
+Wooden Houses triples that to **15**, which is still the single biggest decision in an opening.
+A fully built Capitol with a million banked reaches **+159 a month**, or about 1,900 a year.
 
-A starting city — Village, nothing built, 250 gold — grows at `0.1 + 0 + 0.1 = 0.2%` per
-month. Putting up Wooden Houses takes it to **1.2%**, which is the single biggest decision in
-an opening.
+#### Why flat, and not a percentage
 
-Ceiling: a Capitol with every housing and hall building and a million gold banked reaches
-**7.0% a month**, which doubles its population every 11 months. Compounding is not capped —
-see the open question on population.
+Growth was a compounding percentage until 0.11.0, and it could not be saved by tuning.
+`pop × (1 + r)` with any `r` above zero is unbounded however hard the rate is tapered: measured
+on the real simulation, a do-nothing village reached **531 trillion people in a century**, still
+tier 1, because the rate flattened at 3.2% a month and then simply kept doubling every 22 months.
 
-**Every 100 people yields 1 gold per month.** A 1,000-population village is worth 10 gold/month.
+Flat growth is bounded by *time × rate*, and it brings three things with it:
 
-#### Wealth bonus — treasury-wide, diminishing, and symmetric
+- **The numbers are comparable.** "+10 people a month" on a building card sits next to "+10 gold
+  a month" on the card beside it and means something. A percentage means nothing without knowing
+  the treasury, the tier and how long you intend to sit there.
+- **The exponential comes from conquest**, which is where the design already puts victory. Each
+  city taken adds its own trickle; a realm grows by taking more of them, not by waiting.
+- **Cities end up historically plausible.** A great capital reaches roughly 100,000 people over a
+  long campaign, against a real Paris of about 200,000 in 1350.
 
-The bonus applies to **every city at once** and is calculated from the **faction treasury**,
-with diminishing returns so a late-game fortune does not run away with the game.
+The same campaign now reaches **12,190 people and 108,000 gold** after a century of doing nothing.
 
-**Debt hurts exactly as much as wealth helps.** The same bands run in reverse, so a realm
-10,000 gold in the red loses 1% of its people a month.
+**Every 100 people yields 1 gold per month.** A 1,000-population village is worth 10 gold/month,
+and that 100,000-person capital is worth about 1,000.
 
-| Treasury | Growth |
-|---|---|
-| 1,000,000 gold | +3.0% |
-| 100,000 gold | +2.0% |
-| 10,000 gold | +1.0% |
-| −10,000 gold | −1.0% |
-| −100,000 gold | −2.0% |
-| −1,000,000 gold | −3.0% |
+#### Wealth bands — treasury-wide, diminishing, and symmetric
+
+The bonus applies to **every city at once** and is calculated from the **faction treasury**, with
+each decade of wealth worth the same again rather than more.
+
+**Debt costs exactly what wealth gains.** The same bands run in reverse.
+
+| Treasury | People / month |
+|---|---:|
+| 1,000,000 gold or more | +15 |
+| 100,000 – 999,999 | +10 |
+| 10,000 – 99,999 | +5 |
+| under 10,000 either way | 0 |
+| −10,000 – −99,999 | −5 |
+| −100,000 – −999,999 | −10 |
+| −1,000,000 or worse | −15 |
 
 A settlement never falls below **100 people** however deep the debt. **[GEN]**
 
-Implemented as integer tenths of a percent, capped at 30 (+3%):
+Roughly how long each population gate takes, measured on the real simulation:
 
-| Band | Step |
-|---|---|
-| below 10,000 | +0.1% per 1,000 gold |
-| 10,000 – 99,999 | 10 tenths, plus 0.1% per 10,000 above 10,000 |
-| 100,000 – 999,999 | 20 tenths, plus 0.1% per 100,000 above 100,000 |
-| 1,000,000+ | 30 tenths (capped) |
+| Situation | Rate | Gate | Takes |
+|---|---:|---|---|
+| Village, nothing built | +5 | 1,000 → 2,000 | 16.7 years |
+| Village + Wooden Houses | +15 | 1,000 → 2,000 | **5.6 years** |
+| Town + housing + Town Hall, 20k banked | +46 | 2,000 → 5,000 | 5.5 years |
+| City + housing + City Hall, 100k banked | +91 | 5,000 → 10,000 | 4.6 years |
 
-The owner's three anchor values are exact. Band edges step from 18 → 20 and 28 → 30 rather
-than passing through 19 and 29, because the stated anchors and the stated per-band steps do
-not divide evenly. **[GEN]** — flagged in case the anchors matter more than the smoothness.
-
-Whether population is capped, whether it can fall, what housing tier a Capitol has, and
-whether recruiting consumes population are still **[OPEN]**.
+Whether recruiting consumes population is still **[OPEN]**, and matters more than it did: 100
+soldiers out of a linear pool is a permanent cost that cannot be compounded away.
 
 ### Tile improvements
 

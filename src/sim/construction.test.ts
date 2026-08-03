@@ -116,7 +116,7 @@ describe('building construction', () => {
 
   it('raises the settlement tier when an upgrade finishes', () => {
     enrich();
-    paris.populationMilli = 2_000 * MILLI; // a Town needs 2,000 people
+    paris.population = 2_000; // a Town needs 2,000 people
     expect(queueSettlementUpgrade(state, paris)).toEqual({ ok: true });
     advanceBy(state, world, TICKS_PER_MONTH * 24);
     expect(paris.tier).toBe(2);
@@ -133,10 +133,10 @@ describe('expanding a settlement', () => {
       reason: 'too-few-people',
     });
 
-    paris.populationMilli = 1_999 * MILLI;
+    paris.population = 1_999;
     expect(settlementUpgradeBlock(state, paris)).toBe('too-few-people');
 
-    paris.populationMilli = 2_000 * MILLI;
+    paris.population = 2_000;
     expect(settlementUpgradeBlock(state, paris)).toBeNull();
   });
 
@@ -153,7 +153,7 @@ describe('expanding a settlement', () => {
   it('allows only one Capitol per realm', () => {
     enrich(1_000_000);
     paris.tier = 3;
-    paris.populationMilli = 10_000 * MILLI;
+    paris.population = 10_000;
 
     // A second City of the same realm, already on its way to Capitol.
     const other = state.cities.find((c) => c !== paris && c.ownerIndex !== FRANKS)!;
@@ -169,7 +169,7 @@ describe('expanding a settlement', () => {
   it('counts a Capitol that is merely under construction', () => {
     enrich(1_000_000);
     paris.tier = 3;
-    paris.populationMilli = 10_000 * MILLI;
+    paris.population = 10_000;
 
     const other = state.cities.find((c) => c !== paris && c.ownerIndex !== FRANKS)!;
     other.ownerIndex = FRANKS;
@@ -377,13 +377,14 @@ describe('recruitment and shipyards', () => {
   it('shrinks a settlement that is deep in debt, but never below the floor', () => {
     const faction = state.factions[FRANKS]!;
     faction.stock.gold = -2_000_000 * MILLI;
-    const before = paris.populationMilli;
+    const before = paris.population;
 
+    // Debt at the deepest band costs 15 people a month against the 5 a bare Village gains.
     advanceBy(state, world, TICKS_PER_MONTH);
-    expect(paris.populationMilli).toBeLessThan(before);
+    expect(paris.population).toBeLessThan(before);
 
     advanceBy(state, world, TICKS_PER_MONTH * 400);
-    expect(paris.populationMilli).toBe(MIN_POPULATION * MILLI);
+    expect(paris.population).toBe(MIN_POPULATION);
   });
 });
 

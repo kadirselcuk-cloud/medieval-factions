@@ -12,7 +12,7 @@ import {
 } from '../sim/balance';
 import { settlementUpgradeTo } from '../data/buildings';
 import { calendarAt } from '../sim/calendar';
-import { MILLI, TIER_NAME, whole, type SimState } from '../sim/types';
+import { TIER_NAME, whole, type SimState } from '../sim/types';
 import { num } from './format';
 
 /**
@@ -129,7 +129,7 @@ export function BalancePanel({
                     <th>Tier</th>
                     <th>People</th>
                     <th>Growth</th>
-                    <th>+/mo</th>
+                    <th>Next month</th>
                     <th>Next tier</th>
                   </tr>
                 </thead>
@@ -142,13 +142,17 @@ export function BalancePanel({
                       <tr key={city.cityIndex}>
                         <td>{world.cities[city.cityIndex]?.name ?? city.cityIndex}</td>
                         <td>{TIER_NAME[city.tier]}</td>
-                        <td>{num(Math.floor(city.populationMilli / MILLI))}</td>
+                        <td>{num(city.population)}</td>
                         <td
-                          title={`base ${growth.base / 10}% · treasury ${growth.treasury / 10}% · tier ${growth.tier / 10}% · buildings ${growth.buildings / 10}%`}
+                          title={
+                            growth.besieged
+                              ? 'Under siege — it starves, and nothing it has built counts'
+                              : `base ${growth.base} · treasury ${growth.treasury} · tier ${growth.tier} · buildings ${growth.buildings}`
+                          }
                         >
-                          {(growth.total / 10).toFixed(1)}%
+                          {signed(growth.total)}
                         </td>
-                        <td>{num(growth.peoplePerMonth)}</td>
+                        <td>{growth.besieged ? 'besieged' : num(city.population + growth.total)}</td>
                         <td>
                           {!next
                             ? '—'

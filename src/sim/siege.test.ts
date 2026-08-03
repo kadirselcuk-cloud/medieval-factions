@@ -11,7 +11,7 @@ import { beginSiege, RELIEF_RANGE, resolveEngagement, siegeTarget } from './conq
 import { queueBuilding } from './construction';
 import { deserialise, serialise } from './save';
 import { createInitialState, recomputeIncome } from './state';
-import { advanceBy, SIEGE_STARVATION_TENTHS } from './tick';
+import { advanceBy, SIEGE_STARVATION } from './tick';
 import { MILLI, type ArmyState, type CityState, type SimState } from './types';
 
 const world = loadEurope1350();
@@ -136,7 +136,7 @@ describe('laying siege', () => {
   it('cuts the settlement off, stalls its work and starves it', () => {
     const city = target();
     city.tier = 3;
-    city.populationMilli = 8_000 * MILLI;
+    city.population = 8_000;
     state.factions[NEUTRAL]!.stock.gold = 100_000 * MILLI;
     expect(queueBuilding(state, world, city, 'wooden_houses').ok).toBe(true);
     const queued = city.queue[0]!.monthsRemaining;
@@ -153,8 +153,7 @@ describe('laying siege', () => {
 
     advanceBy(state, world, TICKS_PER_MONTH);
     expect(city.queue[0]!.monthsRemaining).toBe(queued);
-    expect(city.populationMilli).toBeLessThan(8_000 * MILLI);
-    expect(SIEGE_STARVATION_TENTHS).toBeLessThan(0);
+    expect(city.population).toBe(8_000 - SIEGE_STARVATION[3]);
   });
 
   it('is held by presence — walk away and it is over', () => {

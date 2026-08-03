@@ -67,22 +67,24 @@ abstract "upgrade".
 | **Capitol** | **10,000 people**, and only one per realm | 20,000g + 1,000 stone | Guildhouse, **military buildings**, Palace, Citadel, Shipyard (coastal) |
 
 **Population is the real gate, not gold.** A realm cannot buy its way up the tiers; it has to
-have built somewhere people want to live. Since the wealth bonus dominates population growth,
-the practical route to a Capitol runs through the treasury anyway — but through a treasury held
-for years, not one spent in a month.
+have built somewhere people want to live. A treasury helps — it is worth up to +15 people a
+month — but the housing and hall lines are worth far more, so the route to a Capitol runs
+through building rather than banking.
 
 Roughly how long each gate takes, at the growth rates a settlement can realistically reach:
 
 | Situation | Growth | Gate | Takes |
 |---|---|---|---|
-| Village, nothing built, empty treasury | 0.2%/mo | 1,000 → 2,000 | ~35 years |
-| Village, Wooden Houses, empty treasury | 1.2%/mo | 1,000 → 2,000 | ~5 years |
-| Village, Wooden Houses, 10,000 banked | 2.2%/mo | 1,000 → 2,000 | ~3 years |
-| Town, + Stone Houses + Town Hall, 10,000 banked | 3.8%/mo | 2,000 → 5,000 | ~2 years |
-| City, + Villas + City Hall, 100,000 banked | 5.6%/mo | 5,000 → 10,000 | ~1 year |
+| Village, nothing built, empty treasury | +5/mo | 1,000 → 2,000 | 16.7 years |
+| Village, Wooden Houses | +15/mo | 1,000 → 2,000 | **5.6 years** |
+| Town, + Stone Houses + Town Hall, 20,000 banked | +46/mo | 2,000 → 5,000 | 5.5 years |
+| City, + Villas + City Hall, 100,000 banked | +91/mo | 5,000 → 10,000 | 4.6 years |
 
-**Wooden Houses is the single most important opening move**: it is worth six times as much
-growth as everything else a Village has, and it costs 120 gold.
+Growth is a **flat number of people a month**, never a percentage — see
+[MECHANICS.md](MECHANICS.md) §5 for why.
+
+**Wooden Houses is the single most important opening move**: it triples what a Village gains,
+and it costs 120 gold.
 
 Military buildings: **Spear Quarters, Barracks, Axe Quarters, Archery Range, Stables**.
 The slot limit gates the roster — Heavy Cavalry needs Barracks *and* Stables, so it needs
@@ -97,25 +99,25 @@ Farms, mines and sawmills are **tile improvements**, not city buildings — see
 [MECHANICS.md](MECHANICS.md) §5.
 
 **Housing and fortification are separately built lines**, not granted by the tier — the owner
-chose this explicitly. A Town that never puts up Stone Houses keeps growing at its Wooden
-Houses rate; the tier unlocks the better building, it does not hand it over.
+chose this explicitly. A Town that never puts up Stone Houses keeps gaining only what Wooden
+Houses gives it; the tier unlocks the better building, it does not hand it over.
 
 Everything else is built, and lives in [`data/buildings.json`](../data/buildings.json).
 All costs and durations below are **[GEN]** proposals.
 
 | Building | Line | Tier | Cost | Months | Effect |
 |---|---|---|---|---|---|
-| Wooden Houses | housing | Village | 120g | 12 | **+1.0% growth** |
-| Stone Houses | housing | Town | 350g, 40 wood, 40 stone | 18 | **+0.5% growth** |
-| Villas | housing | City | 800g, 80 wood, 100 stone | 24 | **+0.2% growth** |
-| Manors | housing | Capitol | 1,600g, 150 wood, 200 stone | 30 | **+0.1% growth** |
+| Wooden Houses | housing | Village | 120g | 12 | **+10 people/month** |
+| Stone Houses | housing | Town | 350g, 40 wood, 40 stone | 18 | **+15 people/month** |
+| Villas | housing | City | 800g, 80 wood, 100 stone | 24 | **+25 people/month** |
+| Manors | housing | Capitol | 1,600g, 150 wood, 200 stone | 30 | **+40 people/month** |
 | Cottage Shops | commerce | Village | 150g | 12 | +10 gold/month |
 | Merchants | commerce | Town | 400g, 60 wood | 18 | +20 gold/month |
 | Artisans | commerce | City | 900g, 100 wood, 60 stone | 24 | +30 gold/month |
 | Guildhouse | commerce | Capitol | 1,800g, 150 wood, 120 stone | 30 | +40 gold/month |
-| Town Hall | admin | Town | 500g, 50 wood, 50 stone | 12 | **+1.0% growth**, +1 defender |
-| City Hall | admin | City | 1,200g, 100 wood, 120 stone | 18 | **+0.5% growth** |
-| Palace | admin | Capitol | 3,000g, 200 wood, 300 stone | 24 | **+0.2% growth** |
+| Town Hall | admin | Town | 500g, 50 wood, 50 stone | 12 | **+8 people/month**, +1 defender |
+| City Hall | admin | City | 1,200g, 100 wood, 120 stone | 18 | **+12 people/month** |
+| Palace | admin | Capitol | 3,000g, 200 wood, 300 stone | 24 | **+20 people/month** |
 | Spear Quarters | military | Town | 300g, 50 wood | 12 | unlocks Spear Infantry |
 | Archery Range | military | Town | 350g, 60 wood | 12 | unlocks Archer, +1 defender |
 | Axe Quarters | military | Town | 400g, 40 wood, 30 iron | 12 | unlocks Shock Infantry |

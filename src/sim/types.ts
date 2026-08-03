@@ -71,8 +71,14 @@ export interface CityState {
   readonly tileIndex: number;
   ownerIndex: number;
   tier: SettlementTier;
-  /** Thousandths of a person. */
-  populationMilli: number;
+  /**
+   * Whole people.
+   *
+   * Not fixed-point, unlike money: population growth is a **flat number of people per month**
+   * rather than a percentage (docs/MECHANICS.md §5), so there is no fraction of a person to
+   * keep and nothing to accumulate. That is the whole reason this is a plain integer.
+   */
+  population: number;
   /** Ids of completed buildings. */
   buildings: string[];
   /**

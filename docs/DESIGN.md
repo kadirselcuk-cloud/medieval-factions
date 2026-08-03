@@ -87,7 +87,7 @@ This is the single most important architectural constraint. See [MECHANICS.md](M
 | 21 | Territory is claimed by **army presence**; starting tiles are the 4 orthogonal neighbours | 4 |
 | 22 | Auto-resolve: alternating speed-ordered activations, one action each, 3× rout rule after turn 10, 48-turn cap. Field width superseded by 66 | 4 |
 | 23 | Winter adds +10% defender's advantage on top of movement and harvest penalties | 4 |
-| 24 | Cities have **population**, starting at 1,000, compounding monthly from wealth, city level and housing | 5 |
+| 24 | Cities have **population**, starting at 1,000. Compounding superseded by 81 | 5 |
 | 25 | Every 100 population yields 1 gold/month | 5 |
 | 26 | Tile farms yield 10 gold/month, +10 per upgrade, upgrades gated by highest city level | 5 |
 | 27 | Git initialisation deferred by the owner until after the first version | 5 |
@@ -96,7 +96,7 @@ This is the single most important architectural constraint. See [MECHANICS.md](M
 | 30 | Buildings 12 months at level 1, +6 per level; settlement upgrades 24 / 36 / 48 months | 6 |
 | 31 | Building and unit queues are independent — construction never blocks recruitment | 6 |
 | 32 | Commerce line gives +10 gold per upgrade. Hall growth superseded by 65 | 6 |
-| 33 | Wealth growth bonus is treasury-wide and diminishing: +1% at 10k, +2% at 100k, +3% at 1M | 6 |
+| 33 | Wealth growth bonus is treasury-wide and diminishing. Percentages superseded by 81 | 6 |
 | 34 | Autosaves: 5 monthly plus 3 yearly | 6 |
 | 35 | Map revision: Toulouse and Genoa removed; Burgundy, Sardinia, Crete and Cyprus added; Leon, Barcelona and Mecca moved. 60 cities | 6 |
 | 36 | A tile carries exactly **one** improvement — farm, mine, or sawmill | 7 |
@@ -109,7 +109,7 @@ This is the single most important architectural constraint. See [MECHANICS.md](M
 | 43 | "Adjacent" means all **8** surrounding tiles, and decides both fishery income and whether a settlement is coastal | 8 |
 | 44 | City panel has three tabs — Info, Buildings, Armies | 8 |
 | 45 | Top bar carries Cities / Armies / Navies rosters that select and centre the map | 8 |
-| 46 | **Gold may go negative.** The wealth growth band is symmetric, so debt shrinks population exactly as wealth grows it, floored at 100 people per settlement | 9 |
+| 46 | **Gold may go negative.** The wealth band is symmetric, so debt costs exactly what wealth gains, floored at 100 people per settlement | 9 |
 | 47 | While a treasury is in debt, every land unit has a **10% chance per month of deserting**. Ships are exempt | 9 |
 | 48 | Ships cost wood as well as gold — 50 / 100 / 200 / 500 | 9 |
 | 49 | Base tile yield is **per terrain**, not flat: plains 10g +1w, forest 5g +1w, steppe 5g, tundra 2g +1w, desert 2g, mountain 1 iron +1 stone. Not scaled by the terrain modifiers — it already is the terrain's contribution | 9 |
@@ -128,7 +128,7 @@ This is the single most important architectural constraint. See [MECHANICS.md](M
 | 62 | Everything buildable is a **square tile, two per row**, opening a detail window that carries the description, the numbers and the order button | 11 |
 | 63 | All icons and flavour text live in `data/art.json`; **no asset path is ever hardcoded** | 11 |
 | 64 | Tabs are Info / Buildings / Armies / Navy. The Land tab is gone — improvements are **Fief Buildings** inside Buildings, beside **City Buildings** | 11 |
-| 65 | Housing and hall lines give **diminishing growth**: +1.0%, then +0.5%, then +0.2% (then +0.1% for the fourth housing step, **[GEN]**). Replaces the old flat +0.1% per level | 11 |
+| 65 | Housing and hall lines each give growth, accumulating. Percentages superseded by 81 | 11 |
 | 66 | The auto-resolve battlefield is **50 tiles across**, so unit ranges (30, 40) are used exactly as written | 11 |
 | 67 | At the 48-turn cap a battle is a **stalemate and both armies withdraw** | 11 |
 | 68 | A battle is a **pure function** of the two stacks, the ground and the RNG, resolved in one call. The player watches a **replay of the log**; only the last 3 battles are kept | 12 |
@@ -144,3 +144,4 @@ This is the single most important architectural constraint. See [MECHANICS.md](M
 | 78 | A battle **for a settlement** draws in every army of either realm within a **5 × 5 box** | 12 |
 | 79 | The defender's advantage belongs to the **defending formation, not the battle**: troops behind the walls keep the fortification, a relieving army from outside does not | 12 |
 | 80 | A settlement is taken by **assault** (walls count, immediate) or by **siege** (walls do not count, but it takes months) | 12 |
+| 81 | **Population growth is a flat number of people per month, never a percentage.** Base +2, +3 per tier, buildings +8 to +40 each, treasury ±5/±10/±15. Compounding was unbounded at any rate above zero; the exponential in this game comes from conquest. Supersedes 24, 33 and 65 | 13 |

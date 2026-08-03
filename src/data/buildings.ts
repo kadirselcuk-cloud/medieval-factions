@@ -33,10 +33,14 @@ const buildingSchema = z.object({
   cost: costSchema,
   /** Commerce line: flat gold per month. */
   goldPerMonth: z.number().int().nonnegative().default(0),
-  /** Administration line: population growth, in tenths of a percent. */
-  growthTenths: z.number().int().nonnegative().default(0),
-  /** Housing line: the settlement's housing level, worth +0.1% growth each. */
-  housingLevel: z.number().int().nonnegative().default(0),
+  /**
+   * Housing and administration: **whole people per month**.
+   *
+   * Population growth is flat, never a percentage — see docs/MECHANICS.md §5. That is what
+   * makes this figure directly comparable to `goldPerMonth` on the card beside it, and what
+   * stops a settlement compounding into the billions given long enough.
+   */
+  growthPeople: z.number().int().nonnegative().default(0),
   /** Fortification line: defender's advantage, in tenths. 3 means +30%. */
   defenceTenths: z.number().int().nonnegative().default(0),
   /** Naval line: gold per month for every water tile adjacent to the settlement. */
@@ -135,10 +139,10 @@ export function buildingById(id: string): Building | undefined {
 }
 
 export interface BuildingSummary {
-  /** Highest housing level built. 0 if the settlement has no housing at all. */
+  /** Highest level reached in the housing chain. 0 if the settlement has no housing at all. */
   housingLevel: number;
-  /** Population growth from administration buildings, in tenths of a percent. */
-  growthTenths: number;
+  /** People per month from housing and administration together. */
+  growthPeople: number;
   /** Gold per month from commerce. */
   goldPerMonth: number;
   /** Defender's advantage from fortification, in tenths. */
@@ -151,7 +155,7 @@ export interface BuildingSummary {
 export function summariseBuildings(ids: readonly string[]): BuildingSummary {
   const summary: BuildingSummary = {
     housingLevel: 0,
-    growthTenths: 0,
+    growthPeople: 0,
     goldPerMonth: 0,
     defenceTenths: 0,
     goldPerWaterTile: 0,
@@ -161,11 +165,15 @@ export function summariseBuildings(ids: readonly string[]): BuildingSummary {
     const building = buildingById(id);
     if (!building) continue;
     // Chain lines replace rather than stack, so take the best rather than the sum.
-    summary.housingLevel = Math.max(summary.housingLevel, building.housingLevel);
     summary.defenceTenths = Math.max(summary.defenceTenths, building.defenceTenths);
     summary.goldPerMonth = Math.max(summary.goldPerMonth, building.goldPerMonth);
     summary.goldPerWaterTile = Math.max(summary.goldPerWaterTile, building.goldPerWaterTile);
-    summary.growthTenths += building.growthTenths;
+    if (building.line === 'housing') {
+      summary.housingLevel = Math.max(summary.housingLevel, building.level);
+    }
+    // Growth is the exception: housing and halls **accumulate**. A city with Wooden Houses,
+    // Stone Houses and Villas standing has all three, and the roofs of all three.
+    summary.growthPeople += building.growthPeople;
   }
   return summary;
 }

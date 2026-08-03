@@ -6,7 +6,7 @@ import { terrainAt } from '../data/world';
 import { loadEurope1350 } from '../data/maps';
 import { calendarAt, TICKS_PER_MONTH } from './calendar';
 import { createInitialState, STARTING_GOLD, STARTING_POPULATION } from './state';
-import { advanceBy, cityGrowthTenths, wealthGrowthTenths } from './tick';
+import { advanceBy, cityGrowth, wealthGrowth } from './tick';
 import { MILLI, whole, type SimState } from './types';
 
 const world = loadEurope1350();
@@ -69,7 +69,7 @@ describe('initial state', () => {
     expect(whole(franks.stock.gold)).toBe(STARTING_GOLD);
     for (const city of state.cities) {
       expect(city.tier).toBe(1);
-      expect(city.populationMilli).toBe(STARTING_POPULATION * MILLI);
+      expect(city.population).toBe(STARTING_POPULATION);
     }
   });
 
@@ -113,39 +113,37 @@ describe('economy', () => {
     const city = state.cities.find((c) => c.ownerIndex === state.playerFactionIndex)!;
 
     advanceBy(state, world, TICKS_PER_MONTH - 1);
-    expect(city.populationMilli).toBe(STARTING_POPULATION * MILLI);
+    expect(city.population).toBe(STARTING_POPULATION);
 
-    // A fresh Village has no housing built, so growth is 0.1% base + 0.1% city level = 0.2%.
-    // Putting up Wooden Houses is what takes it to 1.2% — the first step in each of the
-    // housing and hall lines is worth far more than the ones above it.
+    // Growth is a flat count of people, never a percentage. A fresh Village with nothing built
+    // gains 2 for existing and 3 for its tier; Wooden Houses is what takes it to 15.
     advanceBy(state, world, 1);
-    expect(city.populationMilli).toBe(1_002_000);
+    expect(city.population).toBe(STARTING_POPULATION + 5);
   });
 
-  // The housing and hall lines are the owner's diminishing ladder: the first building in each
-  // is worth more than every later one put together.
-  it('pays diminishing growth up the housing and hall lines', () => {
+  // Housing and halls accumulate: a settlement with three of them standing has all three.
+  it('adds up the housing and hall lines, in whole people', () => {
     const state = newState();
     const city = state.cities.find((c) => c.ownerIndex === state.playerFactionIndex)!;
 
-    const rate = () => cityGrowthTenths(state, city);
-    expect(rate()).toBe(2); // 0.1% base + 0.1% Village
+    const rate = () => cityGrowth(state, city);
+    expect(rate()).toBe(5); // 2 base + 3 for a Village
 
     city.buildings.push('wooden_houses');
-    expect(rate()).toBe(12); // +1.0%
+    expect(rate()).toBe(15); // +10
     city.buildings.push('stone_houses');
-    expect(rate()).toBe(17); // +0.5%
+    expect(rate()).toBe(30); // +15
     city.buildings.push('villas');
-    expect(rate()).toBe(19); // +0.2%
+    expect(rate()).toBe(55); // +25
     city.buildings.push('manors');
-    expect(rate()).toBe(20); // +0.1% [GEN]
+    expect(rate()).toBe(95); // +40
 
     city.buildings.push('town_hall');
-    expect(rate()).toBe(30); // +1.0%
+    expect(rate()).toBe(103); // +8
     city.buildings.push('city_hall');
-    expect(rate()).toBe(35); // +0.5%
+    expect(rate()).toBe(115); // +12
     city.buildings.push('palace');
-    expect(rate()).toBe(37); // +0.2%
+    expect(rate()).toBe(135); // +20
   });
 
   it('never loses income to rounding across a year', () => {
@@ -160,35 +158,50 @@ describe('economy', () => {
 });
 
 describe('wealth growth bonus', () => {
-  it('hits the owner-stated anchors exactly', () => {
-    expect(wealthGrowthTenths(10_000)).toBe(10); // +1.0%
-    expect(wealthGrowthTenths(100_000)).toBe(20); // +2.0%
-    expect(wealthGrowthTenths(1_000_000)).toBe(30); // +3.0%
+  it('pays a flat five, ten or fifteen people by decade of wealth', () => {
+    expect(wealthGrowth(10_000)).toBe(5);
+    expect(wealthGrowth(100_000)).toBe(10);
+    expect(wealthGrowth(1_000_000)).toBe(15);
   });
 
   it('pays nothing below the first threshold and never exceeds the cap', () => {
-    expect(wealthGrowthTenths(0)).toBe(0);
-    expect(wealthGrowthTenths(999)).toBe(0);
-    expect(wealthGrowthTenths(250)).toBe(0);
-    expect(wealthGrowthTenths(50_000_000)).toBe(30);
+    expect(wealthGrowth(0)).toBe(0);
+    expect(wealthGrowth(9_999)).toBe(0);
+    expect(wealthGrowth(250)).toBe(0);
+    expect(wealthGrowth(50_000_000)).toBe(15);
   });
 
-  // Debt hurts exactly as much as wealth helps.
+  // Debt costs exactly what wealth gains.
   it('mirrors itself into debt', () => {
     for (const gold of [1_000, 9_999, 10_000, 55_000, 100_000, 1_000_000, 9_000_000]) {
-      expect(wealthGrowthTenths(-gold), `at -${gold}`).toBe(-wealthGrowthTenths(gold));
+      // Stated as a sum rather than a negation, so a zero band cannot fail on -0 vs 0.
+      expect(wealthGrowth(-gold) + wealthGrowth(gold), `at ±${gold}`).toBe(0);
     }
-    expect(wealthGrowthTenths(-999)).toBe(0);
-    expect(wealthGrowthTenths(-50_000_000)).toBe(-30);
+    expect(wealthGrowth(-9_999)).toBe(0);
+    expect(wealthGrowth(-50_000_000)).toBe(-15);
   });
 
   it('never decreases as the treasury grows', () => {
     let previous = 0;
     for (const gold of [0, 1_000, 5_000, 9_999, 10_000, 55_000, 99_999, 100_000, 500_000, 1_000_000]) {
-      const current = wealthGrowthTenths(gold);
+      const current = wealthGrowth(gold);
       expect(current, `at ${gold} gold`).toBeGreaterThanOrEqual(previous);
       previous = current;
     }
+  });
+
+  /** The whole reason for the change: flat growth is bounded by time, not by a rate. */
+  it('cannot run away, however long a campaign runs', () => {
+    const state = newState();
+    const city = state.cities.find((c) => c.ownerIndex === state.playerFactionIndex)!;
+    city.buildings.push('wooden_houses', 'stone_houses', 'villas', 'manors');
+    state.factions[state.playerFactionIndex]!.stock.gold = 10_000_000 * MILLI;
+
+    const perMonth = cityGrowth(state, city);
+    advanceBy(state, world, TICKS_PER_MONTH * 12 * 100);
+
+    // A century at the best rate this settlement can reach, and not one person more.
+    expect(city.population).toBeLessThanOrEqual(STARTING_POPULATION + perMonth * 12 * 100);
   });
 });
 

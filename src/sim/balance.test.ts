@@ -5,7 +5,7 @@ import { growthBreakdown, incomeBreakdown, monthsToAfford, monthsToNextTier, pro
 import { TICKS_PER_MONTH } from './calendar';
 import { queueImprovement } from './construction';
 import { createInitialState, recomputeIncome } from './state';
-import { advanceBy, cityGrowthTenths } from './tick';
+import { advanceBy, cityGrowth } from './tick';
 import { MILLI, type SimState } from './types';
 
 const world = loadEurope1350();
@@ -60,7 +60,7 @@ describe('income breakdown', () => {
 });
 
 describe('growth breakdown', () => {
-  it('sums to the rate the simulation actually uses', () => {
+  it('sums to the figure the simulation actually uses', () => {
     const paris = state.cities.find((c) => c.ownerIndex === FRANKS)!;
     state.factions[FRANKS]!.stock.gold = 100_000 * MILLI;
     paris.buildings.push('wooden_houses', 'town_hall');
@@ -68,7 +68,20 @@ describe('growth breakdown', () => {
 
     const growth = growthBreakdown(state, paris);
     expect(growth.base + growth.treasury + growth.tier + growth.buildings).toBe(growth.total);
-    expect(growth.total).toBe(cityGrowthTenths(state, paris));
+    expect(growth.total).toBe(cityGrowth(state, paris));
+    // 2 base + 6 for a Town + 10 houses + 8 hall + 10 for a hundred thousand banked.
+    expect(growth.total).toBe(36);
+  });
+
+  it('replaces every term with a loss while the settlement is besieged', () => {
+    const paris = state.cities.find((c) => c.ownerIndex === FRANKS)!;
+    paris.buildings.push('wooden_houses');
+    paris.siege = { byIndex: 0, monthsRemaining: 1, monthsHeld: 0 };
+
+    const growth = growthBreakdown(state, paris);
+    expect(growth.besieged).toBe(true);
+    expect(growth.total).toBeLessThan(0);
+    expect(growth.total).toBe(cityGrowth(state, paris));
   });
 });
 
@@ -77,7 +90,7 @@ describe('forecasts', () => {
     const paris = state.cities.find((c) => c.ownerIndex === FRANKS)!;
     expect(monthsToNextTier(state, paris)).toBeGreaterThan(0);
 
-    paris.populationMilli = 2_000 * MILLI; // already past the Town gate
+    paris.population = 2_000; // already past the Town gate
     expect(monthsToNextTier(state, paris)).toBe(0);
   });
 
@@ -97,7 +110,7 @@ describe('projection', () => {
       tick: state.tick,
       rng: state.rng,
       gold: state.factions[FRANKS]!.stock.gold,
-      people: state.cities.map((c) => c.populationMilli),
+      people: state.cities.map((c) => c.population),
     });
 
     const result = project(state, world, FRANKS, 10);
@@ -106,7 +119,7 @@ describe('projection', () => {
       tick: state.tick,
       rng: state.rng,
       gold: state.factions[FRANKS]!.stock.gold,
-      people: state.cities.map((c) => c.populationMilli),
+      people: state.cities.map((c) => c.population),
     })).toBe(before);
 
     expect(result.years).toBe(10);
@@ -119,6 +132,6 @@ describe('projection', () => {
     advanceBy(state, world, TICKS_PER_MONTH * 12 * 5);
 
     const paris = state.cities.find((c) => c.ownerIndex === FRANKS)!;
-    expect(projected.population).toBe(Math.floor(paris.populationMilli / MILLI));
+    expect(projected.population).toBe(paris.population);
   });
 });

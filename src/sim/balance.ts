@@ -6,8 +6,8 @@ import { defenceOf, stackUpkeep } from './armies';
 import { TICKS_PER_MONTH } from './calendar';
 import { improvementAt } from './construction';
 import { deserialise, serialise } from './save';
-import { advanceBy, wealthGrowthTenths } from './tick';
-import { MILLI, whole, type CityState, type SimState } from './types';
+import { advanceBy, BASE_GROWTH, cityGrowth, GROWTH_PER_TIER, wealthGrowth } from './tick';
+import { whole, type CityState, type SimState } from './types';
 
 /**
  * Numbers for balancing, split into the terms that produce them.
@@ -64,7 +64,7 @@ export function incomeBreakdown(
     const buildings = summariseBuildings(city.buildings);
     const location = world.cities[city.cityIndex];
 
-    result.population += Math.floor(city.populationMilli / MILLI / 100);
+    result.population += Math.floor(city.population / 100);
     result.commerce += buildings.goldPerMonth;
     if (buildings.goldPerWaterTile > 0 && location) {
       result.fishing += buildings.goldPerWaterTile * adjacentWaterCount(world, location.x, location.y);
@@ -117,50 +117,52 @@ export interface GrowthBreakdown {
   treasury: number;
   tier: number;
   buildings: number;
+  /** People added next month — the sum of the terms above. */
   total: number;
-  /** People added next month at this rate. */
-  peoplePerMonth: number;
+  /** Set while the settlement is invested, when nothing above it applies. */
+  besieged: boolean;
 }
 
+/**
+ * The growth figure, split into the terms that produce it.
+ *
+ * Every term is **whole people per month**, so they simply add up — which is the point of
+ * having moved off percentages. A siege replaces the lot with a loss.
+ */
 export function growthBreakdown(state: SimState, city: CityState): GrowthBreakdown {
   const owner = state.factions[city.ownerIndex];
-  const treasury = owner ? wealthGrowthTenths(whole(owner.stock.gold)) : 0;
-  const buildings = summariseBuildings(city.buildings).growthTenths;
-  const total = 1 + treasury + city.tier + buildings;
+  const treasury = owner ? wealthGrowth(whole(owner.stock.gold)) : 0;
+  const buildings = summariseBuildings(city.buildings).growthPeople;
+  const tier = GROWTH_PER_TIER * city.tier;
 
+  if (city.siege) {
+    return { base: 0, treasury: 0, tier: 0, buildings: 0, total: cityGrowth(state, city), besieged: true };
+  }
   return {
-    base: 1,
+    base: BASE_GROWTH,
     treasury,
-    tier: city.tier,
+    tier,
     buildings,
-    total,
-    peoplePerMonth: Math.floor((city.populationMilli * total) / 1000 / MILLI),
+    total: BASE_GROWTH + treasury + tier + buildings,
+    besieged: false,
   };
 }
 
 /**
  * Months until this settlement can expand, at its current growth rate.
  *
- * "At its current rate" is a deliberate simplification — the rate itself climbs as the
- * treasury does — so this is a ceiling on the wait, not a forecast. `null` means it is
- * already big enough, or shrinking, or has nowhere left to grow.
+ * Flat growth makes this exact division rather than the compounding loop it used to need —
+ * although it still assumes the rate holds, and the rate changes the moment anything is built.
+ * `null` means it is shrinking, or has nowhere left to grow.
  */
 export function monthsToNextTier(state: SimState, city: CityState): number | null {
   const upgrade = settlementUpgradeTo(city.tier + 1);
   if (!upgrade) return null;
+  if (city.population >= upgrade.minPopulation) return 0;
 
-  const target = upgrade.minPopulation * MILLI;
-  if (city.populationMilli >= target) return 0;
-
-  const rate = growthBreakdown(state, city).total;
-  if (rate <= 0) return null;
-
-  let people = city.populationMilli;
-  for (let month = 1; month <= 12_000; month++) {
-    people += Math.floor((people * rate) / 1000);
-    if (people >= target) return month;
-  }
-  return null;
+  const perMonth = growthBreakdown(state, city).total;
+  if (perMonth <= 0) return null;
+  return Math.ceil((upgrade.minPopulation - city.population) / perMonth);
 }
 
 /** Months to save up for a cost, at the faction's current net income. `null` if never. */
@@ -205,7 +207,7 @@ export function project(
   return {
     years,
     gold: whole(copy.factions[factionIndex]?.stock.gold ?? 0),
-    population: owned.reduce((total, city) => total + whole(city.populationMilli), 0),
+    population: owned.reduce((total, city) => total + city.population, 0),
     cities: owned.length,
     bestTier: owned.reduce((best, city) => Math.max(best, city.tier), 0),
   };
