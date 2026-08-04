@@ -3,7 +3,7 @@ import { unitById } from '../data/units';
 import type { World } from '../data/world';
 import { runAi } from './ai';
 import { removeArmy } from './armies';
-import { isMonthBoundary, TICKS_PER_MONTH } from './calendar';
+import { calendarAt, isMonthBoundary, TICKS_PER_MONTH } from './calendar';
 import { advanceConstruction } from './construction';
 import { advanceSieges } from './conquest';
 import { pushEvent } from './events';
@@ -39,6 +39,7 @@ export function advance(state: SimState, world: World): void {
   if (isMonthBoundary(state.tick)) {
     advanceConstruction(state, world);
     desertUnpaidTroops(state, world);
+    winterAttrition(state);
     growPopulation(state);
     // Last of the month, because a siege that ends this month resolves into a battle, and a
     // battle can take the settlement — after which nothing else about it is worth computing.
@@ -106,6 +107,60 @@ function desertFrom(
       tileIndex,
       factionIndex,
     });
+  }
+}
+
+/** Chance each unit is lost in a winter month spent standing on a rival's ground. */
+export const WINTER_ATTRITION_CHANCE = 0.1;
+
+/**
+ * Winter kills armies that stay in enemy country — docs/MECHANICS.md §5.
+ *
+ * **One roll per unit per winter month, and a lost unit is lost whole.** Not casualties: a
+ * formation that spends February in a hostile province with no billets, no stores and nobody
+ * willing to sell it grain does not come back at reduced strength, it stops existing. Losing
+ * entire units rather than men is owner-specified, and it is the harsher reading on purpose —
+ * ten units in enemy territory expect to lose one a month.
+ *
+ * **Only a rival's ground.** Unclaimed country is unfriendly but empty; it costs a march 20% and
+ * nothing else. What kills is a province whose people have every reason to see you starve.
+ *
+ * This is what makes a winter campaign a decision. An invasion launched in autumn either takes
+ * what it came for before the snow or spends the winter dissolving, and with 0.16.0's speeds —
+ * foot crossing a hostile tile in three months — that is a real gamble rather than a formality.
+ *
+ * Iteration is fixed: armies by id, unit ids sorted within each, because the RNG is drawn per
+ * unit and the whole simulation has to stay reproducible from a save.
+ */
+function winterAttrition(state: SimState): void {
+  if (calendarAt(state.tick).season !== 'winter') return;
+
+  for (const army of [...state.armies].sort((a, b) => a.id - b.id)) {
+    const ground = state.tileOwner[army.tileIndex] ?? -1;
+    if (ground < 0 || ground === army.ownerIndex) continue;
+
+    for (const id of Object.keys(army.units).sort()) {
+      const count = army.units[id] ?? 0;
+      let lost = 0;
+      for (let i = 0; i < count; i++) {
+        if (nextRandom(state) < WINTER_ATTRITION_CHANCE) lost += 1;
+      }
+      if (lost === 0) continue;
+
+      const left = count - lost;
+      if (left > 0) army.units[id] = left;
+      else delete army.units[id];
+
+      pushEvent(state, {
+        kind: 'desertion',
+        text: `${lost} × ${unitById(id)?.name ?? id} lost to the winter in hostile country`,
+        tileIndex: army.tileIndex,
+        factionIndex: army.ownerIndex,
+      });
+    }
+
+    // An army the winter has finished off is not an army.
+    if (Object.keys(army.units).length === 0) removeArmy(state, army.id);
   }
 }
 

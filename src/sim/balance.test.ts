@@ -4,7 +4,7 @@ import { loadEurope1350 } from '../data/maps';
 import { growthBreakdown, incomeBreakdown, monthsToAfford, monthsToNextTier, project } from './balance';
 import { TICKS_PER_MONTH } from './calendar';
 import { queueImprovement } from './construction';
-import { createInitialState, recomputeIncome } from './state';
+import { createInitialState, recomputeIncome, taxedGold } from './state';
 import { advanceBy, cityGrowth } from './tick';
 import { MILLI, type SimState } from './types';
 
@@ -47,7 +47,7 @@ describe('income breakdown', () => {
 
     const breakdown = incomeBreakdown(state, world, FRANKS);
     expect(breakdown.net).toBe(faction.monthlyIncome.gold);
-    expect(breakdown.commerce).toBe(10); // Cottage Shops
+    expect(breakdown.commerce).toBe(taxedGold(10)); // Cottage Shops, after tax
     expect(breakdown.improvements).toBeGreaterThan(0);
     expect(breakdown.upkeep).toBeLessThan(0);
   });

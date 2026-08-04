@@ -44,6 +44,7 @@ function place(units: UnitStack, ownerIndex: number, tile: number): ArmyState {
     units: { ...units },
     path: [],
     march: 0,
+      role: 'field',
   };
   state.armies.push(army);
   return army;
@@ -341,7 +342,8 @@ describe('battles in a running campaign', () => {
     const attacker = place({ heavy_cavalry: 8 }, FRANKS, approach);
 
     expect(orderMove(state, world, attacker.id, city.tileIndex).ok).toBe(true);
-    for (let i = 0; i < TICKS_PER_MONTH && state.battles.length === 0; i++) {
+    // Horse crosses a tile a month, and hostile ground costs 40% more, so give it a wide margin.
+    for (let i = 0; i < TICKS_PER_MONTH * 4 && state.battles.length === 0; i++) {
       state.tick += 1;
       advanceArmies(state, world);
     }
@@ -387,6 +389,7 @@ describe('battles in a running campaign', () => {
         units: { light_infantry: 4 },
         path: [],
         march: 0,
+      role: 'field',
       };
       s.armies.push(army);
       orderMove(s, world, army.id, city.tileIndex);

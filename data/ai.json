@@ -8,12 +8,15 @@
       "blurb": "Poor, timid and easily distracted. It will build a realm and mostly leave you alone.",
       "incomePermille": 700,
       "oddsPermille": 2200,
-      "maxArmies": 1,
       "armyUnits": 5,
       "ditherPermille": 500,
       "patienceMonths": 3,
       "reacts": false,
-      "improves": false
+      "improves": false,
+      "raidStacks": 0,
+      "guardStacks": 0,
+      "claimStacks": 1,
+      "improvementsAtOnce": 1
     },
     {
       "id": "squire",
@@ -21,12 +24,15 @@
       "blurb": "Slightly behind you, and slow to commit. It expands into open ground but rarely picks a fight.",
       "incomePermille": 850,
       "oddsPermille": 1700,
-      "maxArmies": 2,
       "armyUnits": 8,
       "ditherPermille": 300,
       "patienceMonths": 6,
       "reacts": false,
-      "improves": true
+      "improves": true,
+      "raidStacks": 0,
+      "guardStacks": 1,
+      "claimStacks": 1,
+      "improvementsAtOnce": 1
     },
     {
       "id": "knight",
@@ -34,12 +40,15 @@
       "blurb": "Your equal. No bonus, no penalty - the same economy and the same rules you play by.",
       "incomePermille": 1000,
       "oddsPermille": 1350,
-      "maxArmies": 3,
       "armyUnits": 12,
       "ditherPermille": 150,
       "patienceMonths": 12,
       "reacts": true,
-      "improves": true
+      "improves": true,
+      "raidStacks": 1,
+      "guardStacks": 1,
+      "claimStacks": 1,
+      "improvementsAtOnce": 2
     },
     {
       "id": "baron",
@@ -47,12 +56,15 @@
       "blurb": "Richer than you, and it presses an advantage. It relieves its own sieges and takes fair fights.",
       "incomePermille": 1300,
       "oddsPermille": 1200,
-      "maxArmies": 4,
       "armyUnits": 16,
       "ditherPermille": 50,
       "patienceMonths": 18,
       "reacts": true,
-      "improves": true
+      "improves": true,
+      "raidStacks": 1,
+      "guardStacks": 2,
+      "claimStacks": 2,
+      "improvementsAtOnce": 3
     },
     {
       "id": "king",
@@ -60,12 +72,15 @@
       "blurb": "Half again your income, never wastes a month, and will attack on even numbers.",
       "incomePermille": 1600,
       "oddsPermille": 1100,
-      "maxArmies": 6,
       "armyUnits": 20,
       "ditherPermille": 0,
       "patienceMonths": 24,
       "reacts": true,
-      "improves": true
+      "improves": true,
+      "raidStacks": 2,
+      "guardStacks": 2,
+      "claimStacks": 2,
+      "improvementsAtOnce": 4
     }
   ],
   "_personalities": "Per realm, and fixed for the campaign. build weights are relative - the highest-scoring affordable option wins, so doubling a weight roughly doubles how often that line gets chosen. aggressionPermille MULTIPLIES the difficulty's odds requirement, so 700 means it attacks at 0.7x the odds its difficulty would otherwise demand and 2200 means it wants more than twice as much. bullyFloorPermille is the least a rival realm may be worth, relative to this one, before it is beneath attacking.",
@@ -75,7 +90,8 @@
       "name": "Ambitious",
       "blurb": "Leans outward. Expands hardest, ranges a little further from home and keeps the smallest garrison.",
       "aggressionPermille": 900,
-      "reach": 10,
+      "raidPermille": 400,
+      "guardPermille": 100,
       "garrisonKeep": 1,
       "levyFloor": 450,
       "prefersSiege": true,
@@ -97,14 +113,17 @@
         "ranged": 95,
         "cavalry": 115
       },
-      "claimRadius": 3
+      "claimRadius": 3,
+      "raidUnits": 3,
+      "guardUnits": 1
     },
     {
       "id": "defensive",
       "name": "Defensive",
       "blurb": "Leans inward. Builds walls first, holds an extra unit in every settlement and consolidates its own ground before it looks past it.",
       "aggressionPermille": 1150,
-      "reach": 6,
+      "raidPermille": 50,
+      "guardPermille": 500,
       "garrisonKeep": 3,
       "levyFloor": 550,
       "prefersSiege": true,
@@ -126,14 +145,17 @@
         "ranged": 105,
         "cavalry": 85
       },
-      "claimRadius": 3
+      "claimRadius": 3,
+      "raidUnits": 1,
+      "guardUnits": 3
     },
     {
       "id": "balanced",
       "name": "Balanced",
       "blurb": "The centre the other four lean off. Builds an economy, keeps an army, and takes ground when the odds are good.",
       "aggressionPermille": 1000,
-      "reach": 8,
+      "raidPermille": 200,
+      "guardPermille": 250,
       "garrisonKeep": 2,
       "levyFloor": 500,
       "prefersSiege": true,
@@ -155,14 +177,17 @@
         "ranged": 100,
         "cavalry": 100
       },
-      "claimRadius": 3
+      "claimRadius": 3,
+      "raidUnits": 2,
+      "guardUnits": 2
     },
     {
       "id": "peaceful",
       "name": "Peaceful",
       "blurb": "Economy first. It builds and settles harder than anyone and keeps a smaller army — but it still recruits, still expands, and still makes war when the odds are good.",
       "aggressionPermille": 1150,
-      "reach": 7,
+      "raidPermille": 0,
+      "guardPermille": 350,
       "garrisonKeep": 2,
       "levyFloor": 600,
       "prefersSiege": true,
@@ -184,14 +209,17 @@
         "ranged": 100,
         "cavalry": 90
       },
-      "claimRadius": 3
+      "claimRadius": 3,
+      "raidUnits": 0,
+      "guardUnits": 2
     },
     {
       "id": "honorable",
       "name": "Honorable",
       "blurb": "Plays exactly as Balanced does today. Honour is a matter of who it will deal with, not how it fights, so the difference lands with diplomacy.",
       "aggressionPermille": 1000,
-      "reach": 8,
+      "raidPermille": 200,
+      "guardPermille": 250,
       "garrisonKeep": 2,
       "levyFloor": 500,
       "prefersSiege": true,
@@ -213,7 +241,9 @@
         "ranged": 100,
         "cavalry": 100
       },
-      "claimRadius": 3
+      "claimRadius": 3,
+      "raidUnits": 2,
+      "guardUnits": 2
     }
   ]
 }

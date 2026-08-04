@@ -135,6 +135,24 @@ export interface CityState {
 export const MAX_ARMY_UNITS = 20;
 
 /**
+ * What an army was raised to do — docs/MECHANICS.md §8.
+ *
+ * The player's armies are always `field`; this is how a **rival realm** divides its forces, and
+ * it exists because one behaviour for every stack produces one behaviour for every realm. A realm
+ * that sends everything at the objective leaves its border naked and its fields unclaimed; a realm
+ * that sends nothing never takes a city.
+ *
+ * - `field` — the war. Joins the realm's one objective, per §8.
+ * - `raid` — a small, fast stack, cavalry for preference, sent **deep** past the frontier.
+ * - `claim` — a single unit tidying unclaimed ground near home. Feet, not soldiers.
+ * - `guard` — sits on the frontier settlement nearest an enemy and does not leave it.
+ *
+ * Part of the save because it is a standing intention, not a monthly decision: an army re-rolled
+ * into a different job every month is an army that never finishes one.
+ */
+export type ArmyRole = 'field' | 'raid' | 'claim' | 'guard';
+
+/**
  * A field army.
  *
  * Movement is fixed-point. An army banks **march points** each tick and spends them entering
@@ -152,6 +170,8 @@ export interface ArmyState {
   path: number[];
   /** Banked march points, spent on entering the next tile. */
   march: number;
+  /** What this army was raised to do. Always `field` for the player — see `ArmyRole`. */
+  role: ArmyRole;
 }
 
 // ------------------------------------------------------------------- battles

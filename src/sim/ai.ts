@@ -8,8 +8,8 @@ import {
 import { settlementUpgradeTo } from '../data/buildings';
 import { improvementCost, MAX_IMPROVEMENT_LEVEL, tileOutput } from '../data/improvements';
 import { TERRAIN_PROFILE, type ImprovementKind } from '../data/terrain';
-import { recruitableUnits, type Unit } from '../data/units';
-import { featureAt, inBounds, terrainAt, tileIndex, type World } from '../data/world';
+import { recruitableUnits, unitById, type Unit } from '../data/units';
+import { featureAt, terrainAt, type World } from '../data/world';
 import { armiesOf, defenceOf, mobilise, stackSize, stackSoldiers } from './armies';
 import { defenderAdvantage, openFieldAdvantage } from './battle';
 import {
@@ -25,10 +25,12 @@ import {
   settlementUpgradeBlock,
 } from './construction';
 import { beginSiege, RELIEF_RANGE, siegeTarget } from './conquest';
+import { landmassOf, reachedIn, sameLandmass, walkingDistanceFrom } from './geography';
 import { freeManpower } from './manpower';
 import { blockedBy, findPath, orderMove } from './movement';
 import {
   MAX_ARMY_UNITS,
+  type ArmyRole,
   nextRandomInt,
   type ArmyState,
   type CityState,
@@ -61,6 +63,24 @@ interface Mind {
   character: AiPersonalityProfile;
   /** Soldiers each realm has under arms, by faction index. Computed once a month, shared. */
   strength: readonly number[];
+  /**
+   * True walking distance from this realm's nearest settlement to every tile on the map, and
+   * `UNREACHABLE` for everywhere its armies could never get to on foot.
+   *
+   * One breadth-first sweep a month, per realm — see geography.ts. It replaces the straight-line
+   * measure this used to campaign on, which counted a city across a strait as a near neighbour and
+   * pinned whole realms on objectives they could not reach.
+   */
+  home: Int32Array;
+  /**
+   * The landmasses this realm can reach that still have unclaimed ground on them.
+   *
+   * A claiming stack can only ever claim on the landmass it is standing on, but a stack is founded
+   * wherever a garrison happens to spill over — so an empire spanning Iberia and Anatolia founded
+   * all of its claimers in Europe and left the Sahara behind Morocco bare for the whole campaign.
+   * Consulted when the role is chosen, so a claimer is only raised where there is work for it.
+   */
+  bare: ReadonlySet<number>;
 }
 
 export function runAi(state: SimState, world: World): void {
@@ -76,7 +96,24 @@ export function runAi(state: SimState, world: World): void {
     const wasted = nextRandomInt(state, 1000) < level.ditherPermille;
     if (wasted) continue;
 
-    const mind: Mind = { faction, level, character, strength };
+    // Measured from the realm's settlements, so "near" means near to something it holds rather
+    // than near to whichever army happens to be standing closest. One sweep serves every
+    // question this realm asks this month.
+    const home = walkingDistanceFrom(
+      world,
+      state.cities.filter((city) => city.ownerIndex === faction.index).map((city) => city.tileIndex),
+    );
+
+    // One pass over the map, reusing the sweep above: which landmasses still have ground on them
+    // that this realm could walk to and nobody owns.
+    const bare = new Set<number>();
+    for (let index = 0; index < state.tileOwner.length; index++) {
+      if ((state.tileOwner[index] ?? -1) !== -1) continue;
+      if (!Number.isFinite(reachedIn(home, index))) continue;
+      bare.add(landmassOf(world, index));
+    }
+
+    const mind: Mind = { faction, level, character, strength, home, bare };
     develop(state, world, mind);
     levy(state, mind);
     campaign(state, world, mind);
@@ -104,6 +141,15 @@ function realmStrengths(state: SimState): number[] {
   }
   return strength;
 }
+
+/**
+ * A claiming stack is **one unit** — not a tuning number, the definition of the role.
+ *
+ * Claiming ground needs feet, not soldiers, and the whole point of detaching one is that it costs
+ * the war as little as it possibly can. It is stated once because two places depend on it: `muster`
+ * raises exactly this many, and `order` hands anything larger back to the field force.
+ */
+const CLAIM_STACK_UNITS = 1;
 
 function chebyshev(world: World, a: number, b: number): number {
   return Math.max(
@@ -206,9 +252,17 @@ function pick(mind: Mind, options: readonly Option[]): Option | undefined {
 function improve(state: SimState, world: World, mind: Mind): void {
   const cap = improvementCap(state, mind.faction.index);
   if (cap <= 0) return;
-  // Only one piece of work at a time, realm-wide — an AI with ten half-dug mines has none.
+
+  // **How many diggings at once is a difficulty lever.** It used to be one, realm-wide, for
+  // everybody — so a realm holding forty tiles finished roughly one farm a year and its conquests
+  // stayed bare ground for a century. A King now runs four. It is still a small number on purpose:
+  // an AI with ten half-dug mines has none.
+  let underway = 0;
   for (let i = 0; i < state.improvementMonths.length; i++) {
-    if ((state.improvementMonths[i] ?? 0) > 0 && state.tileOwner[i] === mind.faction.index) return;
+    if ((state.improvementMonths[i] ?? 0) > 0 && state.tileOwner[i] === mind.faction.index) {
+      underway += 1;
+      if (underway >= mind.level.improvementsAtOnce) return;
+    }
   }
 
   let bestTile = -1;
@@ -292,9 +346,12 @@ function levy(state: SimState, mind: Mind): void {
   // every border on the map freezes. Too much and the surplus it can never march has nowhere to
   // go but the garrisons — where it becomes a defence nobody can attack either, which freezes
   // the map from the other direction. The first version of this file did both in turn.
+  // **Scaled by what the realm holds, and capped by nothing else.** Since 0.17.1 there is no
+  // ceiling on how many armies a realm may field: if it can pay for troops and spare the people,
+  // it raises them. A realm of nine cities wants nine settlements' worth of army, and the limits
+  // that remain are the honest ones — the treasury, the manpower ceiling and the levy floors.
   const wanted =
-    Math.min(mind.level.maxArmies, held.length) * mind.level.armyUnits +
-    held.length * mind.character.garrisonKeep;
+    held.length * mind.level.armyUnits + held.length * mind.character.garrisonKeep;
   if (forceOf(state, mind.faction.index) >= wanted) return;
   if (mind.faction.monthlyIncome.gold <= 0) return;
 
@@ -398,11 +455,14 @@ function campaign(state: SimState, world: World, mind: Mind): void {
    * The weakest stack draws the job, which is the right one for it — claiming ground needs feet,
    * not soldiers, and the strongest army is the one the objective needs.
    */
-  const settler = objective
-    ? [...armies]
-        .filter((army) => army.path.length === 0)
-        .sort((a, b) => stackSize(a.units) - stackSize(b.units) || a.id - b.id)[0]
-    : undefined;
+  // Since 0.16.0 a realm raises **dedicated** claiming stacks — one unit, one job — so this only
+  // still matters for a realm whose tables give it none, or which has not raised one yet.
+  const settler =
+    objective && !armies.some((army) => army.role === 'claim')
+      ? [...armies]
+          .filter((army) => army.path.length === 0 && army.role === 'field')
+          .sort((a, b) => stackSize(a.units) - stackSize(b.units) || a.id - b.id)[0]
+      : undefined;
 
   for (const army of armies) {
     // An army already walking somewhere is left to walk. Re-planning every month would produce
@@ -442,31 +502,120 @@ function muster(state: SimState, world: World, mind: Mind): void {
     const standing = state.armies.some(
       (army) => army.tileIndex === city.tileIndex && army.ownerIndex === mind.faction.index,
     );
-    if (!standing) {
-      if (armiesOf(state, mind.faction.index).length >= mind.level.maxArmies) continue;
-      // And a *second* stack has to be worth founding. One spare unit marching off on its own is
-      // an army in name only: it dies to the first village it meets, and it uses up one of the
-      // few army slots the realm has. It does not have to be a full army, though — `regroup`
-      // walks understrength stacks round the realm's garrisons until they fill up.
-      if (fielded > 0 && spare < Math.max(2, Math.floor(mind.level.armyUnits / 3))) continue;
-    }
+    // **No cap on how many armies a realm fields.** It raises what it can pay for and spare the
+    // people for; if that is nine stacks, it is nine stacks. A *second* stack still has to be
+    // worth founding, though — one spare unit marching off alone is an army in name only and dies
+    // to the first village it meets. It need not be full: `regroup` walks understrength stacks
+    // round the realm's garrisons until they fill up.
+    if (!standing && fielded > 0 && spare < 2) continue;
+
+    // What this stack is for decides how big it is and what goes in it, so it is chosen before
+    // anything is picked out of the garrison rather than after.
+    let role = standing ? 'field' : nextRole(state, world, mind);
+
+    // **A claimer is only raised where there is ground for it to claim.** It can never leave the
+    // landmass it was founded on, so one raised in a settlement whose continent is already full is
+    // a unit taken out of the war to walk in circles — and, worse, it fills the realm's claiming
+    // quota, so the settlement that *is* next to bare ground never gets one.
+    if (role === 'claim' && !mind.bare.has(landmassOf(world, city.tileIndex))) role = 'field';
+
+    const wanted =
+      role === 'claim' ? CLAIM_STACK_UNITS : role === 'raid' ? mind.character.raidUnits : spare;
+    const room = Math.min(spare, wanted, MAX_ARMY_UNITS);
+    if (room <= 0) continue;
+
+    // A raiding column wants horse and nothing else if it can get it — the whole value of a raid
+    // is arriving somewhere before the defence does, and foot now takes two months a tile.
+    const order =
+      role === 'raid'
+        ? Object.keys(city.garrison).sort(
+            (a, b) =>
+              (unitById(b)?.strategicSpeed ?? 0) - (unitById(a)?.strategicSpeed ?? 0) ||
+              a.localeCompare(b),
+          )
+        : Object.keys(city.garrison).sort();
 
     const picks: Record<string, number> = {};
     let taken = 0;
     let skipped = 0;
-    for (const id of Object.keys(city.garrison).sort()) {
+    for (const id of order) {
       for (let i = 0; i < (city.garrison[id] ?? 0); i++) {
         if (skipped < mind.character.garrisonKeep) {
           skipped += 1;
           continue;
         }
-        if (taken >= spare || taken >= MAX_ARMY_UNITS) break;
+        if (taken >= room) break;
         picks[id] = (picks[id] ?? 0) + 1;
         taken += 1;
       }
     }
-    if (taken > 0) mobilise(state, world, city, picks);
+    if (taken > 0) mobilise(state, world, city, picks, role);
   }
+}
+
+/**
+ * What the next army this realm raises should be for — docs/MECHANICS.md §8.
+ *
+ * **Difficulty says how many specialists a realm may run; personality says whether it wants them
+ * and how big they are.** A Recruit gets one army and it is the war. A Defensive King holds two
+ * frontier settlements with three units each and still fields a main force.
+ *
+ * Filled in a fixed order — guards, then claimers, then raiders, then the field — so the shape a
+ * realm ends up with is a property of its tables rather than of which settlement happened to have
+ * a spare unit first. The field force is the default and the remainder, which is what keeps a
+ * realm capable of taking a city at all.
+ */
+function nextRole(state: SimState, world: World, mind: Mind): ArmyRole {
+  const mine = armiesOf(state, mind.faction.index);
+  const count = (role: ArmyRole) => mine.filter((army) => army.role === role).length;
+
+  // Nothing is detached until the realm has a war to detach from. A realm whose first army rides
+  // off raiding never takes anything, and its one stack is its entire ability to act.
+  if (mine.length === 0) return 'field';
+
+  // **Half the armies, rounded up, always belong to the field force.** Without the reserve a realm
+  // posts a guard, raises a claimer and has nothing left to fight the war with — a realm with
+  // hobbies rather than a war. Measured against what it actually fields rather than against a cap,
+  // because since 0.17.1 there is no cap: a realm of twenty armies may detach ten.
+  const detached = mine.length - count('field');
+  if (detached >= Math.floor(mine.length / 2)) return 'field';
+
+  // **The quotas scale with the realm.** They are per four settlements rather than absolute: with
+  // no cap on armies any more, a fixed "two raiding columns" would mean an empire of thirty cities
+  // ran the same two a village does. Difficulty still sets the rate.
+  const scale = Math.max(1, Math.ceil(state.cities.filter((c) => c.ownerIndex === mind.faction.index).length / 4));
+  const posts = Math.min(
+    mind.level.guardStacks * scale,
+    frontierSettlements(state, world, mind).length,
+  );
+  const wantsGuard = count('guard') < posts;
+  const wantsRaid = mind.character.raidUnits > 0 && count('raid') < mind.level.raidStacks * scale;
+
+  // **The personality is a pair of odds, not an ordering.** Since 0.17.0 no realm has a distance
+  // beyond which it stops looking for something to conquer, so what makes one realm feel different
+  // from another is what it does with the armies it raises: Ambitious sends two in five off
+  // raiding and posts one in ten to the border, Defensive does very nearly the reverse, and
+  // Peaceful never raids at all.
+  //
+  // Rolled once, from `state.rng`, so the split is a property of the campaign seed rather than of
+  // which settlement happened to have a spare unit this month — and so a reloaded save produces
+  // the same realm it did before.
+  const roll = nextRandomInt(state, 1000);
+  if (wantsRaid && roll < mind.character.raidPermille) return 'raid';
+  if (wantsGuard && roll < mind.character.raidPermille + mind.character.guardPermille) {
+    return 'guard';
+  }
+
+  // Claiming is the fallback rather than a competitor, because it is the one job that needs no
+  // dedicated stack: `campaign` already hands it to the weakest idle field army when no claimer
+  // exists. Spending a scarce detachment slot on a thing the realm gets free is how raiders and
+  // border guards failed to appear at all in 0.16.0.
+  //
+  // **Scaled like the others**, and it was not. A realm of thirty cities ran the same one or two
+  // claimers a village did, so with 139 armies on the map a century in there were two claiming
+  // stacks in the entire world — and a fifth of the land was still bare.
+  if (count('claim') < mind.level.claimStacks * scale) return 'claim';
+  return 'field';
 }
 
 /**
@@ -485,7 +634,39 @@ function order(
   /** Whether this is the army filling in the borders this month. See `campaign`. */
   mayClaim: boolean,
 ): void {
+  // **A claiming stack that has grown is not a claiming stack.** Nothing kept one at one unit
+  // once it existed: `mobilise` tops up whatever army is already standing on the settlement and
+  // keeps that army's role, and `occupy` folds any friendly stack it walks into. So a realm ended
+  // up with seventeen units labelled `claim`, ferrying themselves to one bare field at a time and
+  // taken out of the war for the whole campaign — which is why the map stopped filling in around
+  // year 1430 while nine "claimers" stood on it.
+  //
+  // Handing it back to the war costs the realm nothing it was using, and frees the quota so
+  // `muster` founds a fresh single unit for the job.
+  if (army.role === 'claim' && stackSize(army.units) > CLAIM_STACK_UNITS) army.role = 'field';
+
   if (relieve(state, world, army, mind)) return;
+
+  // **A border guard holds its settlement and does not go anywhere else.** Relieving a siege is
+  // the one thing that moves it, and that is handled above — a garrison that abandons its post
+  // to chase an objective is not a garrison, and the border it was watching is why it exists.
+  if (army.role === 'guard') {
+    const post = frontierSettlements(state, world, mind)[0];
+    if (post && army.tileIndex !== post.tileIndex) orderMove(state, world, army.id, post.tileIndex);
+    return;
+  }
+
+  // A claiming stack only ever tidies ground. It is one unit; sending it at a city would lose it
+  // for nothing, and the ring around a realm's settlements is never finished for long.
+  //
+  // **And it has no radius at all.** This is the stack whose entire job is unclaimed ground, so
+  // bounding it was what left whole regions bare — see `pickClaim`.
+  if (army.role === 'claim') {
+    const ground = pickClaim(state, world, army, mind, Number.POSITIVE_INFINITY);
+    if (ground >= 0) orderMove(state, world, army.id, ground);
+    else regroup(state, world, army, mind);
+    return;
+  }
 
   const gates = siegeTarget(state, world, army);
   if (gates) {
@@ -505,10 +686,30 @@ function order(
   // brought back through, and nothing worth improving. Consolidating first is slower and worth
   // far more, and it stops of its own accord: once the ring around every settlement is claimed
   // there are no candidates left and the realm goes to war.
+  // A *field* army tidying up on the way is bounded by `claimRadius`, and must be: it is the war,
+  // and an unbounded search would always find it one more field to walk to.
+  //
+  // **Unless there is no war.** The radius exists only to stop a field army being distracted from
+  // an objective, so a realm that has no objective — nothing on the map it can reach and beat — is
+  // not being kept for anything, and the bound does the opposite of its job: it makes the army
+  // stand still next to ground it could have taken. This is the Moors, who took Fez and Marrakesh
+  // and then sat on the coast for a century with the Sahara bare four tiles inland.
   if (mayClaim) {
-    const ground = pickClaim(state, world, army, mind);
+    const bound = objective ? mind.character.claimRadius : Number.POSITIVE_INFINITY;
+    const ground = pickClaim(state, world, army, mind, bound);
     if (ground >= 0) {
       orderMove(state, world, army.id, ground);
+      return;
+    }
+  }
+
+  // Raiders ignore the realm's objective entirely and ride for the deepest thing they can reach.
+  // Falling back to the war rather than to standing still keeps a column useful once it has run
+  // out of anywhere to raid.
+  if (army.role === 'raid') {
+    const prize = pickRaid(state, world, mind, army);
+    if (prize) {
+      march(state, world, army, prize, mind);
       return;
     }
   }
@@ -521,49 +722,128 @@ function order(
 }
 
 /**
+ * This realm's settlements that face somebody else, nearest to a rival first.
+ *
+ * "Frontier" means **walking distance to the nearest hostile settlement**, so an inland capital
+ * three provinces behind the line is never garrisoned against an enemy who would have to march
+ * through two other cities to reach it. A realm with no neighbours it can walk to has no frontier
+ * and posts no guards — which is correct, and is why an island realm does not tie up half its
+ * army watching a coast.
+ */
+function frontierSettlements(state: SimState, world: World, mind: Mind): CityState[] {
+  const hostile = state.cities
+    .filter((city) => city.ownerIndex !== mind.faction.index)
+    .map((city) => city.tileIndex);
+  if (hostile.length === 0) return [];
+
+  const fromEnemies = walkingDistanceFrom(world, hostile);
+  return state.cities
+    .filter((city) => city.ownerIndex === mind.faction.index)
+    .map((city) => ({ city, threat: reachedIn(fromEnemies, city.tileIndex) }))
+    .filter((entry) => Number.isFinite(entry.threat))
+    .sort((a, b) => a.threat - b.threat || a.city.cityIndex - b.city.cityIndex)
+    .map((entry) => entry.city);
+}
+
+/**
+ * Where a raiding column goes: **past the frontier, not at it.**
+ *
+ * A raid is worth running because a realm's strength is on its border and its wealth is not. The
+ * target is therefore the enemy settlement this realm can reach that is *furthest* into hostile
+ * ground rather than nearest — within the personality's reach, doubled, because riding deep is
+ * the entire point and a raider that stops at the first walls is just a small field army.
+ *
+ * It takes whatever it finds. A raiding column that meets a real garrison dies, and that is a
+ * fair price for a stack of two or three the realm chose to gamble.
+ */
+function pickRaid(state: SimState, world: World, mind: Mind, army: ArmyState): CityState | undefined {
+  let best: CityState | undefined;
+  let deepest = -1;
+
+  for (const city of state.cities) {
+    if (city.ownerIndex === mind.faction.index) continue;
+    if (!willAttack(state, city, mind)) continue;
+    if (!sameLandmass(world, army.tileIndex, city.tileIndex)) continue;
+
+    const depth = reachedIn(mind.home, city.tileIndex);
+    if (!Number.isFinite(depth)) continue;
+    if (depth > deepest || (depth === deepest && best && city.cityIndex < best.cityIndex)) {
+      deepest = depth;
+      best = city;
+    }
+  }
+  return best;
+}
+
+/**
  * The nearest unclaimed tile worth walking onto, or -1.
  *
  * **Nearest to one of our own settlements first, and the army's own distance breaks the tie** —
  * so a realm grows as a blob around each of its cities rather than a thread toward a target, and
  * two armies do not both cross the realm to reach the same field.
  *
- * Only tiles within `claimRadius` of a settlement are considered, which is both what bounds the
- * behaviour and what bounds the cost: the scan is a small box around each settlement rather than
- * a sweep of all 2,450 tiles.
+ * `bound` is how far from the realm's settlements to look, and the two callers want quite
+ * different answers. A **field army** tidying the border on its way to a war is held to
+ * `claimRadius`, because an unbounded search would always hand it one more field and it would
+ * never arrive anywhere. A **dedicated claiming stack** is given `Infinity`, because unclaimed
+ * ground is the entire job and it is not needed for the war.
+ *
+ * **The bound used to apply to both, and that is why the map was never finished.** Every realm
+ * stopped three tiles from its own settlements, so any ground further than that from *any* city on
+ * the map — the north-west corner of France, the Danish peninsula, the deep Sahara behind the
+ * Moors, the middle of Britain — was ground no realm ever had a reason to walk to. A century in,
+ * 318 of 1,692 land tiles were still bare, and 176 of them were seven or more tiles from the
+ * nearest settlement in the world: permanently out of reach of a rule that only ever looked three.
+ *
+ * **Distance is walking distance.** A field on the far bank of a river mouth is as far as the walk
+ * around it and not the two tiles it looks, and a tile with no route at all is skipped outright —
+ * otherwise it wins on straight-line closeness, the army is ordered somewhere it cannot get to,
+ * and the ground next door stays unclaimed for the rest of the campaign.
  */
-function pickClaim(state: SimState, world: World, army: ArmyState, mind: Mind): number {
-  const radius = mind.character.claimRadius;
+function pickClaim(
+  state: SimState,
+  world: World,
+  army: ArmyState,
+  mind: Mind,
+  bound: number,
+): number {
+  // Ground another of this realm's stacks is already walking to. Without this every claimer picks
+  // the same nearest field and a realm running eight of them does one stack's work eight times.
+  const spokenFor = new Set<number>();
+  for (const other of state.armies) {
+    if (other.ownerIndex !== mind.faction.index || other.id === army.id) continue;
+    const destination = other.path[other.path.length - 1];
+    if (destination !== undefined) spokenFor.add(destination);
+  }
+
   let best = -1;
   let bestFromCity = Number.POSITIVE_INFINITY;
   let bestFromArmy = Number.POSITIVE_INFINITY;
 
-  for (const city of state.cities) {
-    if (city.ownerIndex !== mind.faction.index) continue;
-    const cx = city.tileIndex % world.width;
-    const cy = Math.floor(city.tileIndex / world.width);
+  // A sweep of all 2,450 tiles rather than a box per settlement. It is one pass over a typed
+  // array, once a month per claiming stack, and the box was never a saving worth the ground it
+  // cost — the expensive checks are still last, and most tiles fail the first one.
+  for (let index = 0; index < state.tileOwner.length; index++) {
+    // Unclaimed ground only. Taking a rival's tile is an act of war and belongs to the objective,
+    // not to tidying up the border.
+    if ((state.tileOwner[index] ?? -1) !== -1) continue;
+    if (spokenFor.has(index)) continue;
 
-    for (let dy = -radius; dy <= radius; dy++) {
-      for (let dx = -radius; dx <= radius; dx++) {
-        const x = cx + dx;
-        const y = cy + dy;
-        if (!inBounds(world, x, y)) continue;
+    // Infinity is water or another landmass, and `Infinity > Infinity` is false — so unreachable
+    // ground has to be excluded by name rather than by the bound, even an infinite one.
+    const fromCity = reachedIn(mind.home, index);
+    if (!Number.isFinite(fromCity) || fromCity > bound) continue;
 
-        const index = tileIndex(world, x, y);
-        // Unclaimed ground only. Taking a rival's tile is an act of war and belongs to the
-        // objective, not to tidying up the border.
-        if ((state.tileOwner[index] ?? -1) !== -1) continue;
-        if (blockedBy(state, world, army, index, true) !== null) continue;
+    const fromArmy = chebyshev(world, index, army.tileIndex);
+    if (fromCity > bestFromCity) continue;
+    if (fromCity === bestFromCity && fromArmy >= bestFromArmy) continue;
 
-        const fromCity = Math.max(Math.abs(dx), Math.abs(dy));
-        const fromArmy = chebyshev(world, index, army.tileIndex);
-        if (fromCity > bestFromCity) continue;
-        if (fromCity === bestFromCity && fromArmy >= bestFromArmy) continue;
+    if (!sameLandmass(world, army.tileIndex, index)) continue;
+    if (blockedBy(state, world, army, index, true) !== null) continue;
 
-        best = index;
-        bestFromCity = fromCity;
-        bestFromArmy = fromArmy;
-      }
-    }
+    best = index;
+    bestFromCity = fromCity;
+    bestFromArmy = fromArmy;
   }
   return best;
 }
@@ -584,7 +864,7 @@ function relieve(state: SimState, world: World, army: ArmyState, mind: Mind): bo
       (city) =>
         city.ownerIndex === mind.faction.index &&
         city.siege !== null &&
-        chebyshev(world, city.tileIndex, army.tileIndex) <= mind.character.reach,
+        sameLandmass(world, city.tileIndex, army.tileIndex),
     )
     .sort(
       (a, b) =>
@@ -720,6 +1000,14 @@ function atTheWalls(
  *
  * Nearest to the border wins, so a realm eats outward from what it holds instead of walking
  * across Europe to the juiciest target on the map.
+ *
+ * **Distance is walking distance, and unreachable is not a distance at all.** Straight lines nearly
+ * broke this: a settlement one diagonal step across a strait measured as the nearest thing on the
+ * map, so it won the comparison, became the objective, and stayed the objective every month while
+ * no army could ever arrive. A realm pinned that way never attacks anything, and the ones it could
+ * have taken were never even considered — the loop stops at the first thing nearer than the best so
+ * far. Measuring the way an army actually moves makes an unreachable city infinitely far, which is
+ * the truth, and lets the realm get on with what it can reach.
  */
 function pickObjective(
   state: SimState,
@@ -736,18 +1024,20 @@ function pickObjective(
   for (const city of state.cities) {
     if (city.ownerIndex === mind.faction.index) continue;
 
-    const fromHome = border.reduce(
-      (near, own) => Math.min(near, chebyshev(world, city.tileIndex, own.tileIndex)),
-      Number.POSITIVE_INFINITY,
-    );
-    if (fromHome > mind.character.reach) continue;
+    // **No distance limit.** Every realm is trying to conquer the world; what varies between them
+    // is how they go about it, not how far they are willing to look. Infinity still means across
+    // water, which is the honest answer and the one thing that genuinely rules a target out.
+    const fromHome = reachedIn(mind.home, city.tileIndex);
+    if (!Number.isFinite(fromHome)) continue;
     // Cities are scanned in index order, so a strict `<` leaves the lowest index holding a tie.
     if (fromHome >= bestDistance) continue;
     if (!willAttack(state, city, mind)) continue;
 
-    // Every army close enough to march there is counted, because they are all about to be sent.
+    // Every army that could arrive is counted, because they are all about to be sent. Only the sea
+    // excludes one now: an army on the wrong side of it contributes nothing to the odds, and
+    // counting it is how a realm talks itself into an attack it cannot make.
     const force = armies
-      .filter((army) => chebyshev(world, army.tileIndex, city.tileIndex) <= mind.character.reach * 2)
+      .filter((army) => sameLandmass(world, army.tileIndex, city.tileIndex))
       .reduce((men, army) => men + stackSoldiers(army.units), 0);
     if (force === 0) continue;
 
@@ -854,6 +1144,8 @@ function march(
  * did that at once and the map set like concrete for eighty years.
  */
 function regroup(state: SimState, world: World, army: ArmyState, mind: Mind): void {
+  // `armyUnits` is what a realm considers a full stack — a target, not a ceiling. The only hard
+  // limit is the game's own twenty-per-tile.
   if (stackSize(army.units) >= Math.min(MAX_ARMY_UNITS, mind.level.armyUnits)) return;
 
   let muster: CityState | undefined;

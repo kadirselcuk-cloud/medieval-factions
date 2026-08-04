@@ -13,6 +13,7 @@ import { BattleView } from './BattleView';
 import { BottomBar } from './BottomBar';
 import { GameMenu } from './GameMenu';
 import { MapView } from './MapView';
+import { RealmWatch } from './RealmWatch';
 import { RosterMenu, type RosterKind } from './RosterMenu';
 import { SelectionPanel } from './SelectionPanel';
 import { StartScreen } from './StartScreen';
@@ -149,6 +150,22 @@ function Campaign({
     [game.version, state, world],
   );
 
+  /**
+   * **Observer mode.** A realm that no longer exists sees nothing, and that is the problem.
+   *
+   * Sight is derived from ground held, so the moment the player's last settlement falls their
+   * vision is a mask of zeroes: every rival army, every border and every allegiance vanishes, and
+   * a Europe still very much at war looks like a Europe that has stopped. The campaign keeps
+   * running — nothing pauses on defeat — so the only thing missing was being able to watch it.
+   *
+   * There is also nothing left to hide. Fog exists to keep a player from reading a board they
+   * have not earned; a player with no realm has no advantage left to protect.
+   */
+  const observing = !state.factions[state.playerFactionIndex]?.alive;
+
+  /** CHEAT — remove before release. The cheat and observer mode reveal the map the same way. */
+  const unfogged = observing || game.fogRevealed;
+
   /*
    * And what it remembers — the 62% wash, as against the black beyond it.
    *
@@ -259,8 +276,8 @@ function Campaign({
           world={world}
           territory={territory}
           armies={armies}
-          vision={game.fogRevealed ? null : vision}
-          known={game.fogRevealed ? null : state.discovered}
+          vision={unfogged ? null : vision}
+          known={unfogged ? null : state.discovered}
           selection={selected?.index ?? null}
           onHover={setHovered}
           onSelect={handleMapSelect}
@@ -273,6 +290,14 @@ function Campaign({
             <button onClick={() => setMarching(null)}>Cancel</button>
           </div>
         )}
+        {/* Every realm's economy, while the map is revealed — by the cheat or by defeat. */}
+        {unfogged && <RealmWatch state={state} roster={roster} />}
+
+        {/*
+          `unfogged` gates the panel as well as the map. Observer mode and the cheat both draw
+          the whole world, and a tile the player can plainly see but the panel refuses to read
+          out is worse than either state on its own.
+        */}
         {selected && (
           <SelectionPanel
             key={selected.index}
@@ -281,7 +306,7 @@ function Campaign({
             state={state}
             world={world}
             roster={roster}
-            visible={vision[selected.index] === 1}
+            visible={unfogged || vision[selected.index] === 1}
             onMarch={setMarching}
             onClose={() => setSelected(null)}
           />
@@ -402,7 +427,10 @@ function Verdict({
     return (
       <div className="verdict verdict--lost">
         <h2>Your realm is extinguished</h2>
-        <p>{roster[state.playerFactionIndex]?.name} holds neither a settlement nor an army.</p>
+        <p>
+          {roster[state.playerFactionIndex]?.name} holds neither a settlement nor an army. The
+          campaign runs on, and the fog is lifted — {alive.length} realms are still in the field.
+        </p>
       </div>
     );
   }

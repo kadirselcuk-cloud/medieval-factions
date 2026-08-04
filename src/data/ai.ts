@@ -41,9 +41,13 @@ const difficultySchema = z.object({
   incomePermille: z.number().int().positive(),
   /** Strength ratio it wants over a target before it will commit, per-mille. */
   oddsPermille: z.number().int().positive(),
-  /** Field armies it will keep under arms at once. */
-  maxArmies: z.number().int().positive(),
-  /** Units it wants in each of them. */
+  /**
+   * Units a realm considers a full stack — **a target, not a ceiling.**
+   *
+   * There is no limit on how many armies a realm may field. It raises what it can pay for and
+   * spare the people for; the limits that remain are the honest ones — the treasury, the manpower
+   * ceiling and the levy floors. `maxArmies` was removed in 0.17.1 for exactly that reason.
+   */
   armyUnits: z.number().int().positive(),
   /** Chance per month it simply wastes the month, per-mille. This is the "makes mistakes" lever. */
   ditherPermille: z.number().int().min(0).max(1000),
@@ -58,6 +62,26 @@ const difficultySchema = z.object({
   reacts: z.boolean(),
   /** Whether it develops its tiles at all. */
   improves: z.boolean(),
+  /**
+   * How many of this realm's armies may be detached from the main war — docs/MECHANICS.md §8.
+   *
+   * The difficulty decides **how many** specialists a realm can run; the personality decides how
+   * big each one is and whether it wants them at all. A Recruit fields one army and it is the war;
+   * a King can afford two raiding columns and two border garrisons on top of its field force.
+   *
+   * Detachments come out of the armies a realm already fields, so it never gets more troops for
+   * having them — it gets a different shape. **[GEN]**
+   */
+  raidStacks: z.number().int().nonnegative(),
+  guardStacks: z.number().int().nonnegative(),
+  claimStacks: z.number().int().nonnegative(),
+  /**
+   * Tile improvements a realm may have under construction at once.
+   *
+   * It was one, realm-wide, for every difficulty — so a realm holding forty tiles dug roughly one
+   * farm a year and its conquests stayed bare ground for a century. **[GEN]**
+   */
+  improvementsAtOnce: z.number().int().positive(),
 });
 
 const buildWeightsSchema = z.object({
@@ -79,8 +103,17 @@ const personalitySchema = z.object({
   blurb: z.string().min(1),
   /** Multiplies the difficulty's odds requirement. Below 1000 is braver, above it is warier. */
   aggressionPermille: z.number().int().positive(),
-  /** Tiles beyond its own borders it will campaign, Chebyshev. */
-  reach: z.number().int().positive(),
+  /**
+   * The chance, per army raised, that it rides off raiding rather than joining the war — and the
+   * chance it is posted to the border instead. Per-mille; whatever is left over is a field army.
+   *
+   * **These replaced `reach` in 0.17.0.** Every realm now tries to conquer the world and none has
+   * a distance beyond which it stops looking, so what separates one realm from another is no
+   * longer *how far* it will go but **what it does with the armies it has**. Peaceful raids at 0
+   * and garrisons heavily; Ambitious is the reverse.
+   */
+  raidPermille: z.number().int().min(0).max(1000),
+  guardPermille: z.number().int().min(0).max(1000),
   /**
    * How far around each of its settlements it will fill in unclaimed ground before looking
    * further afield.
@@ -90,6 +123,16 @@ const personalitySchema = z.object({
    * actually be brought back through.
    */
   claimRadius: z.number().int().positive(),
+  /**
+   * Units in one raiding column, or **0 for a realm that does not raid at all** — Peaceful.
+   *
+   * Small and fast on purpose: a raid is not a second field army, it is a few riders past the
+   * frontier making a nuisance of themselves where the walls are not. Cavalry for preference,
+   * because since 0.16.0 horse moves twice as fast as foot and depth is the whole point.
+   */
+  raidUnits: z.number().int().nonnegative(),
+  /** Units left standing on each frontier settlement a border garrison holds. */
+  guardUnits: z.number().int().positive(),
   /** Units held back in every settlement before any are sent to the field. */
   garrisonKeep: z.number().int().nonnegative(),
   /**

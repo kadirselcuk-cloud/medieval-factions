@@ -70,7 +70,11 @@ it is tagged **[GEN]** at its definition. None of it is owner-authored truth.
 |---|---|---|
 | Faction colours (14) | `data/factions.json` | placeholder art |
 | Skipping water when claiming a capital's 4 tiles | `src/sim/state.ts` | implemented |
-| Strategic speeds (tiles/month) | `docs/CONTENT.md` §3 | **live** — infantry crosses 4 tiles a month |
+| Strategic speeds | `data/units.json` | **owner-specified in 0.16.0** — foot a tile every 2 months, horse a tile a month |
+| Army role quotas — `raidStacks`, `guardStacks`, `claimStacks`, `improvementsAtOnce` | `data/ai.json` | **live** — how many specialists each difficulty runs |
+| Raid and guard stack sizes, and the raid/guard odds per personality | `data/ai.json` | **live** — the odds themselves; that Peaceful never raids is owner-specified |
+| Half a realm's army slots reserved for the field force | `src/sim/ai.ts` | **live** — without it a Knight has hobbies instead of a war |
+| A raid targets the **deepest** reachable settlement, at any distance | `src/sim/ai.ts` | **live** |
 | Orthogonal-only army movement | `src/sim/movement.ts` | implemented |
 | Which unit each building adds to a settlement's defence | `data/units.json` | implemented |
 | Battle speeds (tiles/battle turn) | `docs/CONTENT.md` §3 | **live** — the lever if infantry spends the battle walking |
@@ -92,7 +96,7 @@ it is tagged **[GEN]** at its definition. None of it is owner-authored truth.
 | Halving every defence bonus (the halved figures themselves) | `src/data/terrain.ts`, `data/buildings.json` | **live** — the owner asked for half; where the scale lands is [GEN] |
 | Consolidation: radius 3 around each settlement, weakest army only | `src/sim/ai.ts` | **live** — decides how blobby the map is and how soon wars start |
 | A field army sees for itself | `src/sim/vision.ts` | **live** — the sight figures themselves are owner-authored |
-| Every AI tuning number — income, odds, army sizes, reach, build weights, levy floors | `data/ai.json` | **live** — the five difficulties and five personalities are owner-named |
+| Every AI tuning number — income, odds, army sizes, build weights, levy floors | `data/ai.json` | **live** — the five difficulties and five personalities are owner-named |
 | Counting units **still in training** against the manpower ceiling | `src/sim/manpower.ts` | **live** — the 20% share itself is owner-authored |
 | Nothing is disbanded when a realm falls below its own ceiling | `src/sim/manpower.ts` | **live** — see OPEN-QUESTIONS, owner to decide |
 | The 10-tile "known" band radiates from **settlements**, not from every owned tile | `src/sim/vision.ts` | **live** — the 10 tiles themselves are owner-authored |
@@ -108,13 +112,13 @@ it is tagged **[GEN]** at its definition. None of it is owner-authored truth.
 
 Tracked in [ROADMAP.md](ROADMAP.md); listed here so nothing quietly disappears.
 
-- Per-faction unit names and the 10 elite units — 0.16.0, to be designed with the owner
-- Faction strengths and weaknesses — 0.16.0
-- The owner’s 2D art, dropped into `data/art.json` as image paths — 0.16.0
+- Per-faction unit names and the 10 elite units — 0.19.0, to be designed with the owner
+- Faction strengths and weaknesses — 0.19.0
+- The owner’s 2D art, dropped into `data/art.json` as image paths — 0.19.0
 - **Diplomacy**, which is where honour goes. `dogpiles`, `attacksRealms` and `bullyFloorPermille`
   are wired, tested and permissive for all five personalities; the Honorable realm gets its
   character back when there is something to be honourable *about*
-- Naval — 0.15.0. Britons and Moors cannot leave their landmass until this exists — **and now
+- Naval — 0.18.0. Britons and Moors cannot leave their landmass until this exists — **and now
   neither can the AI**: a dozen independent cities in Scandinavia, Ireland, Cyprus and North
   Africa survive every campaign because no realm can reach them
 - Capacitor mobile wrap, ad and premium-unlock hooks — 1.0.0

@@ -35,8 +35,11 @@ in [`data/ai.json`](../data/ai.json), so retuning any of it is a data change.
 - **Consolidation radius.** — `PROPOSED`, **[GEN]**. A realm fills unclaimed ground within **3
   tiles** of each settlement before campaigning, and only its weakest army does it. Both numbers
   decide how blobby the map looks and how soon wars start.
-- **Fog of war sight.** — the figures are owner-authored (3 tiles, +1 per tier). **[GEN]**: that a
-  field army sees for itself, and that there is no "explored" memory of ground once seen.
+- **Fog of war sight.** — the figures are owner-authored (3 tiles, +1 per tier), as is the diamond
+  shape from 0.15.0 and the 10-tile known band. **[GEN]**: that a field army sees for itself.
+  - **Is 3 still right now that sight is a diamond?** — `OPEN`. The metric change cut what every
+    radius reveals by more than half (25 tiles rather than 49 at radius 3), so the figures were
+    approved against a shape they no longer describe. Raising `BASE_SIGHT` is a one-line change.
 - **Should the player be told a rival's personality?** — `OPEN`. It is visible in the balance
   panel, which is a developer tool. Learning it through play — or through diplomacy, later — is
   probably the intent, but nothing says so.
@@ -45,11 +48,31 @@ in [`data/ai.json`](../data/ai.json), so retuning any of it is a data change.
   was begun against.
 - ~~**Can the AI reach every settlement?**~~ — **no, and it is not an AI problem.** Scandinavia,
   Ireland, Cyprus and North Africa are unreachable by land, so a dozen independent cities survive
-  any campaign and Iberia is cut off from Britain. The naval phase (0.14.0) fixes it.
-- **Do rival realms deserve a smarter endgame?** — `OPEN`. Two large realms with walls and
-  garrisons correctly decline to attack each other, so a long campaign settles into a balance of
-  power that only the player breaks. That may be the right shape for a game about being the one
-  who breaks it, or it may want something — attrition, ambition, a claim system — to unfreeze it.
+  any campaign and Iberia is cut off from Britain. The naval phase (0.18.0) fixes it.
+- **Do rival realms deserve a smarter endgame?** — `OPEN`, and **smaller than it looked**. Most of
+  the freeze was a bug, fixed in 0.15.0: realms measured distance in straight lines, pinned
+  themselves on cities across water that no army could reach, and never considered the ones they
+  could. Battles used to fall to zero from 1390 and stay there; they now continue to 1450 and
+  cities change hands.
+  - What remains is the genuine version of the question. Fighting is **sporadic rather than
+    sustained**, because two large realms with walls and garrisons correctly decline to attack each
+    other. That may be the right shape for a game about being the one who breaks the balance, or it
+    may want something — attrition, ambition, a claim system — to unfreeze it.
+  - Separately, **14 independent cities survive any campaign** because they are genuinely across
+    water. That one is the naval phase, not the AI.
+
+## Winter attrition — shipped in 0.17.1
+
+- **Does a besieging army suffer it?** — `PROPOSED`: yes, it currently does, because a siege is
+  spent standing on the enemy's ground and that is exactly what the rule describes. The
+  consequence is sharp and was not separately specified: a Capitol's siege clock is **48 months**,
+  which is twelve winters, so a unit outside it has a **28%** chance of still being there when the
+  gates open. Starving out a great city went from something four Heavy Cavalry could do to
+  something twelve are needed for. Villages and Towns are barely affected.
+  - The alternative is exempting a besieger — an army dug in outside a city with a supply line
+    behind it is arguably not the same as one marching through hostile country. Owner to decide.
+- **Should the player be warned before wintering in enemy territory?** — `OPEN`. Nothing in the
+  UI says this rule exists until units start vanishing from the event log.
 
 ## Combat — shipped in 0.9.0, and now measured
 
@@ -115,7 +138,7 @@ two Spear Infantry and kill 8), and the **3× rout rule** fires cleanly in large
   the opening is tight and the first conquest matters enormously. One constant,
   `MANPOWER_SHARE_PERMILLE` in `src/sim/manpower.ts`, and no code depends on its value.
 
-## Due before naval (build phase 0.15.0)
+## Due before naval (build phase 0.18.0)
 
 - **Ship statistics.** — `OPEN`. Only cost, upkeep and building requirement were given. Need
   HP, damage, crew size, build time, and strategic speed for all four ship types.

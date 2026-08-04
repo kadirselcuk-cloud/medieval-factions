@@ -53,7 +53,7 @@ import {
 } from "../sim/armies";
 import { calendarAt } from "../sim/calendar";
 import { beginSiege, siegeTarget } from "../sim/conquest";
-import { assault, halt, SEASON_MOVEMENT } from "../sim/movement";
+import { assault, halt, SEASON_MOVEMENT, SPEED_SCALE } from "../sim/movement";
 import {
   buildOptions,
   cancelImprovement,
@@ -79,6 +79,7 @@ import {
   MAX_ARMY_UNITS,
   TIER_NAME,
   whole,
+  type ArmyRole,
   type ArmyState,
   type CityState,
   type SimState,
@@ -218,7 +219,13 @@ export function SelectionPanel(props: SelectionPanelProps): JSX.Element {
               <div className="panel__owner panel__muted">Beyond your sight</div>
             )}
 
-            <TileFacts tile={tile} state={state} world={world} city={city} />
+            <TileFacts
+              tile={tile}
+              state={state}
+              world={world}
+              city={city}
+              visible={visible}
+            />
 
             {/* Info reports; it never acts. Every button lives in a tab of its own. */}
             <ProgressLines city={city} tile={tile} state={state} />
@@ -232,6 +239,19 @@ export function SelectionPanel(props: SelectionPanelProps): JSX.Element {
                 world={world}
                 onMarch={onMarch}
               />
+            )}
+
+            {/*
+              Anything standing here that is not the player's. Read-only, and shown for **any**
+              tile the player can see — a rival's army used to render nothing at all, and a rival
+              city showed its walls and population but never what was behind them, so the panel
+              was silent about exactly the things worth clicking a tile to find out.
+            */}
+            {visible && army && !playersArmy && (
+              <ForeignArmy army={army} roster={roster} />
+            )}
+            {visible && city && !isPlayers && (
+              <ForeignSettlement city={city} roster={roster} />
             )}
             {!tabbed &&
               isPlayers &&
@@ -283,16 +303,134 @@ export function SelectionPanel(props: SelectionPanelProps): JSX.Element {
   );
 }
 
+/** What a rival army is for, in words. Only the AI assigns roles; the player's are all `field`. */
+const ROLE_LABEL: Record<ArmyRole, string> = {
+  field: "Field army",
+  raid: "Raiding column",
+  guard: "Border garrison",
+  claim: "Settlers",
+};
+
+/**
+ * Somebody else's army, read-only.
+ *
+ * Everything here is already on the map — the marker, its colour, its size — so withholding the
+ * breakdown only made the player count pixels. Fog still decides whether this renders at all.
+ */
+function ForeignArmy({
+  army,
+  roster,
+}: {
+  army: ArmyState;
+  roster: readonly Faction[];
+}): JSX.Element {
+  const owner = roster[army.ownerIndex];
+  const units = Object.entries(army.units).filter(([, count]) => count > 0);
+
+  return (
+    <div className="panel__section">
+      <div className="panel__heading">{owner ? `${owner.name} — army` : "Army"}</div>
+      {units.map(([id, count]) => (
+        <div className="panel__row" key={id}>
+          <span className="panel__label">{unitById(id)?.name ?? id}</span>
+          <span className="panel__value">×{count}</span>
+        </div>
+      ))}
+      <Row label="Soldiers" value={num(stackSoldiers(army.units))} />
+      <Row label="Standing" value={ROLE_LABEL[army.role]} />
+      <Row label="Orders" value={army.path.length > 0 ? "Marching" : "Holding"} />
+    </div>
+  );
+}
+
+/**
+ * Somebody else's settlement, read-only — what would have to be beaten to take it, and what is
+ * standing in it.
+ *
+ * Defenders are derived from tier and buildings and cost nothing; the garrison is what the realm
+ * actually recruited. Both fight, so both are worth knowing before marching on the place.
+ *
+ * **And what it has built.** A rival's walls, its housing and its markets are the whole story of
+ * how a realm got where it is, and the panel used to summarise them into two numbers and throw the
+ * rest away — so a player watching a revealed map could see a Capitol without ever seeing what a
+ * century of AI building actually put in it. Listed in the order the realm built them, because
+ * that order is itself the answer to "what does this AI care about".
+ */
+function ForeignSettlement({
+  city,
+  roster,
+}: {
+  city: CityState;
+  roster: readonly Faction[];
+}): JSX.Element {
+  const defenders = Object.entries(defenceOf(city)).filter(([, n]) => n > 0);
+  const garrison = Object.entries(city.garrison).filter(([, n]) => n > 0);
+  const besieger = city.siege ? roster[city.siege.byIndex] : undefined;
+
+  return (
+    <div className="panel__section">
+      <div className="panel__heading">
+        Built here
+        <span className="panel__muted"> · {city.buildings.length}</span>
+      </div>
+      {city.buildings.length === 0 ? (
+        <p className="panel__note">Nothing but the settlement itself.</p>
+      ) : (
+        city.buildings.map((id, position) => (
+          <div className="panel__row" key={`${id}-${position}`}>
+            <span className="panel__label">{buildingById(id)?.name ?? labelOf(id)}</span>
+            <span className="panel__value panel__muted">
+              {labelOf(buildingById(id)?.line ?? "")}
+            </span>
+          </div>
+        ))
+      )}
+
+      <div className="panel__heading">Defences</div>
+      {defenders.map(([id, count]) => (
+        <div className="panel__row" key={id}>
+          <span className="panel__label">{unitById(id)?.name ?? id}</span>
+          <span className="panel__value">×{count}</span>
+        </div>
+      ))}
+      {garrison.length > 0 && (
+        <>
+          <div className="panel__heading">Garrison</div>
+          {garrison.map(([id, count]) => (
+            <div className="panel__row" key={id}>
+              <span className="panel__label">{unitById(id)?.name ?? id}</span>
+              <span className="panel__value">×{count}</span>
+            </div>
+          ))}
+        </>
+      )}
+      <Row
+        label="Total soldiers"
+        value={num(stackSoldiers(defenceOf(city)) + stackSoldiers(city.garrison))}
+      />
+      {city.siege && (
+        <Row
+          label="Under siege"
+          value={`by ${besieger?.name ?? "someone"} — ${city.siege.monthsRemaining} months left`}
+        />
+      )}
+    </div>
+  );
+}
+
 function TileFacts({
   tile,
   state,
   world,
   city,
+  visible,
 }: {
   tile: TileInfo;
   state: SimState;
   world: World;
   city: CityState | undefined;
+  /** Whether the player may know what has been built here — docs/MECHANICS.md §9. */
+  visible: boolean;
 }): JSX.Element {
   const node = tile.feature?.kind === "resource" ? tile.feature.resource : null;
   const kind = improvementAt(state, tile.index);
@@ -320,6 +458,18 @@ function TileFacts({
       <Row label="Defence" value={`+${Math.round(profile.defence * 100)}%`} />
       {node && (
         <Row label="Node" value={`${node[0]?.toUpperCase()}${node.slice(1)}`} />
+      )}
+      {/*
+        What has actually been dug here, on anybody's ground.
+        The yield line above has always quietly included it, so the panel could tell a player a
+        rival's field was worth six gold without ever telling them it was a field. Only fog
+        withholds it now, which is the rule everything else on this panel follows.
+      */}
+      {visible && kind && (
+        <Row
+          label="Worked as"
+          value={`${IMPROVEMENT_NAME[kind]} · level ${level} of ${MAX_IMPROVEMENT_LEVEL}`}
+        />
       )}
       <Row label="Tile yields" value={`${outputText} / month`} />
       {water > 0 && <Row label="Adjacent water" value={`${water} tiles`} />}
@@ -596,7 +746,7 @@ function Garrison({
         ...(unit.range > 0
           ? [{ label: "Range", value: String(unit.range) }]
           : []),
-        { label: "Speed", value: `${unit.strategicSpeed} tiles a month` },
+        { label: "Speed", value: paceOf(unit.strategicSpeed) },
         { label: "Cost", value: costText(unit.cost) },
         { label: "Takes", value: `${unit.months} months` },
         { label: "Upkeep", value: `${unit.upkeep} gold a month` },
@@ -742,6 +892,23 @@ function Garrison({
   );
 }
 
+/**
+ * A campaign speed in words.
+ *
+ * Speeds are held in hundredths of a tile per month and nothing now moves faster than a tile a
+ * month, so "0.5 tiles a month" would be both ugly and hard to act on. Armies are slow enough
+ * that the useful unit is **months per tile**.
+ */
+function paceOf(centitilesPerMonth: number): string {
+  if (centitilesPerMonth <= 0) return "cannot march";
+  const tiles = centitilesPerMonth / SPEED_SCALE;
+  if (tiles >= 1) {
+    return tiles === 1 ? "1 tile a month" : `${tiles} tiles a month`;
+  }
+  const months = Math.round(SPEED_SCALE / centitilesPerMonth);
+  return `1 tile every ${months} months`;
+}
+
 /** A unit's combat quirks, in words. Read from the roster so they cannot drift from the rules. */
 function unitTraits(unit: Unit): { label: string; value: string }[] {
   const traits: string[] = [];
@@ -817,8 +984,8 @@ function ArmyCard({
         label="Speed"
         value={
           winter
-            ? `${effective} tiles/month · ${speed} in fair weather`
-            : `${speed} tiles/month`
+            ? `${paceOf(effective)} · ${paceOf(speed)} in fair weather`
+            : paceOf(speed)
         }
       />
       <Row

@@ -41,7 +41,20 @@ const unitSchema = z.object({
    * coin flip would be worse to watch, not better. **[GEN]** interpretation.
    */
   accuracy: z.number().min(0).max(1).default(1),
-  strategicSpeed: z.number().int().positive(),
+  /**
+   * Campaign-map speed, authored in **tiles per month** and stored in hundredths of one.
+   *
+   * Fractions are the point: since 0.16.0 foot troops cross a tile every two months (`0.5`) and
+   * horse manages one a month (`1`). The scaling happens here, once, so `Unit.strategicSpeed` is
+   * always the integer the simulation wants and no float ever reaches a save — see `SPEED_SCALE`
+   * in sim/movement.ts.
+   *
+   * Authored to two decimal places at most; anything finer is rounded and would be a lie.
+   */
+  strategicSpeed: z
+    .number()
+    .positive()
+    .transform((tilesPerMonth) => Math.round(tilesPerMonth * 100)),
   battleSpeed: z.number().int().positive(),
   antiCavalry: z.number().default(1),
   rangedResist: z.number().default(0),

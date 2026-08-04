@@ -1,7 +1,13 @@
 import { cityDefence, unitById, type UnitStack } from '../data/units';
 import type { World } from '../data/world';
 import { pushEvent } from './events';
-import { MAX_ARMY_UNITS, type ArmyState, type CityState, type SimState } from './types';
+import {
+  MAX_ARMY_UNITS,
+  type ArmyRole,
+  type ArmyState,
+  type CityState,
+  type SimState,
+} from './types';
 
 /**
  * Field armies, and the line between a settlement's defenders and its mobile troops.
@@ -87,11 +93,20 @@ export function defenceOf(city: CityState): UnitStack {
  * Reinforces the army already there if there is one — "one army per tile" means a settlement
  * can only ever field one stack at a time, and the second mobilisation joins the first.
  */
+/**
+ * Raise an army from a settlement's garrison.
+ *
+ * `role` is what the stack is **for**, and it only ever matters to the rival realms — the player's
+ * armies are all `field` and are commanded a click at a time. Reinforcing a stack already standing
+ * on the settlement keeps that stack's existing role: a raiding column topped up from the city it
+ * rode through is still a raiding column.
+ */
 export function mobilise(
   state: SimState,
   world: World,
   city: CityState,
   picks: UnitStack,
+  role: ArmyRole = 'field',
 ): ArmyResult {
   const wanted = Object.entries(picks).filter(([, count]) => count > 0);
   if (wanted.length === 0) return fail('nothing-selected');
@@ -114,6 +129,7 @@ export function mobilise(
     units: {},
     path: [],
     march: 0,
+    role,
   };
 
   for (const [id, count] of wanted) {

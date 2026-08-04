@@ -62,10 +62,47 @@ export function sightOf(tier: number): number {
   return BASE_SIGHT + Math.max(0, tier - 1);
 }
 
-/** Mark every tile within `radius` of (x, y). Chebyshev — a square, matching the square tiles. */
+/**
+ * Mark every tile within `radius` **of walking distance** of (x, y) — a diamond, not a box.
+ *
+ * Owner-specified, as a picture: sight of 5 reaches 5 tiles along each axis and tapers to a point
+ * at the corners.
+ *
+ * ```
+ *   XXXXXVXXXXX
+ *   XXXXVVVXXXX
+ *   XXXVVVVVXXX
+ *   XXVVVVVVVXX
+ *   XVVVVVVVVVX
+ *   VVVVVOVVVVV
+ *   XVVVVVVVVVX
+ *   XXVVVVVVVXX
+ *   XXXVVVVVXXX
+ *   XXXXVVVXXXX
+ *   XXXXXVXXXXX
+ * ```
+ *
+ * This is **Manhattan distance**, `|dx| + |dy|`, and it is the right metric for this game rather
+ * than merely a rounder one. Armies move **orthogonally only** (docs/MECHANICS.md §3 — diagonals
+ * would let an army cross √2 tiles for the price of one), so taxicab distance is exactly how far a
+ * rider could actually get. Sight and movement now answer the same question with the same
+ * arithmetic.
+ *
+ * Sight used to be Chebyshev — a square, where the corner tiles were free range: a lookout could
+ * see 3 north and 3 north-east, when north-east is half again as far. That is what made the fog
+ * read as a box drawn on the world rather than as somewhere a person can see to.
+ *
+ * A diamond is **less than half the box it replaces** — `2r² + 2r + 1` against `(2r + 1)²`, so a
+ * radius of 10 covers 221 tiles where the square covered 441. Everything that takes a radius
+ * therefore reveals substantially less than it did. That is the intended effect.
+ *
+ * Integer arithmetic throughout, and no `Math.sqrt`: this runs over every tile the realm holds on
+ * every tick.
+ */
 function reveal(mask: Uint8Array, world: World, x: number, y: number, radius: number): void {
   for (let dy = -radius; dy <= radius; dy++) {
-    for (let dx = -radius; dx <= radius; dx++) {
+    const span = radius - Math.abs(dy);
+    for (let dx = -span; dx <= span; dx++) {
       const nx = x + dx;
       const ny = y + dy;
       if (inBounds(world, nx, ny)) mask[tileIndex(world, nx, ny)] = 1;

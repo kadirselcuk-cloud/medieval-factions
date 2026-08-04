@@ -17,7 +17,7 @@ import {
 } from './armies';
 import { TICKS_PER_MONTH } from './calendar';
 import { totalUpkeep } from './construction';
-import { advanceArmies, blockedBy, findPath, halt, MARCH_PER_TILE, orderMove, SEASON_MOVEMENT } from './movement';
+import { advanceArmies, blockedBy, findPath, halt, MARCH_PER_TILE, orderMove, SEASON_MOVEMENT, SPEED_SCALE } from './movement';
 import { createInitialState, recomputeIncome, STARTING_UNIT } from './state';
 import { advanceBy } from './tick';
 import { MAX_ARMY_UNITS, type CityState, type SimState } from './types';
@@ -155,10 +155,10 @@ describe('mustering', () => {
 
 describe('army arithmetic', () => {
   it('marches at its slowest unit', () => {
-    // Light cavalry 8, light infantry 4, sword infantry 3.
-    expect(armySpeed(raise({ light_cavalry: 1 }))).toBe(8);
-    expect(armySpeed(raise({ light_cavalry: 1, light_infantry: 1 }))).toBe(4);
-    expect(armySpeed(raise({ light_cavalry: 1, sword_infantry: 1 }))).toBe(3);
+    // Held in hundredths of a tile a month: horse 1 tile, foot 1 tile every 2 months.
+    expect(armySpeed(raise({ light_cavalry: 1 }))).toBe(SPEED_SCALE);
+    expect(armySpeed(raise({ light_cavalry: 1, light_infantry: 1 }))).toBe(SPEED_SCALE / 2);
+    expect(armySpeed(raise({ light_cavalry: 1, sword_infantry: 1 }))).toBe(SPEED_SCALE / 2);
   });
 
   it('counts soldiers and upkeep from the roster', () => {
@@ -208,12 +208,13 @@ describe('movement', () => {
   });
 
   it('walks the whole path and claims the ground it crosses', () => {
-    const army = raise({ light_infantry: 1 }); // 4 tiles a month
+    const army = raise({ light_infantry: 1 }); // one tile every two months
     const target = nearParis();
     state.tileOwner[target] = -1;
 
     expect(orderMove(state, world, army.id, target)).toEqual({ ok: true, tiles: 1 });
-    advanceBy(state, world, TICKS_PER_MONTH);
+    // Two months on foot in fair weather — but a campaign opens in January, and winter is −40%.
+    advanceBy(state, world, TICKS_PER_MONTH * 4);
 
     expect(army.tileIndex).toBe(target);
     expect(army.path).toEqual([]);
@@ -221,10 +222,14 @@ describe('movement', () => {
   });
 
   // The whole point of the fixed-point march unit: the stated speed is the speed you get.
-  it('takes exactly a month to cross four tiles of plains at speed four', () => {
-    expect(MARCH_PER_TILE / (4 * SEASON_MOVEMENT.spring)).toBe(TICKS_PER_MONTH / 4);
-    // Winter is -40%, so the same four tiles take two and a half months.
-    expect(MARCH_PER_TILE / (4 * SEASON_MOVEMENT.winter)).toBe(50);
+  it('gives exactly the pace the roster states', () => {
+    const foot = SPEED_SCALE / 2; // half a tile a month
+    const horse = SPEED_SCALE; // one tile a month
+
+    expect(MARCH_PER_TILE / (foot * SEASON_MOVEMENT.spring)).toBe(TICKS_PER_MONTH * 2);
+    expect(MARCH_PER_TILE / (horse * SEASON_MOVEMENT.spring)).toBe(TICKS_PER_MONTH);
+    // Winter is -40%, so foot needs most of a third month to cross the same tile.
+    expect(MARCH_PER_TILE / (foot * SEASON_MOVEMENT.winter)).toBe(400);
   });
 
   // March appends rather than replaces, so a route can be laid out one click at a time. Halt
@@ -246,7 +251,7 @@ describe('movement', () => {
     orderMove(state, world, army.id, tileIndex(world, city.x + 1, city.y));
     orderMove(state, world, army.id, tileIndex(world, city.x + 2, city.y));
 
-    advanceBy(state, world, TICKS_PER_MONTH);
+    advanceBy(state, world, TICKS_PER_MONTH * 8); // two tiles on foot, out of a winter start
     expect(army.tileIndex).toBe(tileIndex(world, city.x + 2, city.y));
     expect(army.path).toEqual([]);
   });
@@ -275,16 +280,19 @@ describe('movement', () => {
     const first = raise({ light_infantry: 1 });
     const target = nearParis();
     orderMove(state, world, first.id, target);
-    advanceBy(state, world, TICKS_PER_MONTH);
+    advanceBy(state, world, TICKS_PER_MONTH * 4);
     expect(first.tileIndex).toBe(target);
 
     paris.garrison = { skirmisher: 1 };
     const second = armyById(state, mobiliseOrThrow({ skirmisher: 1 }));
     orderMove(state, world, second.id, target);
-    advanceBy(state, world, TICKS_PER_MONTH);
+    advanceBy(state, world, TICKS_PER_MONTH * 4);
 
-    expect(state.armies).toHaveLength(1);
-    expect(state.armies[0]!.units).toEqual({ light_infantry: 1, skirmisher: 1 });
+    // Ours only. Eight months is long enough for rival realms to field armies of their own, and
+    // `state.armies` holds every faction's.
+    const ours = state.armies.filter((a) => a.ownerIndex === FRANKS);
+    expect(ours).toHaveLength(1);
+    expect(ours[0]!.units).toEqual({ light_infantry: 1, skirmisher: 1 });
   });
 
   function mobiliseOrThrow(units: Record<string, number>): number {

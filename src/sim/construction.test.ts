@@ -20,7 +20,7 @@ import {
   totalUpkeep,
 } from './construction';
 import { deserialise, serialise } from './save';
-import { createInitialState, recomputeIncome } from './state';
+import { createInitialState, recomputeIncome, taxedGold } from './state';
 import { advanceBy, cityGrowth } from './tick';
 import { MILLI, MIN_POPULATION, whole, type CityState, type SimState } from './types';
 
@@ -278,7 +278,7 @@ describe('fishery', () => {
 
     city.buildings.push('fishery');
     recomputeIncome(state, world);
-    expect(faction.monthlyIncome.gold - before).toBe(10 * water);
+    expect(faction.monthlyIncome.gold - before).toBe(taxedGold(10 * water));
   });
 
   it('replaces rather than stacks as the naval line upgrades', () => {
@@ -291,7 +291,7 @@ describe('fishery', () => {
 
     city.buildings.push('fishery', 'dock');
     recomputeIncome(state, world);
-    expect(faction.monthlyIncome.gold - bare).toBe(20 * water);
+    expect(faction.monthlyIncome.gold - bare).toBe(taxedGold(20 * water));
   });
 });
 

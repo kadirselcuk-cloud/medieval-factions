@@ -10,15 +10,29 @@ import { MAX_ARMY_UNITS, type ArmyState, type SimState } from './types';
 /**
  * Marching, pathfinding, and taking ground by standing on it.
  *
- * Movement is integer arithmetic end to end. A unit's strategic speed is tiles per month, and
- * a month is a fixed 120 ticks, so one tile of plains costs `MARCH_PER_TILE` points and an
- * army banks `speed × 100` of them each tick. Every terrain multiplier and the winter penalty
- * land on exact integers, which is what lets a march at 10× produce the same result as the
- * same march watched at 1×.
+ * Movement is integer arithmetic end to end. A month is a fixed 120 ticks, one tile of open
+ * ground costs `MARCH_PER_TILE` points, and an army banks `speed × season%` of them each tick.
+ * Every terrain multiplier and the winter penalty land on exact integers, which is what lets a
+ * march at 10× produce the same result as the same march watched at 1×.
+ *
+ * **Speed is held in hundredths of a tile per month** (`SPEED_SCALE`), not in whole tiles. Since
+ * 0.16.0 the fastest thing in the game crosses one tile a month and the slowest takes two, so
+ * whole tiles per month is no longer a unit fine enough to say anything in — and a half-tile speed
+ * multiplied by a 60% winter would be the first fraction ever to reach the simulation. Data still
+ * reads in tiles per month, in `data/units.json`; the loader scales it once, on the way in.
  */
 
-/** Points to cross one tile of open, unmodified ground. */
-export const MARCH_PER_TILE = TICKS_PER_MONTH * 100;
+/** A unit's `strategicSpeed` is stored in hundredths of a tile per month. */
+export const SPEED_SCALE = 100;
+
+/**
+ * Points to cross one tile of open, unmodified ground.
+ *
+ * `TICKS_PER_MONTH × 100 × SPEED_SCALE`: an army banking `speed` points a tick for a whole month
+ * accumulates exactly `speed / SPEED_SCALE` tiles' worth, at any game speed and with any seasonal
+ * percentage applied, without a division anywhere.
+ */
+export const MARCH_PER_TILE = TICKS_PER_MONTH * 100 * SPEED_SCALE;
 
 /**
  * Seasonal movement, as a percentage — docs/MECHANICS.md §5. Winter is −40%.
@@ -46,16 +60,53 @@ const STEPS: readonly (readonly [number, number])[] = [
   [-1, 0],
 ];
 
-/** March points to enter this tile. Infinite for anything an army cannot walk on. */
-export function tileMarchCost(world: World, index: number): number {
+/**
+ * Ground nobody has claimed slows a march — **20%**, owner-authored.
+ *
+ * An army in its own country has roads it maintains, fords it knows and reeves who feed it. Off
+ * the end of that it is finding its own way.
+ */
+export const UNCLAIMED_MARCH_PERMILLE = 1200;
+
+/**
+ * And a rival's ground slows it by **40%**, owner-authored.
+ *
+ * Twice the penalty of open country, because hostile ground is not merely unfamiliar: the bridges
+ * are down, the villages are emptied and nobody gives directions. It is what makes a deep invasion
+ * an undertaking rather than a walk, and it is why taking the border tiles first is worth doing —
+ * claimed ground is fast ground, so an advance that consolidates behind itself accelerates.
+ */
+export const HOSTILE_MARCH_PERMILLE = 1400;
+
+/**
+ * March points for `factionIndex` to enter this tile. Infinite for anything an army cannot walk on.
+ *
+ * Cost depends on **who holds the ground**, so it changes during a campaign as borders move. That
+ * is safe for the pathfinder: every multiplier is ≥ 1, so the A* heuristic — plain `MARCH_PER_TILE`
+ * per remaining tile — still never overestimates and the route it finds is still optimal.
+ *
+ * Per-mille rather than a fraction so the arithmetic stays exact: the base is `TICKS_PER_MONTH ×
+ * 100 × SPEED_SCALE`, which every terrain and territory multiplier in the game divides cleanly.
+ */
+export function tileMarchCost(
+  state: SimState,
+  world: World,
+  index: number,
+  factionIndex: number,
+): number {
   const terrain = terrainOf(world, index);
   const profile = TERRAIN_PROFILE[terrain];
   if (!Number.isFinite(profile.moveCost)) return Number.POSITIVE_INFINITY;
-  return MARCH_PER_TILE * profile.moveCost;
+
+  const owner = state.tileOwner[index] ?? -1;
+  const territory =
+    owner === factionIndex ? 1000 : owner === -1 ? UNCLAIMED_MARCH_PERMILLE : HOSTILE_MARCH_PERMILLE;
+
+  return (MARCH_PER_TILE * profile.moveCost * territory) / 1000;
 }
 
 /** Terrain by flat index. `terrainAt` takes x and y; the pathfinder only ever has an index. */
-function terrainOf(world: World, index: number): Terrain {
+export function terrainOf(world: World, index: number): Terrain {
   return TERRAINS[world.terrain[index] ?? 0] ?? 'water';
 }
 
@@ -157,7 +208,7 @@ export function findPath(
       const blocked = blockedBy(state, world, army, next, next === destination);
       if (blocked !== null && !(next === destination && attackable(blocked))) continue;
 
-      const cost = tileMarchCost(world, next);
+      const cost = tileMarchCost(state, world, next, army.ownerIndex);
       if (!Number.isFinite(cost)) continue;
 
       const candidate = (best[current] ?? Number.POSITIVE_INFINITY) + cost;
@@ -306,7 +357,7 @@ export function advanceArmies(state: SimState, world: World): void {
       // Hostile ground is not a wall — it is a battle, and the march has to reach it first.
       // The army pays the tile's cost to make contact whether it takes the ground or not.
       if (reason === 'hostile-army' || reason === 'hostile-settlement') {
-        const toll = tileMarchCost(world, next);
+        const toll = tileMarchCost(state, world, next, army.ownerIndex);
         if (army.march < toll) break;
         army.march -= toll;
 
@@ -330,7 +381,7 @@ export function advanceArmies(state: SimState, world: World): void {
         break;
       }
 
-      const cost = tileMarchCost(world, next);
+      const cost = tileMarchCost(state, world, next, army.ownerIndex);
       if (army.march < cost) break;
 
       army.march -= cost;

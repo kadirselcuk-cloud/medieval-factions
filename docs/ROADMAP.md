@@ -26,8 +26,11 @@ Outstanding commitments and slipped work are tracked separately in [OWED.md](OWE
 | 0.12.0 | Manpower & AI | Recruiting draws people; the 12 rivals play — economy, expansion, war, five difficulties, five personalities | ✅ shipped |
 | 0.13.0 | Fog of war & the shape of a realm | Line of sight; rivals consolidate their borders instead of running corridors; every defence bonus halved; personalities brought close together | ✅ shipped |
 | 0.14.0 | The manpower ceiling & a map that remembers | A realm may keep a fifth of its people under arms, so gold stops deciding army size; fog gains a third state, and discovered ground is never unlearned | ✅ shipped |
-| 0.15.0 | Naval | Four ship types, transports, embarkation; unblocks Britons and Moors — **and the AI, which cannot reach Scandinavia, Ireland or Africa at all** | next, blocked on six ship questions |
-| 0.16.0 | Identity & polish | Per-faction unit names, faction bonuses, 10 elite units, the owner's real art, balance pass | |
+| 0.15.0 | Land distance, sight, and watching the end | The AI measures reach by walking distance instead of straight lines, so it stops chasing cities across water; sight becomes a diamond; a defeated player keeps watching with the fog lifted | ✅ shipped |
+| 0.16.0 | A medieval pace, and armies with jobs | Foot crosses a tile every two months and horse one a month; rival realms detach raiders, border guards and claimers; the AI develops conquered ground far faster | ✅ shipped |
+| 0.17.0 | Total war | No realm has a reach limit; personality becomes raid/guard odds; territory changes march speed; the Golden Horde is authored Ambitious | ✅ shipped |
+| 0.18.0 | Naval | Four ship types, transports, embarkation; unblocks Britons and Moors — **and the AI, which cannot reach Scandinavia, Ireland or Africa at all** | next, blocked on six ship questions |
+| 0.19.0 | Identity & polish | Per-faction unit names, faction bonuses, 10 elite units, the owner's real art, balance pass | |
 | 1.0.0 | Release | Capacitor wrap for Android/iOS, ad and premium hooks wired but inert, phone performance pass | |
 | 2.0.0 | Phase B | Tactical battle map — regiment-level units, move/attack/hold orders | |
 

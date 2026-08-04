@@ -226,16 +226,32 @@ training the unit, paid when the order is placed and never returned — see
 Strategic speed is tiles per month before terrain penalties; an army moves at its slowest
 unit. Battle speed is tiles per battle turn on the 50-tile auto-resolve field.
 
-| Units | Strategic (tiles/month) | Battle (tiles/turn) |
-|---|---|---|
-| 3, 4 — heavy infantry | 3 | 2 |
-| 1, 2 — light & spear infantry | 4 | 3 |
-| 5 — skirmisher | 4 | 3 |
-| 6 — archer | 4 | 2 |
-| 9 — heavy cavalry | 6 | 5 |
-| 7, 8 — light cavalry, cavalry archer | 8 | 6 |
+**Rewritten in 0.16.0, owner-specified.** Everything on foot crosses one tile every **two months**;
+everything on a horse crosses one **a month**. Two speeds, and the whole roster is one or the other.
 
-Terrain multiplies strategic movement cost: forest/tundra ×1.25, desert/mountain ×1.5.
+| Units | Strategic | Battle (tiles/turn) |
+|---|---|---|
+| 1, 2 — light & spear infantry | 0.5 — a tile every 2 months | 3 |
+| 3, 4 — heavy infantry | 0.5 — a tile every 2 months | 2 |
+| 5 — skirmisher | 0.5 — a tile every 2 months | 3 |
+| 6 — archer | 0.5 — a tile every 2 months | 2 |
+| 7, 8 — light cavalry, cavalry archer | 1 — a tile a month | 6 |
+| 9 — heavy cavalry | 1 — a tile a month | 5 |
+
+An army moves at its **slowest** unit, so one spearman in a column of horse halves its pace — which
+is what makes a pure-cavalry raiding force worth assembling.
+
+Terrain multiplies strategic movement cost: forest/tundra ×1.25, desert/mountain ×1.5. Whose
+ground it is multiplies again — unclaimed ×1.2, a rival's ×1.4 (MECHANICS §3). Winter is −40% on
+top of all of it. **Foot crossing a hostile mountain in winter takes seven months a tile.**
+
+Speeds are held internally in hundredths of a tile per month (`SPEED_SCALE`), because half a tile
+is now a meaningful quantity and the simulation is integers all the way down. The data file is
+still authored in plain tiles per month.
+
+> **This is an eight-fold slowdown** — infantry was 4 tiles a month and cavalry 8. Crossing fifty
+> tiles of Europe went from about a year on foot to eight. Campaigns are now measured in decades,
+> and cavalry is strictly twice everything else rather than half again.
 
 **The battle column was chosen for a 10-tile field and is now used on a 50-tile one.** At 3
 tiles a turn, infantry spends 13 turns crossing the ground an archer already covers, which is

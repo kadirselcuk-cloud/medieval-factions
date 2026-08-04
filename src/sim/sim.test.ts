@@ -5,7 +5,7 @@ import { baseTileYield } from '../data/improvements';
 import { terrainAt } from '../data/world';
 import { loadEurope1350 } from '../data/maps';
 import { calendarAt, TICKS_PER_MONTH } from './calendar';
-import { createInitialState, STARTING_GOLD, STARTING_POPULATION } from './state';
+import { createInitialState, STARTING_GOLD, STARTING_POPULATION, taxedGold } from './state';
 import { advanceBy, cityGrowth, wealthGrowth } from './tick';
 import { MILLI, whole, type SimState } from './types';
 
@@ -99,8 +99,9 @@ describe('economy', () => {
       held++;
       tileGold += baseTileYield(terrainAt(world, index % world.width, Math.floor(index / world.width))).gold;
     });
-    // Less the starting Light Infantry's 10 gold of upkeep.
-    expect(monthly).toBe(10 + tileGold - 10);
+    // Halved by the tax rate (`GOLD_INCOME_PERMILLE`), which lands on gross income, and then
+    // less the starting Light Infantry's 10 gold of upkeep, which is a wage and is paid in full.
+    expect(monthly).toBe(taxedGold(10 + tileGold) - 10);
     expect(held).toBeGreaterThan(1);
 
     const before = player.stock.gold;

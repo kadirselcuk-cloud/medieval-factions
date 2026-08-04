@@ -37,6 +37,7 @@ function place(units: UnitStack, ownerIndex: number, tile: number): ArmyState {
     units: { ...units },
     path: [],
     march: 0,
+      role: 'field',
   };
   state.armies.push(army);
   return army;
@@ -300,9 +301,14 @@ describe('fighting for a city', () => {
     expect(resolveEngagement(state, world, storm, city.tileIndex).report.winner).toBe('defender');
     expect(city.ownerIndex).toBe(NEUTRAL);
 
-    // Sitting outside it for a year: the same army, and the walls no longer count.
+    // Sitting outside it: the walls no longer count.
+    //
+    // **Twelve rather than four**, because since 0.17.1 a besieger in enemy country loses units to
+    // every winter month it spends there — a Capitol's clock runs 48 months, which is twelve
+    // winters, and four units expect to be down to one before the gates open. Starving a great
+    // city out is now something only a large army can survive doing. See docs/MECHANICS.md §5.
     state.factions[FRANKS]!.stock.gold = 1_000_000 * MILLI; // upkeep, not the point of the test
-    const besieger = place({ heavy_cavalry: 4 }, FRANKS, ringAround(city, 1)[0]!);
+    const besieger = place({ heavy_cavalry: 12 }, FRANKS, ringAround(city, 1)[0]!);
     expect(beginSiege(state, world, besieger.id).ok).toBe(true);
     advanceBy(state, world, TICKS_PER_MONTH * siegeMonths(4));
 

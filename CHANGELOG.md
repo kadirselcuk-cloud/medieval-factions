@@ -13,6 +13,322 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.17.4] — 2026-08-04
+
+### Fixed
+
+- **Whole regions were never conquered, even standing empty.** The north-west of France, the Danish
+  peninsula, the middle of Britain and the Sahara behind the Moors' cities all stayed unclaimed for
+  a century. Measured: **318 of 1,692 land tiles bare after 120 years**, 176 of them seven or more
+  tiles from the nearest settlement in the world. Three separate causes, all fixed:
+  - **The claim radius applied to everyone.** Every realm looked for unclaimed ground only within
+    3 walking tiles of its own settlements, so anything further than that from *any* city on the
+    map was ground no realm ever had a reason to walk to. The radius now binds only a field army
+    that has an objective to be distracted from — a dedicated claiming stack has no limit, and
+    neither does a field army with no war to fight. That last one is the Moors, who took Fez and
+    Marrakesh and then sat on the coast for a hundred years with bare desert four tiles inland.
+  - **Claiming stacks grew into armies and kept the label.** Mustering tops up whatever army stands
+    on a settlement and keeps its role, and an army folds any friendly stack it walks into — so a
+    realm ran stacks of 8, 11, 14, 16 and **17** units labelled `claim`, taken out of the war for
+    the whole campaign and still claiming one tile at a time. Anything over one unit is handed back
+    to the field force, and a fresh single unit is raised for the job.
+  - **The claim quota did not scale with the realm**, unlike the raid and guard quotas. A century
+    in, with 139 armies on the map, there were **two** claiming stacks in the entire world.
+  - Result: **318 bare tiles → 64**, and all 64 are on islands no realm holds a settlement on —
+    ground with no land route at any distance. Everything a realm can march to is now claimed.
+    `ai.test.ts` asserts it against reachable land rather than against the map, because demanding
+    the whole map would be demanding a bug until ships exist.
+
+### Added
+
+- **The panel reads out what a rival has built.** Clicking a settlement you can see — which, with
+  the fog cheat on, is all of them — now lists every building in it, in the order the realm built
+  them, because that order is the answer to "what does this AI care about". Clicking open ground
+  names what it is worked as and to what level. The tile yield line always quietly included the
+  improvement, so the panel could tell you a rival's field was worth six gold without ever telling
+  you it was a field.
+
+### Changed
+
+- A claiming stack is only raised on a landmass that still has unclaimed ground on it. It can never
+  leave the one it was founded on, so one raised where the continent is already full is a unit lost
+  to the war *and* a filled quota slot the settlement next to bare ground never gets.
+- Two claiming stacks of the same realm no longer walk to the same tile.
+
+### Notes
+
+- The personality table in [docs/MECHANICS.md](docs/MECHANICS.md) §8 still carried a **Reach**
+  column, removed from the game in 0.17.0. Replaced with the raid and guard odds that took its job.
+
+---
+
+## [0.17.3] — 2026-08-04
+
+### Changed
+
+- **Gold income is halved.** Owner-authored. Every gold figure in the data is what the ground, the
+  buildings and the people *produce*; a realm now collects **half** of it. Wood, iron and stone are
+  untouched — the problem is gold specifically.
+  - One constant, `GOLD_INCOME_PERMILLE` in [src/sim/state.ts](src/sim/state.ts), applied to gross
+    income before wages and before the difficulty handicap. **Deliberately not thirty halved
+    numbers in the data files**: this is a figure that will be retuned, and one edit beats thirty.
+    It also leaves every building card honest about what the building produces, with the tax stated
+    once where income is read.
+  - The balance panel taxes each term rather than the sum, so its columns still add up to the net
+    the simulation uses.
+  - **Upkeep is unchanged and is paid in full** out of what the tax leaves, so an army costs twice
+    what it used to relative to income. A realm needs 100 gold/month net to sustain heavy cavalry;
+    that now takes twice the land.
+
+### Notes
+
+- One test's assertion had to change shape rather than its number: a world of Defensive realms
+  posts more border guards than an Ambitious one **as a share of its armies** (13.9% against
+  11.4%), not in absolute count. Ambitious realms conquer more, so they have more frontier to
+  garrison and more armies to do it with — the head count was measuring how big a world's realms
+  got, not what they chose to do.
+- Raiding is asserted on the tables rather than behaviourally, for the same reason in reverse: a
+  raiding column rides deep by design, where garrisons and the winter kill it. Counting survivors
+  measures how many came back, not how many were sent.
+
+## [0.17.2] — 2026-08-04
+
+### Added
+
+- **Realm watch — every realm's economy on screen while the fog is off.** Cities, gold, gross
+  income, upkeep, net, armies, units and soldiers, richest first. Appears with the reveal cheat
+  (Pause ×5 then 1× ×5) and in observer mode after defeat.
+  - **Gross and upkeep are split out**, because `monthlyIncome.gold` is already net of wages and
+    the *gap* is the interesting number: a realm whose upkeep eats most of its income has stopped
+    building and is only feeding troops. That is the figure to watch while deciding what to do
+    about heavy cavalry.
+  - The same numbers have been in the balance panel under `B` since 0.8.3, minus the upkeep
+    column. This puts them where they can be read while a century runs.
+- The balance panel keeps its own table; this is a second view of the same derived data, and
+  neither is stored or read by the simulation.
+
+## [0.17.1] — 2026-08-04
+
+### Added
+
+- **Winter kills armies that stay in enemy country.** Each unit standing on a rival's territory
+  has a **10% chance of being lost outright** every winter month — owner-authored, and units
+  rather than casualties: a formation with no billets and nobody willing to sell it grain does not
+  come back weakened, it stops existing. Unclaimed ground does not do this; it costs a march 20%
+  and nothing else.
+- **The panel reads out anything you can see.** Clicking a rival's army now shows its composition,
+  its soldier count, whether it is marching, and what it is — *Field army*, *Raiding column*,
+  *Border garrison*, *Settlers*. Clicking a rival's settlement shows its defenders, its garrison,
+  the total that would have to be beaten, and who is besieging it. Previously a rival army
+  rendered **nothing at all**, and a rival city showed its walls and population but never what was
+  behind them.
+
+### Changed
+
+- **There is no limit on how many armies a realm may field.** `maxArmies` is gone. A realm raises
+  what it can pay for and spare the people for; the limits that remain are the honest ones — the
+  treasury, the manpower ceiling and the levy floors. Whether it spends on walls, economy or
+  troops was already a personality lean through the build weights.
+  - What a realm *wants* now scales with what it holds rather than with a difficulty cap, and the
+    raid and guard quotas scale with it too — per four settlements rather than absolute, so an
+    empire of thirty cities no longer runs the same two raiding columns a village does.
+  - Half a realm's armies, rounded up, still belong to the field force.
+
+### Notes
+
+- **[OPEN] — a besieging army suffers the winter too**, because a siege is spent standing on the
+  enemy's ground. A Capitol's clock is 48 months, which is twelve winters, so a unit outside it
+  has a **28%** chance of still being there when the gates open. Starving out a great city went
+  from something four Heavy Cavalry could do to something twelve are needed for; Villages and
+  Towns are barely affected. Exempting a dug-in besieger is a defensible alternative and is the
+  owner's call — logged in [docs/OPEN-QUESTIONS.md](docs/OPEN-QUESTIONS.md).
+- With no army cap, a hundred-year campaign now simulates several times as many armies. The test
+  suite roughly tripled in wall-clock time, which is worth knowing before the speed multipliers
+  are tuned again.
+- One test's premise had to change rather than its expectation: a world of Ambitious realms no
+  longer takes *more* cities than a Defensive one, because with reach gone both take everything
+  they can walk to and tie at 50. It now asserts what actually differs — Ambitious raids, Defensive
+  garrisons.
+
+## [0.17.0] — 2026-08-04
+
+**Total war.** Every realm now means to take the whole map, and the map stops freezing.
+
+### Changed
+
+- **The reach limit is gone.** A realm considers every settlement it could walk to, however far,
+  and takes the nearest it can. Only having no land route rules a target out.
+  - `reach` was the wrong axis, and it was producing realms that simply stopped. Measured after
+    sixty years: **most realms had zero targets inside their reach** and idled, and the map settled
+    with a dozen independent cities and 1,600 unclaimed tiles nobody would ever walk to.
+  - Measured over the same century at Knight, seed 7 — battles per decade used to fall to **zero
+    from 1390 and stay there**. They now run `25, 17, 18, 19, 23, 27, 29` through to 1450 and are
+    *rising* at the end. Independent cities fall from 45 to **8** rather than freezing at 14, and
+    unclaimed ground keeps dropping instead of stalling at 1,604 tiles.
+- **Personality is a pair of odds, not a distance.** What separates realms is now what they do
+  with the armies they raise, rolled once per army from the campaign's own RNG:
+
+  | Personality | raids | guards | rest to the field |
+  |---|---:|---:|---:|
+  | Ambitious | 40% | 10% | 50% |
+  | Balanced, Honorable | 20% | 25% | 55% |
+  | Peaceful | **0%** | 35% | 65% |
+  | Defensive | 5% | 50% | 45% |
+
+  Focus on army, defences or economy was already a personality lean, through the build weights.
+- **Whose ground it is changes how fast an army crosses it**, owner-authored: **unclaimed +20%**,
+  **a rival's +40%**. It multiplies with terrain and stacks with winter, so foot crossing a hostile
+  mountain in winter takes **seven months a tile**. It also makes consolidating pay for itself —
+  claimed ground is fast ground, so an advance that takes the border tiles as it goes accelerates,
+  and one that drives a corridor deep does not.
+- **The Golden Horde is Ambitious**, authored in `data/factions.json` rather than left to the seed.
+  It had been rolling Defensive, which with one city and a reach of 6 meant it took the ground
+  around Caffa and then sat there for a century — its nearest enemy, Kyiv, was seven tiles' walk
+  away against a reach of six. It now holds four cities at the end of a century. **This is the
+  first faction given a personality by hand**; the other thirteen are still rolled.
+
+### Notes
+
+- **[GEN]** The raid and guard odds themselves, and the two territory multipliers are
+  owner-authored. That Peaceful never raids is owner-specified.
+- Removing the limit means an army may now march for years to reach a target. With 0.16.0's speeds
+  that is deliberate, and it is what makes the cavalry raiding columns worth more than the field
+  armies.
+
+## [0.16.0] — 2026-08-04
+
+**Armies march at a medieval pace, and rival realms stop marching as one lump.**
+
+### Changed
+
+- **Every speed on the campaign map was cut eightfold**, owner-specified. Everything on foot
+  crosses **one tile every two months**; everything on a horse crosses **one a month**. Two speeds,
+  and the whole roster is one or the other — cavalry is now strictly twice everything else rather
+  than half again, which is what makes a mounted column worth assembling.
+  - Terrain and winter stack on top: **foot in a mountain winter takes five months a tile**.
+  - Crossing fifty tiles of Europe went from about a year on foot to eight. **Campaigns are now
+    measured in decades.**
+  - Speeds are held internally in hundredths of a tile a month (`SPEED_SCALE`), because half a tile
+    is now a meaningful quantity and the simulation is integers all the way down. `data/units.json`
+    is still authored in plain tiles per month; the loader scales it once, on the way in.
+- **Save format is v8.** Banked march points are on a scale a hundred times finer, so a v7 save's
+  armies are rescaled and stay exactly as far along their route as they were.
+- **The AI develops conquered ground much faster.** It always built farms, mines and sawmills —
+  chosen by what the tile actually yields — but was capped at **one digging at a time across the
+  whole realm**, so a realm holding forty tiles finished about one improvement a year and its
+  conquests stayed bare for a century. `improvementsAtOnce` is now a difficulty lever: 1 at
+  Recruit, 2 at Knight, 4 at King. Measured over fifty years, finished improvements across Europe
+  roughly doubled.
+
+### Added
+
+- **Armies have roles, and rival realms divide their forces.** One behaviour for every stack meant
+  one behaviour for every realm: everything marched at the objective, the border stood naked and
+  the fields stayed unclaimed.
+
+  | Role | What it does |
+  |---|---|
+  | `field` | the main force — joins the realm's one objective |
+  | `raid` | a small column, **cavalry for preference**, riding for the **deepest** reachable enemy settlement |
+  | `guard` | a border garrison that sits on the frontier settlement nearest an enemy |
+  | `claim` | one unit, tidying unclaimed ground near home |
+
+  - **Difficulty decides how many specialists a realm may run** (`raidStacks`, `guardStacks`,
+    `claimStacks`); **personality decides which it wants and how big they are** (`raidUnits`,
+    `guardUnits`). All of it is in `data/ai.json` and retunes without a code change.
+  - Order of preference is the personality: **Ambitious** sends riders out before it posts
+    sentries, **Defensive** does the reverse, and **Peaceful** never raids at all.
+  - **Half the army slots, rounded up, always belong to the field force** — without that reserve a
+    Knight fielding three armies posted a sentry, raised a claimer and had one stack left to fight
+    with.
+  - Measured over fifty years at Knight: battles rose from 73 to 104, and realms fielded 8 border
+    garrisons where before there were none.
+- **A defeated player can now inspect any tile or city.** Observer mode lifted the fog off the map
+  in 0.15.0 but the selection panel kept its own gate, so half the world was plainly visible and
+  still read *"Beyond your sight"*.
+
+### Notes
+
+- **[GEN]** Every new number: the three per-difficulty stack caps, the two per-personality stack
+  sizes, `improvementsAtOnce`, and the half-the-slots field reserve. All in `data/ai.json` except
+  the reserve.
+- Raiding is deliberately rare at Knight — one detachment slot, and only bold personalities spend
+  it on a raid. It becomes common at Baron and King.
+
+## [0.15.0] — 2026-08-04
+
+**The AI learns that water is in the way.** Sight becomes a diamond, and a dead realm keeps
+watching.
+
+### Fixed
+
+- **The AI measured distance in straight lines, and it froze whole realms.** A settlement one
+  diagonal step across a strait read as the nearest thing on the map, so it won the comparison,
+  became the realm's objective, and *stayed* the objective every month while no army could ever
+  arrive. Worse, the search stops at the first candidate nearer than the best so far — so the
+  cities a realm could actually have taken were never even considered.
+
+  ```
+    L L L L L L        P is 1 tile from T in a straight line
+    L L P W W L        and 8 tiles by land, around the water.
+    W W W T L L
+  ```
+
+  New `src/sim/geography.ts` answers the two questions honestly: **`sameLandmass`**, a flood fill
+  of the map cached per world, and **`walkingDistanceFrom`**, one breadth-first sweep a month per
+  realm giving true walking distance to every tile at once. Unreachable is now infinitely far,
+  which is the truth. Sixteen cities are unreachable from Paris on foot — Britain, Ireland,
+  Scandinavia, the islands and North Africa — and the AI had been treating every one of them as an
+  ordinary neighbour.
+- **This is a large part of the endgame stalemate.** Measured over the same century at Knight,
+  seed 7: battles per five years used to fall to **zero from 1390 and stay there**, with the
+  largest realm frozen at 14 cities for sixty years. They now run `1, 7, 0, 5, 1, 12, 3, 3, 0, 3,
+  3` through to 1450, and the largest realm moves between **15 and 19** — cities genuinely
+  changing hands. It does not fix the stalemate entirely; it removes the cause that was pure bug.
+- **Realms no longer leave pockets of unclaimed ground behind them.** `pickClaim` had the same
+  flaw: a field across a river mouth measured as two tiles, won on closeness, and the army was
+  sent somewhere it could not go — so the ground next door stayed unclaimed for the rest of the
+  campaign. The search box still bounds the cost; the *measurement* is now the walk.
+- **Armies that cannot arrive no longer count toward the odds.** A realm summing its strength for
+  an attack was including stacks on the far side of a sea, which is how it talked itself into
+  assaults it could not make.
+
+### Added
+
+- **Observer mode.** Losing no longer ends the campaign for the player — it lifts the fog and lets
+  them watch Europe finish the job. Nothing ever paused on defeat; what stopped was **vision**,
+  because sight is derived from ground held and a realm holding nothing sees nothing. Every rival
+  army, border and allegiance was being hidden, so a Europe still at war looked like a Europe that
+  had stopped.
+
+### Changed
+
+- **Sight is measured in walking distance, not in a square.** `|dx| + |dy|` — a diamond that
+  reaches its full radius along each axis and tapers to a point at the corners, per the owner's
+  drawing. It replaces the Chebyshev square, where the corner tiles were free range: a lookout saw
+  3 tiles north and 3 north-east, when north-east is half again as far.
+  - It is the right metric rather than merely the rounder one: **armies move orthogonally**, so
+    taxicab distance is exactly how far a rider could get. Sight and movement now answer the same
+    question with the same arithmetic.
+  - A diamond covers **less than half** what the square did — `2r² + 2r + 1` against `(2r + 1)²`.
+    Sight of 3 now sees 25 tiles rather than 49, and the known band at radius 10 covers 221 tiles
+    rather than 441. Expect noticeably more black at the opening.
+  - The **5 × 5 relief box** for sieges is unrelated and unchanged — that one is owner-authored,
+    and it is about which armies can reach a siege rather than what anyone can see.
+
+### Notes
+
+- Investigated the report that realms stop fighting late in a campaign. **Three separate things
+  were true**, and two of them are fixed above: the player's own vision dropped to zero on defeat,
+  and the AI was pinned on unreachable objectives.
+- **The manpower ceiling was not a cause.** At the stalemate every surviving realm sat far below
+  it — the Russians held 5,080 men under arms against a cap of 172,450, about 3%.
+- **Something is still left.** Fighting no longer dies out, but it is sporadic rather than
+  sustained, and 14 independent cities survive any campaign because they are genuinely across
+  water. That last part is the naval phase, and the rest is the question already logged in
+  [docs/OPEN-QUESTIONS.md](docs/OPEN-QUESTIONS.md): whether two large walled realms correctly
+  declining to fight each other is the right shape for the endgame.
+
 ## [0.14.1] — 2026-08-04
 
 ### Added

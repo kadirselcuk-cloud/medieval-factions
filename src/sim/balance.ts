@@ -6,6 +6,7 @@ import { defenceOf, stackUpkeep } from './armies';
 import { TICKS_PER_MONTH } from './calendar';
 import { improvementAt } from './construction';
 import { deserialise, serialise } from './save';
+import { taxedGold } from './state';
 import { advanceBy, BASE_GROWTH, cityGrowth, GROWTH_PER_TIER, wealthGrowth } from './tick';
 import { whole, type CityState, type SimState } from './types';
 
@@ -103,6 +104,17 @@ export function incomeBreakdown(
     result.iron += full.iron;
     result.stone += full.stone;
   }
+
+  // **Every gold term above is gross — what the land produces — and only half of it is
+  // collected.** Taxing each term rather than the sum keeps the panel's arithmetic addable: a
+  // reader who sums the rows must get the net, and flooring once at the end would leave the
+  // columns off by a coin or two against the simulation. Upkeep is a wage, not a yield, so it is
+  // paid in full out of what the tax leaves.
+  result.population = taxedGold(result.population);
+  result.commerce = taxedGold(result.commerce);
+  result.fishing = taxedGold(result.fishing);
+  result.land = taxedGold(result.land);
+  result.improvements = taxedGold(result.improvements);
 
   result.net =
     result.population + result.commerce + result.fishing + result.land + result.improvements + result.upkeep;

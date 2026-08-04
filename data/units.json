@@ -14,7 +14,7 @@
       "hp": 100,
       "damage": 20,
       "size": 100,
-      "strategicSpeed": 4,
+      "strategicSpeed": 0.5,
       "battleSpeed": 3
     },
     {
@@ -29,7 +29,7 @@
       "hp": 120,
       "damage": 20,
       "size": 60,
-      "strategicSpeed": 4,
+      "strategicSpeed": 0.5,
       "battleSpeed": 3,
       "antiCavalry": 2,
       "rangedResist": 0.2
@@ -46,7 +46,7 @@
       "hp": 150,
       "damage": 25,
       "size": 60,
-      "strategicSpeed": 3,
+      "strategicSpeed": 0.5,
       "battleSpeed": 2,
       "rangedResist": 0.2
     },
@@ -62,7 +62,7 @@
       "hp": 100,
       "damage": 25,
       "size": 60,
-      "strategicSpeed": 3,
+      "strategicSpeed": 0.5,
       "battleSpeed": 2,
       "chargeBonus": 50
     },
@@ -80,7 +80,7 @@
       "size": 80,
       "range": 30,
       "accuracy": 0.3,
-      "strategicSpeed": 4,
+      "strategicSpeed": 0.5,
       "battleSpeed": 3
     },
     {
@@ -97,7 +97,7 @@
       "size": 60,
       "range": 40,
       "accuracy": 0.5,
-      "strategicSpeed": 4,
+      "strategicSpeed": 0.5,
       "battleSpeed": 2
     },
     {
@@ -112,7 +112,7 @@
       "hp": 120,
       "damage": 30,
       "size": 40,
-      "strategicSpeed": 8,
+      "strategicSpeed": 1,
       "battleSpeed": 6,
       "chargeMultiplier": 2
     },
@@ -130,7 +130,7 @@
       "size": 40,
       "range": 30,
       "accuracy": 0.4,
-      "strategicSpeed": 8,
+      "strategicSpeed": 1,
       "battleSpeed": 6
     },
     {
@@ -145,7 +145,7 @@
       "hp": 200,
       "damage": 40,
       "size": 40,
-      "strategicSpeed": 6,
+      "strategicSpeed": 1,
       "battleSpeed": 5,
       "chargeMultiplier": 3
     }

@@ -1622,3 +1622,84 @@ body {
     padding: 3px 5px;
   }
 }
+
+/*
+  Realm watch — the per-realm economy table shown while the fog is off.
+
+  Bottom-left so it clears the selection panel on the right and the top bar. Deliberately plain:
+  it is a reading instrument, not part of the game's furniture, and it is expected to be restyled.
+*/
+.realm-watch {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 6;
+  max-width: min(760px, calc(100% - 20px));
+  padding: 8px 10px;
+  border: 1px solid var(--panel-line);
+  border-radius: 6px;
+  background: rgba(20, 16, 12, 0.93);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+}
+
+.realm-watch__title {
+  margin-bottom: 6px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.realm-watch__scroll {
+  max-height: 32vh;
+  overflow: auto;
+}
+
+.realm-watch__table {
+  border-collapse: collapse;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.realm-watch__table th,
+.realm-watch__table td {
+  padding: 2px 8px 2px 0;
+  text-align: right;
+}
+
+.realm-watch__table th:first-child,
+.realm-watch__table td:first-child,
+.realm-watch__table th:nth-child(2),
+.realm-watch__table td:nth-child(2) {
+  text-align: left;
+}
+
+.realm-watch__table th {
+  font-weight: 600;
+  color: var(--ink-muted);
+  border-bottom: 1px solid var(--panel-line);
+}
+
+.realm-watch__table td:first-child {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.swatch--small {
+  width: 9px;
+  height: 9px;
+}
+
+.realm-watch__muted {
+  color: var(--ink-muted);
+}
+
+.realm-watch__good {
+  color: var(--accent);
+}
+
+.realm-watch__bad {
+  color: #d98b7a;
+}

@@ -1,5 +1,6 @@
 import { LEVEL_DIFFICULTY } from '../data/ai';
 import { neutralFaction } from '../data/factions';
+import { SPEED_SCALE } from './movement';
 import { rolledPersonality } from './state';
 import type { CityState, SimState } from './types';
 
@@ -18,8 +19,9 @@ import type { CityState, SimState } from './types';
  * 4 → 5: population became whole people, because growth stopped being a percentage.
  * 5 → 6: the rivals gained an AI. A v5 campaign was played against realms that did nothing.
  * 6 → 7: the map remembers where the player has been. A v6 save never recorded it.
+ * 7 → 8: march points are a hundred times finer, so half-tile speeds stay integers.
  */
-export const SAVE_VERSION = 7;
+export const SAVE_VERSION = 8;
 
 const DB_NAME = 'medieval-factions';
 const DB_VERSION = 1;
@@ -175,6 +177,21 @@ export function migrate(file: SaveFile): SaveFile {
   // either, and guessing it would hand a loaded campaign a map its own history never earned.
   if (file.version < 7) {
     state.discovered = state.discovered ?? new Array<number>(state.tileOwner.length).fill(0);
+  }
+
+  // v7 banked march points on a scale a hundred times coarser, because every speed was a whole
+  // number of tiles per month. Rescaling the bank keeps an army mid-march exactly as far along as
+  // it was — the alternative is a stack that silently teleports or restarts its leg.
+  //
+  // Nothing else needs touching: the route is a list of tiles, and the new speeds come from the
+  // unit tables rather than the save.
+  if (file.version < 8) {
+    for (const army of state.armies) {
+      army.march = (army.march ?? 0) * SPEED_SCALE;
+      // Every army in a v7 save was fighting the one war, because that was the only thing an
+      // army could be. The rival realms detach raiders and border guards from the next muster.
+      army.role = army.role ?? 'field';
+    }
   }
 
   return { ...file, version: SAVE_VERSION, state };

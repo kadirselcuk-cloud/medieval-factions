@@ -37,6 +37,46 @@ const cityX = (city: CityState): number => city.tileIndex % world.width;
 const cityY = (city: CityState): number => Math.floor(city.tileIndex / world.width);
 
 describe('fog of war', () => {
+  it('sees by walking distance, not in a square', () => {
+    // The owner's shape: sight reaches its full radius along each axis and tapers to a point
+    // diagonally, because armies move orthogonally and so does knowledge.
+    //
+    // Measured around a lone army far from the realm. Testing it around Paris would prove
+    // nothing — the capital's four owned neighbours each cast sight of their own, so the union
+    // of five overlapping diamonds is not a diamond.
+    const x = cityX(paris);
+    const y = cityY(paris);
+    state.armies.push({
+      id: state.nextArmyId++,
+      ownerIndex: FRANKS,
+      tileIndex: at(x + 20, y),
+      units: { light_infantry: 1 },
+      path: [],
+      march: 0,
+      role: 'field',
+    });
+
+    const seen = visibleTiles(state, world, FRANKS);
+    const ax = x + 20;
+    const inSight = (dx: number, dy: number) => seen[at(ax + dx, y + dy)];
+
+    expect(inSight(BASE_SIGHT, 0)).toBe(1); // straight out, the full radius
+    expect(inSight(0, BASE_SIGHT)).toBe(1);
+    expect(inSight(-BASE_SIGHT, 0)).toBe(1);
+    expect(inSight(2, 1)).toBe(1); // |dx| + |dy| = 3, just inside
+    expect(inSight(2, 2)).toBe(0); // |dx| + |dy| = 4, just outside
+    expect(inSight(BASE_SIGHT, BASE_SIGHT)).toBe(0); // the corner a square gave away free
+
+    // And the whole diamond, counted: 2r² + 2r + 1 = 25 at radius 3, against a square's 49.
+    let n = 0;
+    for (let dy = -BASE_SIGHT; dy <= BASE_SIGHT; dy++) {
+      for (let dx = -BASE_SIGHT; dx <= BASE_SIGHT; dx++) {
+        if (inSight(dx, dy) === 1) n++;
+      }
+    }
+    expect(n).toBe(2 * BASE_SIGHT * BASE_SIGHT + 2 * BASE_SIGHT + 1);
+  });
+
   it('opens knowing the country around its own settlements, before a single tick', () => {
     const x = cityX(paris);
     const y = cityY(paris);
@@ -69,6 +109,7 @@ describe('fog of war', () => {
       units: { light_infantry: 1 },
       path: [],
       march: 0,
+      role: 'field',
     });
     rememberGround(state, world);
     expect(state.discovered[target]).toBe(1);
@@ -96,14 +137,14 @@ describe('fog of war', () => {
     const id = state.armies.find((a) => a.ownerIndex === FRANKS)!.id;
     const count = (): number => state.discovered.reduce((n, bit) => n + bit, 0);
 
+    // The diamond of walking distance 10, and nothing else: 2r² + 2r + 1.
     const opening = count();
-    expect(opening).toBe((2 * KNOWN_RANGE + 1) ** 2); // the 21 × 21 band, and nothing else
+    expect(opening).toBe(2 * KNOWN_RANGE * KNOWN_RANGE + 2 * KNOWN_RANGE + 1);
 
-    // Four months due east at 4 tiles a month clears the band and starts revealing.
-    for (let month = 1; month <= 4; month++) {
-      orderMove(state, world, id, at(Math.min(world.width - 1, x + month * 4), y));
-      advanceBy(state, world, TICKS_PER_MONTH);
-    }
+    // Foot crosses a tile every two months, unclaimed ground costs a further 20%, and winter
+    // takes 40% off the pace — so clearing a band of 10 is years of marching, not months.
+    orderMove(state, world, id, at(Math.min(world.width - 1, x + KNOWN_RANGE + 4), y));
+    advanceBy(state, world, TICKS_PER_MONTH * 60);
 
     const army = state.armies.find((a) => a.id === id);
     expect(army).toBeDefined();

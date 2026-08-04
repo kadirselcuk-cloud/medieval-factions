@@ -235,12 +235,14 @@ export function recomputeIncome(state: SimState, world: World): void {
     faction.monthlyIncome.stone += output.stone;
   }
 
-  // The difficulty handicap, and then upkeep.
+  // The tax rate, the difficulty handicap, and then upkeep.
   //
-  // The multiplier lands on **gross** income, before wages, so a hard opponent is richer rather
-  // than immune to its own army. Nothing else in the simulation knows about it: this is the one
-  // place a rival's economy differs from the player's, and at Knight it does not differ at all.
+  // Both multipliers land on **gross** income, before wages, so a hard opponent is richer rather
+  // than immune to its own army. Nothing else in the simulation knows about either: difficulty is
+  // the one place a rival's economy differs from the player's, and at Knight it does not differ.
   for (const faction of state.factions) {
+    faction.monthlyIncome.gold = taxedGold(faction.monthlyIncome.gold);
+
     const scale = faction.ai ? difficultyProfile(faction.ai.difficulty).incomePermille : 1000;
     if (scale !== 1000) {
       for (const resource of RESOURCES) {
@@ -251,4 +253,27 @@ export function recomputeIncome(state: SimState, world: World): void {
     }
     faction.monthlyIncome.gold -= totalUpkeep(state, faction.index);
   }
+}
+
+/**
+ * What a realm actually collects of the gold its land produces — **half**, owner-authored.
+ *
+ * Every gold figure in the game's data is what the ground, the buildings and the people
+ * *generate*; this is the share that reaches the treasury. Applied in one place, to gross income,
+ * before wages and before the difficulty handicap.
+ *
+ * **It is one multiplier rather than thirty halved numbers on purpose.** The alternative was
+ * halving the yield of every building, improvement and node in the data files, which is thirty
+ * edits to undo and retune next time — and this is a number that will be retuned. It also leaves
+ * the cards honest about what a building *produces*, with the tax stated once where the player
+ * reads their income rather than implied in every tooltip.
+ *
+ * Wood, iron and stone are untouched. The problem it exists to solve is gold: a realm that clears
+ * a hundred a month can field heavy cavalry indefinitely, and every realm was reaching that.
+ */
+export const GOLD_INCOME_PERMILLE = 500;
+
+/** Gross gold in, collected gold out. Integer, floored — see `GOLD_INCOME_PERMILLE`. */
+export function taxedGold(gross: number): number {
+  return Math.floor((gross * GOLD_INCOME_PERMILLE) / 1000);
 }

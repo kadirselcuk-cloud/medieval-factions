@@ -15,6 +15,7 @@ import { terrainAt, tileIndex } from '../data/world';
 import { BREAK_EVEN, GROUND_WORTH } from './ai';
 import { stackSize, stackSoldiers } from './armies';
 import { fightBattle, type BattleSetup } from './battle';
+import { landmassOf } from './geography';
 import { TICKS_PER_MONTH } from './calendar';
 import { deserialise, migrate, serialise, SAVE_VERSION, type SaveFile } from './save';
 import { createInitialState, rolledPersonality } from './state';
@@ -83,7 +84,10 @@ describe('ai data', () => {
       expect(person.prefersSiege, person.id).toBe(true);
       expect(person.build.military, person.id).toBeGreaterThan(0);
       expect(person.build.expand, person.id).toBeGreaterThan(0);
-      expect(person.reach, person.id).toBeGreaterThanOrEqual(6);
+      // Every realm garrisons something. Raiding is the one behaviour a personality may opt out
+      // of entirely — Peaceful does — so it has no floor.
+      expect(person.guardPermille, person.id).toBeGreaterThan(0);
+      expect(person.raidPermille + person.guardPermille, person.id).toBeLessThanOrEqual(1000);
     }
   });
 
@@ -91,9 +95,15 @@ describe('ai data', () => {
     const build = (p: AiPersonality) => personalityProfile(p).build;
     expect(build('defensive').fortification).toBeGreaterThan(build('ambitious').fortification);
     expect(build('ambitious').expand).toBeGreaterThan(build('defensive').expand);
-    expect(personalityProfile('ambitious').reach).toBeGreaterThan(
-      personalityProfile('defensive').reach,
+    // No realm has a reach limit any more — all of them mean to take the whole map. What leans is
+    // what they do with the armies they raise.
+    expect(personalityProfile('ambitious').raidPermille).toBeGreaterThan(
+      personalityProfile('defensive').raidPermille,
     );
+    expect(personalityProfile('defensive').guardPermille).toBeGreaterThan(
+      personalityProfile('ambitious').guardPermille,
+    );
+    expect(personalityProfile('peaceful').raidPermille).toBe(0);
     expect(personalityProfile('ambitious').aggressionPermille).toBeLessThan(
       personalityProfile('defensive').aggressionPermille,
     );
@@ -310,11 +320,39 @@ describe('personality changes the game', () => {
     expect(perCity(defensive)).toBeGreaterThan(perCity(ambitious));
   });
 
-  it('has a world of ambitious realms take more cities than a defensive one', () => {
-    const taken = (state: SimState) =>
-      rivals(state).reduce((n, f) => n + citiesOf(state, f.index).length, 0);
-    expect(taken(ambitious)).toBeGreaterThan(taken(defensive));
+  /**
+   * **What "ambitious" means changed in 0.17.0.** It used to mean *reaches further* — and with
+   * reach gone, both worlds now take everything they can walk to, so a conquest count ties at 50
+   * and says nothing. Personality is a pair of odds on what each army raised is for, so that is
+   * what this asserts.
+   */
+  it('has a world of defensive realms garrison its borders far harder', () => {
+    const roles = (state: SimState, role: string) =>
+      state.armies.filter((a) => a.role === role && a.ownerIndex !== state.playerFactionIndex)
+        .length;
+
+    // **A share, not a head count.** Ambitious realms conquer more, so they have more frontier to
+    // garrison and more armies to do it with — comparing absolute numbers measures how big a
+    // world's realms got, not what they chose to do with their armies.
+    const share = (state: SimState) => {
+      const mine = state.armies.filter((a) => a.ownerIndex !== state.playerFactionIndex);
+      return mine.length === 0 ? 0 : roles(state, 'guard') / mine.length;
+    };
+    // Measured: 13.9% against 11.4%. The gap is narrower than the odds (50% against 10%) because
+    // the quota binds first — a realm cannot post more guards than it has frontier settlements.
+    expect(share(defensive)).toBeGreaterThan(share(ambitious));
   });
+
+  /*
+   * **Raiding is asserted on the tables, not on a head count.** Counting surviving raiders
+   * measures how many came back, not how many were sent: a raiding column rides deep into hostile
+   * country by design, where it meets garrisons and — since 0.17.1 — the winter. An Ambitious
+   * world raids eight times as often as a Defensive one and can still finish a campaign with
+   * fewer raiders standing, which is the behaviour working rather than failing.
+   *
+   * Border guards survive to be counted because they sit at home, which is why the assertion
+   * above is the one that can be made behaviourally.
+   */
 
   /**
    * Peaceful is an economy lean, not a pacifist. It builds and settles harder than anyone and
@@ -418,6 +456,47 @@ describe('a realm consolidates before it campaigns', () => {
     // it walks, and a coastal capital runs out of land to claim long before an inland one does.
     expect(nearHome / held, 'realms are holding corridors, not countries').toBeGreaterThan(0.7);
   });
+
+  /**
+   * The regression this whole file exists to prevent a repeat of: **the map used to stop filling
+   * in.** Every realm searched for unclaimed ground only within `claimRadius` — three tiles — of
+   * its own settlements, so any ground further than that from *any* city on the map was ground no
+   * realm ever had a reason to walk to. A century in, 318 of 1,692 land tiles were still bare:
+   * the north-west of France, the Danish peninsula, the middle of Britain, and the whole Sahara
+   * behind the Moors' cities.
+   *
+   * Asserted against **what a marching realm can actually reach**, not against the map, because
+   * the honest residue is naval. Several islands carry Independent settlements and no realm's
+   * capital, and until ships can carry an army there is no route to them at any distance — the
+   * simulation is right to leave those alone, and a test that demanded the whole map would be
+   * demanding a bug.
+   */
+  it('finishes every acre a realm can walk to, however far from a city', () => {
+    const state = campaign();
+    years(state, 120);
+
+    // The landmasses a living rival actually has a settlement on. Nowhere else is walkable to.
+    const reachable = new Set(
+      rivals(state)
+        .filter((faction) => faction.alive)
+        .flatMap((faction) =>
+          citiesOf(state, faction.index).map((city) => landmassOf(world, city.tileIndex)),
+        ),
+    );
+
+    let land = 0;
+    let bare = 0;
+    for (let tile = 0; tile < state.tileOwner.length; tile++) {
+      if (!reachable.has(landmassOf(world, tile))) continue;
+      land += 1;
+      if ((state.tileOwner[tile] ?? -1) === -1) bare += 1;
+    }
+
+    expect(land).toBeGreaterThan(500);
+    // It was 19% of the whole map. Everything a realm can march to is now taken but for a
+    // handful of tiles that happened to be contested on the last month of the campaign.
+    expect(bare / land, `${bare} of ${land} reachable tiles never claimed`).toBeLessThan(0.02);
+  }, 120_000);
 
   it('grows the claimed area steadily rather than in one dash', () => {
     const state = campaign();

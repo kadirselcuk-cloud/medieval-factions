@@ -50,12 +50,31 @@ Conquer every other faction. All factions permanently hostile; no diplomacy in v
 - Army strategic speed = **its slowest unit**.
 - Movement is tile-by-tile, paid down across the ticks of the month. Armies move
   **orthogonally**; diagonals would let an army cross √2 tiles for the price of one. **[GEN]**
-- A march is **banked in integer march points**: one tile of open ground costs
-  `120 × 100` points and an army banks `speed × 100` a tick, so the stated speed in tiles per
-  month is exactly what a player gets, at any game speed.
+- A march is **banked in integer march points**, and an army banks `speed × season%` a tick, so
+  the stated pace is exactly what a player gets at any game speed. Since 0.16.0 speeds are held
+  in **hundredths of a tile per month**, because half a tile is now a meaningful quantity — see
+  [CONTENT.md](CONTENT.md) §3 for the roster, which is two speeds: **foot crosses a tile every
+  two months, horse crosses one a month.**
 - A march order **appends to the route already given**, routing the new leg from the end of the
   last one, so a journey can be laid out in several clicks. **Halt** cancels the whole route,
   queued legs and all — it is the only way to throw a route away.
+
+#### Whose ground it is changes how fast you cross it — since 0.17.0
+
+| Entering | Cost |
+|---|---|
+| **Your own territory** | normal |
+| **Unclaimed ground** | **+20%** |
+| **A rival's territory** | **+40%** |
+
+Owner-authored. An army at home has roads it maintains, fords it knows and reeves who feed it; off
+the end of that it is finding its own way, and in hostile country the bridges are down and nobody
+gives directions.
+
+It multiplies with terrain and stacks with winter, so **foot crossing a hostile mountain in winter
+takes seven months a tile**. It also makes consolidating behind an advance pay for itself: claimed
+ground is fast ground, so an invasion that takes the border tiles as it goes accelerates, and one
+that drives a corridor deep does not.
 
 ### Garrison, defenders and the field
 
@@ -197,6 +216,25 @@ Flat growth is bounded by *time × rate*, and it brings three things with it:
 
 The same campaign now reaches **12,190 people and 108,000 gold** after a century of doing nothing.
 
+#### Only half the gold produced reaches the treasury — since 0.17.3
+
+**Every gold figure in the game's data is what the ground, the buildings and the people
+*generate*. A realm collects half of it.** Owner-authored, one multiplier
+(`GOLD_INCOME_PERMILLE`), applied to gross income before wages and before the difficulty
+handicap. Wood, iron and stone are untouched.
+
+It is a single constant rather than thirty halved numbers in the data files: it is a figure that
+will be retuned, and this way retuning it is one edit rather than thirty. It also leaves every
+building card honest about what the building *produces*, with the tax stated once where the player
+reads their income.
+
+The problem it exists to solve: a realm clearing about 100 gold a month can field heavy cavalry
+indefinitely, and every realm was reaching that within a few decades. See §8 for why that made
+every rival's army identical.
+
+> The figures in the rest of this section are **gross** — what a settlement produces. Halve them
+> for what its owner banks.
+
 **Every 100 people yields 1 gold per month.** A 1,000-population village is worth 10 gold/month,
 and that 100,000-person capital is worth about 1,000.
 
@@ -227,6 +265,29 @@ Roughly how long each population gate takes, measured on the real simulation:
 | Village + Wooden Houses | +15 | 1,000 → 2,000 | **5.6 years** |
 | Town + housing + Town Hall, 20k banked | +46 | 2,000 → 5,000 | 5.5 years |
 | City + housing + City Hall, 100k banked | +91 | 5,000 → 10,000 | 4.6 years |
+
+#### Winter kills armies that stay in enemy country — since 0.17.1
+
+**Each unit standing on a rival's territory has a 10% chance of being lost outright, every winter
+month.** Owner-authored, and it is units rather than casualties: a formation with no billets, no
+stores and nobody willing to sell it grain does not come back at reduced strength, it stops
+existing. Ten units in enemy country expect to lose one a month.
+
+Unclaimed ground does not do this. It costs a march 20% (§3) and nothing else — what kills is a
+province whose people have every reason to see you starve.
+
+| Winters endured | Share of a unit expected to survive |
+|---|---:|
+| 1 month | 90% |
+| 1 winter (3 months) | 73% |
+| A year-long siege | 73% |
+| A Capitol's 48-month siege | **28%** |
+
+That last row is the one to watch: **starving out a great city is now something only a large army
+survives doing.** Four Heavy Cavalry can storm a Citadel Capitol and be thrown back; twelve are
+needed to still be there when a 48-month clock runs out. Sieges of Villages and Towns are barely
+affected. It is the sharpest consequence of the rule and it was not separately specified — see
+[OPEN-QUESTIONS.md](OPEN-QUESTIONS.md).
 
 #### Recruitment draws people — the manpower cost
 
@@ -702,17 +763,21 @@ is Ambitious is a design call rather than one to invent — **[OPEN]**.
 builds an economy, keeps an army, settles unclaimed ground, expands its settlements and makes war
 when the odds are good. Balanced *is* the centre; the other four are a tilt away from it.
 
-| | Attacks at | Reach | Keeps home | Leaves standing | Leans |
+| | Attacks at | Raids / guards | Keeps home | Leaves standing | Leans |
 |---|---|---:|---:|---:|---|
-| **Ambitious** | 0.90× the odds | 10 | 1 unit | 450 people | outward — expansion, the smallest garrison |
-| **Defensive** | 1.15× | 6 | 3 units | 550 | inward — walls, a heavy garrison, its own ground |
-| **Balanced** | 1.00× | 8 | 2 units | 500 | nowhere; this is the centre |
-| **Peaceful** | 1.15× | 7 | 2 units | 600 | economy — housing and commerce first, fewer troops |
-| **Honorable** | 1.00× | 8 | 2 units | 500 | nowhere yet; see below |
+| **Ambitious** | 0.90× the odds | 40% / 10% | 1 unit | 450 people | outward — expansion, the smallest garrison |
+| **Defensive** | 1.15× | 5% / 50% | 3 units | 550 | inward — walls, a heavy garrison, its own ground |
+| **Balanced** | 1.00× | 20% / 25% | 2 units | 500 | nowhere; this is the centre |
+| **Peaceful** | 1.15× | 0% / 35% | 2 units | 600 | economy — housing and commerce first, fewer troops |
+| **Honorable** | 1.00× | 20% / 25% | 2 units | 500 | nowhere yet; see below |
 
-- **Reach** is measured **from the realm's own borders**, not from where an army stands. Armies
-  cross their own territory to reach the frontier, and every settlement taken moves the frontier
-  outward and brings the next ring into view.
+- **Raids / guards** is the chance each army a realm raises rides off raiding, or is posted to a
+  frontier settlement; the rest join the field force. This replaced `reach` in 0.17.0 — no realm
+  has a distance beyond which it stops looking for something to take, so what separates one from
+  another is what it does with the armies it has.
+- Distance is still measured **from the realm's own borders**, not from where an army stands.
+  Armies cross their own territory to reach the frontier, and every settlement taken moves the
+  frontier outward and brings the next ring into view.
 - **Peaceful is an economy lean, not a pacifist.** It builds and settles harder than anyone and
   keeps a smaller army — but it recruits, it expands, and it goes to war when the numbers are
   there.
@@ -729,8 +794,35 @@ Build weights, unit preferences and the rest are in `data/ai.json`. All of it is
 
 A realm **fills in the unclaimed ground around its own settlements before it marches on anybody**.
 Each month one army — the weakest one, since claiming ground needs feet rather than soldiers —
-goes to the nearest unclaimed tile within **3 tiles of one of its settlements**, breaking ties on
-its own distance from that tile. Everything else follows the realm's objective.
+goes to the nearest unclaimed tile, breaking ties on its own distance from that tile. Everything
+else follows the realm's objective.
+
+**How far it will look depends on whether it has a war.** The `claimRadius` of 3 tiles exists for
+exactly one reason: to stop a field army being distracted from an objective by one more field.
+
+| Who is looking | How far |
+|---|---|
+| A field army, with an objective | 3 tiles from one of the realm's settlements |
+| A field army, with **no** objective | no limit — there is nothing it is being kept for |
+| A **dedicated claiming stack** | no limit — unclaimed ground is the whole job |
+
+Applying the radius to all three is what left a fifth of the map bare. A tile further than three
+walking tiles from *any* settlement on the map was ground no realm ever had a reason to walk to,
+so after a century 318 of 1,692 land tiles were still unclaimed — the north-west of France, the
+Danish peninsula, the middle of Britain, and the whole Sahara behind the Moors' cities, where a
+realm that had taken everything it could reach sat on the coast for a hundred years rather than
+walk four tiles inland. Everything a realm can march to is now claimed.
+
+A claiming stack is **one unit**, and stays one unit. Nothing used to hold it there — mustering
+tops up whatever army is standing on the settlement and keeps that army's role, and an army folds
+any friendly stack it walks into — so a realm ended up with seventeen units labelled "claimers",
+out of the war for the campaign and ferrying themselves to one bare field at a time. A claiming
+stack that has grown is handed back to the field force, and a fresh single unit is raised for the
+job. One is only raised on a landmass that still has unclaimed ground on it, since it can never
+leave the one it was founded on.
+
+Ground on an island no realm holds a settlement on stays unclaimed, and should: there is no route
+to it at any distance until ships can carry an army.
 
 It matters more than it sounds. Without it an army walks a one-tile corridor to the first city it
 can beat, and the realm ends up holding **a line across the map rather than a country**: no income
@@ -762,12 +854,88 @@ away from it.
 
 The difficulty's odds figure is a **margin on top of that estimate**, not a raw force ratio.
 
+### Every realm means to take the whole map — since 0.17.0
+
+**There is no reach limit.** A realm considers every settlement it could walk to, however far, and
+picks the nearest it can take. The only thing that rules a target out is having no land route at
+all.
+
+Personalities used to differ by `reach` — how far a realm would look before giving up — and that
+was the wrong axis. It produced realms that stopped: measured after sixty years, most had **zero**
+targets inside their reach and simply idled, and the map froze with a dozen independent cities and
+1,600 unclaimed tiles nobody would ever walk to. What separates realms now is **what they do with
+the armies they raise**, not how far they are willing to look.
+
+Distance still decides *which* target, and it is measured the way an army actually moves — a
+breadth-first sweep out from the realm's own settlements, orthogonally, once a month
+(`src/sim/geography.ts`).
+
+This was a bug until 0.15.0, and an expensive one. A settlement one diagonal step across a strait
+measured as *the nearest thing on the map*:
+
+```
+L L L L L L        1 tile away in a straight line.
+L L P W W L        8 tiles away on foot, around the water.
+W W W T L L
+```
+
+So it won the comparison, became the realm's objective, and stayed the objective every month while
+no army could ever arrive — and because the search stops at the first candidate nearer than the
+best so far, the cities the realm *could* have taken were never considered. Sixteen cities are
+unreachable from Paris on foot. Realms sat and stared at them.
+
+The same flaw left pockets of unclaimed ground behind an advancing realm, and let a realm count
+armies on the far side of a sea toward the odds of an attack.
+
+### Armies have roles — since 0.16.0
+
+One behaviour for every stack produced one behaviour for every realm: everything marched at the
+objective, so the border stood naked and the fields stayed unclaimed. A rival now divides its
+forces. **Difficulty decides how many specialists it may run; personality decides which it wants
+and how big they are.**
+
+| Role | What it is | What it does |
+|---|---|---|
+| `field` | the main force, and the default | joins the realm's one objective |
+| `raid` | a small column, **cavalry for preference** | rides for the **deepest** reachable enemy settlement, ignoring the objective |
+| `guard` | a border garrison | sits on the frontier settlement nearest an enemy and does not leave it |
+| `claim` | one unit | tidies unclaimed ground near home |
+
+**Half the army slots, rounded up, always belong to the field force.** Without that reserve a
+Knight fielding three armies posted a sentry, raised a claimer and had one stack left to fight
+with — a realm with hobbies rather than a war.
+
+**The personality is a pair of odds**, rolled once per army raised from the campaign's own RNG:
+
+| Personality | raids | guards | rest to the field |
+|---|---:|---:|---:|
+| Ambitious | 40% | 10% | 50% |
+| Balanced, Honorable | 20% | 25% | 55% |
+| Peaceful | **0%** | 35% | 65% |
+| Defensive | 5% | 50% | 45% |
+
+Claiming is the fallback rather than a competitor — it is the one job that needs no dedicated
+stack, because the weakest idle field army picks it up when no claimer exists.
+
+A raiding column takes the fastest units in the garrison first. Since 0.16.0 horse moves twice as
+fast as foot, and arriving somewhere before the defence does is the entire value of a raid.
+
+**Frontier** means walking distance to the nearest hostile settlement, so an inland capital three
+provinces behind the line is never garrisoned, and an island realm posts no guards at all.
+
+### The AI develops the ground it takes
+
+It always did — farms, mines and sawmills, chosen by what the tile actually yields — but it was
+capped at **one digging at a time across the whole realm**, so a realm holding forty tiles finished
+roughly one improvement a year and its conquests stayed bare ground for a century. Since 0.16.0
+`improvementsAtOnce` is a difficulty lever: 1 at Recruit, 2 at Knight, 4 at King.
+
 ### What the AI cannot do yet
 
 - **It cannot cross water.** Every remaining independent settlement in a long campaign is in
   Scandinavia, Ireland, Cyprus or across Gibraltar, and no realm can reach any of them. This is
-  the naval phase (0.15.0), not an AI limitation, and it is the main reason a century-long
-  campaign settles down.
+  the naval phase (0.18.0), not an AI limitation. Since 0.15.0 a realm at least **knows** this and
+  spends its attention on what it can reach.
 - **It does not split or manoeuvre armies**, garrison a captured city deliberately, or raid.
 - **It has no diplomacy.** The personalities are written to drive it when it arrives.
 
@@ -793,13 +961,53 @@ The player sees **three tiles beyond every tile the realm holds**, and further f
 | A Capitol | 6 |
 | A field army | 3 |
 
-Range is Chebyshev — a square of sight, matching the square tiles and the 5 × 5 relief box.
+Range is **walking distance** — `|dx| + |dy|`, so sight is a **diamond**, not a square. Owner-
+specified, as a picture, at radius 5:
+
+```
+XXXXXVXXXXX
+XXXXVVVXXXX
+XXXVVVVVXXX
+XXVVVVVVVXX
+XVVVVVVVVVX
+VVVVVOVVVVV
+XVVVVVVVVVX
+XXVVVVVVVXX
+XXXVVVVVXXX
+XXXXVVVXXXX
+XXXXXVXXXXX
+```
+
+It is the right metric rather than merely the rounder one: **armies move orthogonally** (§3 —
+diagonals would let an army cross √2 tiles for the price of one), so taxicab distance is exactly
+how far a rider could get. Sight and movement now answer the same question with the same
+arithmetic.
+
+It was a Chebyshev square until 0.15.0, where the corner tiles were free range — a lookout saw 3
+north and 3 north-east, when north-east is half again as far. A diamond covers **less than half**
+what the square did (`2r² + 2r + 1` against `(2r + 1)²`): radius 3 sees 25 tiles rather than 49,
+and the known band at radius 10 covers 221 rather than 441.
+
+> The **5 × 5 relief box** in §6 is unrelated and still Chebyshev — that is owner-authored, and it
+> is about which armies can reach a siege, not about what anyone can see.
+
 Armies see for themselves because a march into open country would otherwise be blind, and a
 player could not see what their own army had run into.
 
 **The rivals have none of it. They see everything.** That is stated here rather than hidden,
 because it is a real asymmetry and the alternative — a realm that has to scout — is a different
 and much larger feature.
+
+### Observer mode — a dead realm watches on
+
+Sight is derived from ground held, so a player whose last settlement falls sees **nothing at all**:
+every rival army, border and allegiance disappears, and a Europe still at war looks like a Europe
+that has stopped.
+
+Since 0.15.0, **losing lifts the fog entirely.** The campaign was always still running — nothing
+pauses on defeat — so the only thing missing was being able to watch it. There is also nothing
+left to hide: fog keeps a player from reading a board they have not earned, and a player with no
+realm has no advantage left to protect.
 
 ### Three states, since 0.14.0
 
@@ -810,7 +1018,7 @@ see from what it merely *knows*.
 | State | Drawn as | When |
 |---|---|---|
 | **Seen** | clear | something of the realm's is looking at it right now |
-| **Known** | a 62% wash | it has been looked at before, or it is within **10 tiles of one of the realm's settlements** |
+| **Known** | a 62% wash | it has been looked at before, or it is within **10 tiles' walk of one of the realm's settlements** |
 | **Unknown** | opaque black | neither |
 
 Ten tiles is owner-authored. A king knows his neighbours' country without having ridden through
@@ -824,9 +1032,9 @@ sources a tick instead of ~300, which is the difference between free and noticea
 Knowledge is **monotonic** — it is never unlearned. Losing a province does not erase its geography
 from the map; the realm simply cannot see what is happening there any more.
 
-> On the 70 × 35 map a single settlement lights a 21 × 21 box, which is well over half the map's
-> height. Black is therefore mostly what lies east and west. `KNOWN_RANGE` in `src/sim/vision.ts`
-> is the one number to lower if more of the map should start dark.
+> On the 70 × 35 map a single settlement knows 221 tiles — 9% of the map, and a diamond 21 across
+> at its widest. `KNOWN_RANGE` in `src/sim/vision.ts` is the one number to lower if more of the
+> map should start dark.
 
 ### What is derived, and the one thing that is not
 
