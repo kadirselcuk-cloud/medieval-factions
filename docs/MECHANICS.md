@@ -254,6 +254,48 @@ Two floors protect a settlement:
 **Ships draw nobody.** Crew size was never specified for them, so inventing one would be
 inventing a rule — **[OPEN]**.
 
+#### The manpower ceiling — since 0.14.0
+
+**A realm may keep a fifth of its people under arms.** Owner-authored: 20%.
+
+That is the whole rule. What makes it behave is how the two halves are counted:
+
+```
+  people under arms  ≤  20% × (settlement populations + people under arms)
+```
+
+Soldiers are counted among the realm's people, because they still *are* its people — they are
+simply not at home. A recruit does not vanish when he is levied, he changes what he does with his
+day: he comes off a settlement's population and goes into the men under arms, and the total the
+fifth is taken of does not move. **Recruiting therefore never changes the ceiling.** It moves for
+exactly two reasons: people are born, and land changes hands.
+
+Counted as under arms: garrisons, field armies, **and units still in training** — the men were
+levied when the order went out, so leaving the queue out would let a realm order twenty units
+against one unit's worth of room. Not counted: a settlement's own derived defence, which is not
+recruited and cannot leave the walls, and ships, which draw nobody.
+
+| | |
+|---|---:|
+| Opening realm: one Village of 1,000, one Light Infantry granted | 1,100 people |
+| Ceiling | **220 men** |
+| Already under arms | 100 |
+| Room | **one more Light Infantry, and no more** |
+
+**This binds hard, and it is meant to.** A 1,000-person Village supports two Light Infantry; the
+third is eighty-odd months of growth away. Gold no longer decides the size of an army, so the
+question stops being *can I afford another unit* and becomes *is this the unit I want my people to
+be* — which is what makes an expensive, powerful unit worth buying at all.
+
+**Conquest is the only fast way to raise it.** That is the same pressure §5 already puts on growth
+and the same place the design puts victory: a realm grows by taking cities, not by waiting.
+
+A shrinking realm — starved under siege, or carved up — can end with more men standing than it may
+now keep. **Nothing is disbanded.** The ceiling gates recruitment; it does not conscript backwards.
+Whether it should is **[OPEN]**.
+
+The rival realms play the same rule through the same function. See §8.
+
 ### Tile improvements
 
 **Farms, mines and sawmills are tile improvements, not city buildings.**
@@ -724,10 +766,16 @@ The difficulty's odds figure is a **margin on top of that estimate**, not a raw 
 
 - **It cannot cross water.** Every remaining independent settlement in a long campaign is in
   Scandinavia, Ireland, Cyprus or across Gibraltar, and no realm can reach any of them. This is
-  the naval phase (0.14.0), not an AI limitation, and it is the main reason a century-long
+  the naval phase (0.15.0), not an AI limitation, and it is the main reason a century-long
   campaign settles down.
 - **It does not split or manoeuvre armies**, garrison a captured city deliberately, or raid.
 - **It has no diplomacy.** The personalities are written to drive it when it arrives.
+
+Since 0.14.0 a rival is also held to the **manpower ceiling** (§5), through the same function the
+player's recruit panel calls: a realm at its limit trains nothing anywhere, however full its
+settlements or its treasury. It is now the first of three limits its unit-picking checks, and on a
+small realm it is usually the one that binds — which is the intended answer to a King-difficulty
+realm out-recruiting the player rather than out-thinking them.
 
 ---
 
@@ -747,22 +795,53 @@ The player sees **three tiles beyond every tile the realm holds**, and further f
 
 Range is Chebyshev — a square of sight, matching the square tiles and the 5 × 5 relief box.
 Armies see for themselves because a march into open country would otherwise be blind, and a
-player could not see what their own army had run into. **[GEN]**, as is the absence of an
-"explored" memory: territory only shrinks by being lost, so sight that came with a tile leaves
-with it, and a shroud remembering a city you no longer overlook would be a second kind of truth
-to keep in step.
+player could not see what their own army had run into.
 
 **The rivals have none of it. They see everything.** That is stated here rather than hidden,
 because it is a real asymmetry and the alternative — a realm that has to scout — is a different
 and much larger feature.
 
-### It is a presentation filter, and deliberately nothing more
+### Three states, since 0.14.0
 
-Vision is **derived from state and never stored in it**, and no rule in the simulation reads it.
-Wiring fog into the simulation would put what each realm knows into the save, into every
-migration and into every determinism guarantee, for a feature that only ever needed to change
-what is drawn. A test asserts the point directly: two identical campaigns stay byte-identical
-whatever the player can see.
+Sight alone was a spotlight: ground went dark the instant an army marched off it, and the far side
+of Europe was exactly as legible as the next valley. The map now distinguishes what a realm can
+see from what it merely *knows*.
+
+| State | Drawn as | When |
+|---|---|---|
+| **Seen** | clear | something of the realm's is looking at it right now |
+| **Known** | a 62% wash | it has been looked at before, or it is within **10 tiles of one of the realm's settlements** |
+| **Unknown** | opaque black | neither |
+
+Ten tiles is owner-authored. A king knows his neighbours' country without having ridden through
+it, and knows nothing whatever about a coast a thousand miles away — so Iberia is black from
+Poland, and the Levant is black from Ireland, until somebody goes and looks.
+
+The band radiates from **settlements** rather than from every owned tile: settlements are what a
+realm takes and holds, so it is a conquest that lights up a new neighbourhood. It is also ~20
+sources a tick instead of ~300, which is the difference between free and noticeable at 10×.
+
+Knowledge is **monotonic** — it is never unlearned. Losing a province does not erase its geography
+from the map; the realm simply cannot see what is happening there any more.
+
+> On the 70 × 35 map a single settlement lights a 21 × 21 box, which is well over half the map's
+> height. Black is therefore mostly what lies east and west. `KNOWN_RANGE` in `src/sim/vision.ts`
+> is the one number to lower if more of the map should start dark.
+
+### What is derived, and the one thing that is not
+
+Current sight is **derived from state and never stored in it** — recomputed from scratch whenever
+the map is drawn, so nothing about it can fall out of step.
+
+Memory cannot work that way. "Has anyone ever stood here" is a fact about the campaign's history,
+and history has to be in the save or it is lost on reload — so `SimState.discovered` exists, one
+bit per tile, for the player's realm alone. It is the **only** part of fog of war that is stored,
+and it took the save format to v7.
+
+What has not changed: **no rule in the simulation reads any of it.** The mask is written by the
+tick and read by the renderer, and nothing in between consults it, so it cannot affect an outcome.
+A test asserts the point directly: two identical campaigns stay byte-identical whatever the player
+can see, and a campaign plays out the same whether or not anyone is watching.
 
 What the shroud hides:
 
@@ -772,6 +851,9 @@ What the shroud hides:
 - **everything the selection panel would say about it** — clicking a shrouded tile says
   *"Beyond your sight"* rather than reading out its owner, garrison and building queue.
 
-What it does not hide is the **geography**. Terrain, coastlines and city dots stay faintly
-readable under the wash: a medieval king knows where the mountains are, and a map that goes black
-is unnavigable rather than mysterious.
+Over **known** ground it does not hide the **geography**. Terrain, coastlines and city dots stay
+faintly readable under the wash: a king knows where his neighbour's mountains are, and a map that
+went black everywhere would be unnavigable rather than mysterious.
+
+Over **unknown** ground there is no geography to show, and the black is opaque. That is also why
+the layers underneath need no second set of checks — nothing painted there survives the pass.

@@ -23,6 +23,10 @@ interface BottomBarProps {
   cheatsUnlocked: boolean;
   /** CHEAT — remove before release. */
   onUnlockCheats: () => void;
+  /** CHEAT — remove before release. */
+  fogRevealed: boolean;
+  /** CHEAT — remove before release. */
+  onToggleFog: () => void;
 }
 
 /**
@@ -32,6 +36,28 @@ interface BottomBarProps {
  * rather than a key combination so it survives on a touchscreen, where the game will live.
  */
 const CHEAT_SEQUENCE: readonly Speed[] = [0, 0, 0, 10, 10, 10];
+
+/**
+ * CHEAT — remove before release. See docs/OWED.md.
+ *
+ * **Five clicks on Pause, then five on 1x, and the fog comes off entirely** — the whole map,
+ * every border, every rival army. A **Fog** button then appears to put it back, because the
+ * useful thing is not seeing the map once but being able to flip between the two.
+ *
+ * Deliberately five and five rather than three and three: three of anything is reachable by a
+ * player fiddling with the speed buttons, and two cheats a click apart would be worse than one.
+ */
+const REVEAL_SEQUENCE: readonly Speed[] = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1];
+
+/** CHEAT — remove before release. Longest sequence decides how much history to keep. */
+const CHEAT_MEMORY = Math.max(CHEAT_SEQUENCE.length, REVEAL_SEQUENCE.length);
+
+/** CHEAT — remove before release. Does the recent history end with this sequence? */
+function endsWith(history: readonly Speed[], sequence: readonly Speed[]): boolean {
+  if (history.length < sequence.length) return false;
+  const tail = history.slice(-sequence.length);
+  return tail.every((value, i) => value === sequence[i]);
+}
 
 function describe(tile: TileInfo | null): JSX.Element {
   if (!tile) return <span className="readout__hint">Click a tile or city · drag to pan</span>;
@@ -133,16 +159,19 @@ export function BottomBar({
   fullscreen,
   cheatsUnlocked,
   onUnlockCheats,
+  fogRevealed,
+  onToggleFog,
 }: BottomBarProps): JSX.Element {
   const date = calendarAt(state.tick);
 
   // CHEAT — remove before release.
   const recent = useRef<Speed[]>([]);
   const press = (value: Speed) => {
-    recent.current = [...recent.current, value].slice(-CHEAT_SEQUENCE.length);
-    if (recent.current.every((v, i) => v === CHEAT_SEQUENCE[i]) && recent.current.length === CHEAT_SEQUENCE.length) {
-      onUnlockCheats();
-    }
+    recent.current = [...recent.current, value].slice(-CHEAT_MEMORY);
+    if (endsWith(recent.current, CHEAT_SEQUENCE)) onUnlockCheats();
+    // Five Pause then five 1x lifts the fog. Only fires when it is still down, so holding on 1x
+    // afterwards cannot toggle it back on under the player.
+    if (!fogRevealed && endsWith(recent.current, REVEAL_SEQUENCE)) onToggleFog();
     onSpeedChange(value);
   };
 
@@ -163,6 +192,17 @@ export function BottomBar({
             {value === 0 ? '❚❚' : value === MAX_SPEED ? 'MAX' : `${value}×`}
           </button>
         ))}
+        {/* CHEAT — remove before release. Only exists once the fog has been lifted once. */}
+        {fogRevealed && (
+          <button
+            type="button"
+            className="speed-button speed-button--cheat"
+            onClick={onToggleFog}
+            title="Fog of war is off — a cheat. Click to put it back."
+          >
+            FOG
+          </button>
+        )}
       </div>
 
       {/* One month is 120 ticks; the gauge is the only place the "turn" is still visible. */}

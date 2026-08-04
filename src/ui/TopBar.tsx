@@ -1,6 +1,7 @@
 import type { JSX } from 'react';
 import type { Faction } from '../data/factions';
 import { calendarAt, SEASON_LABEL } from '../sim/calendar';
+import { manpowerCap, manpowerUnderArms } from '../sim/manpower';
 import { RESOURCES, whole, type SimState } from '../sim/types';
 import { num, signed } from './format';
 import { ROSTER_ICON, ROSTER_LABEL, type RosterKind } from './RosterMenu';
@@ -35,6 +36,13 @@ export function TopBar({
   const player = state.factions[state.playerFactionIndex];
   const date = calendarAt(state.tick);
 
+  // Manpower sits beside the resources but is not one of them: it is never stocked, spent or
+  // traded, so it stays out of `Resource` and every cost table that type feeds. Both halves are
+  // arithmetic over population and units — see sim/manpower.ts.
+  const underArms = manpowerUnderArms(state, state.playerFactionIndex);
+  const cap = manpowerCap(state, state.playerFactionIndex);
+  const full = underArms >= cap;
+
   return (
     <header className="bar bar--top">
       <div className="bar__group">
@@ -66,6 +74,17 @@ export function TopBar({
             </span>
           );
         })}
+
+        <span
+          className="chip"
+          title={`Manpower — ${num(underArms)} of ${num(cap)} men under arms. A realm may keep a fifth of its people in the field.`}
+        >
+          <span className="chip__symbol" aria-hidden="true">
+            ⚔
+          </span>
+          <span className={`chip__value${full ? ' chip__value--debt' : ''}`}>{num(underArms)}</span>
+          <span className="chip__rate">/ {num(cap)}</span>
+        </span>
       </div>
 
       <div className="bar__group" role="group" aria-label="Realm">

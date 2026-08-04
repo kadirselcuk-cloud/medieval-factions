@@ -101,7 +101,21 @@ two Spear Infantry and kill 8), and the **3× rout rule** fires cleanly in large
 - **Should a siege stop reinforcement?** — `OPEN`. A besieged settlement cannot finish
   recruitment, but nothing stops a relieving army marching in and standing on the city tile.
 
-## Due before naval (build phase 0.14.0)
+## Manpower — shipped in 0.14.0
+
+- **A realm below its own ceiling.** — `OPEN`, and answered provisionally so 0.14.0 could ship.
+  Starvation under siege, debt, or losing half a realm to conquest can all leave more men standing
+  than the 20% rule allows. **Today nothing happens**: the ceiling gates recruitment and never
+  disbands anything, so a shrunken realm simply raises no more men until it recovers or conquers.
+  The alternative — units deserting the month the ceiling drops below them — is a real rule with
+  real weight, and losing an army because a city fell would be the harshest consequence in the
+  game. Not invented. Owner to decide.
+- **Is 20% the right number?** — `PROPOSED`, owner chose to judge it by playing. A 1,000-person
+  Village supports **two Light Infantry** and the third is eighty-odd months of growth away, so
+  the opening is tight and the first conquest matters enormously. One constant,
+  `MANPOWER_SHARE_PERMILLE` in `src/sim/manpower.ts`, and no code depends on its value.
+
+## Due before naval (build phase 0.15.0)
 
 - **Ship statistics.** — `OPEN`. Only cost, upkeep and building requirement were given. Need
   HP, damage, crew size, build time, and strategic speed for all four ship types.

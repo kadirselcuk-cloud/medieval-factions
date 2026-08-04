@@ -11,6 +11,7 @@ import {
   SHADE_COUNT,
   TERRAIN_SHADES,
   FOG_COLOR,
+  SHROUD_COLOR,
   VOID_COLOR,
   shadeVariant,
 } from './palette';
@@ -96,6 +97,8 @@ export class MapRenderer {
   private armies: ArmyView | null = null;
   /** 1 per visible tile, or null for no fog at all. See `setVision`. */
   private vision: Uint8Array | null = null;
+  /** 1 per tile the realm has ever known. Null falls back to `vision` — see `setVision`. */
+  private known: Uint8Array | null = null;
   /** True while any of the player's armies has a route to draw — see `frame`. */
   private marching = false;
   private selectedIndex: number | null = null;
@@ -148,19 +151,36 @@ export class MapRenderer {
   }
 
   /**
-   * Fog of war — a 1-per-visible-tile mask, or `null` to draw everything.
+   * Fog of war — two masks, or `null` to draw everything.
+   *
+   * `vision` is what the realm can see this instant; `known` is everywhere it has ever seen or
+   * knows by reputation. Three states fall out of the pair (docs/MECHANICS.md §9): seen, known,
+   * and never known.
    *
    * Purely a drawing concern. The renderer hides ownership, armies and a city's allegiance
-   * outside the mask and shrouds the ground, but the geography underneath stays faintly legible:
-   * a medieval king knows where the mountains are, and a map that goes black is unnavigable.
+   * outside `vision`. Over known ground the geography stays faintly legible — a medieval king
+   * knows where his neighbour's mountains are — and beyond it there is nothing to be legible
+   * about, so it goes black.
    */
-  setVision(vision: Uint8Array | null): void {
+  setVision(vision: Uint8Array | null, known: Uint8Array | null = null): void {
     this.vision = vision;
+    this.known = known;
     this.dirty = true;
   }
 
   private sees(index: number): boolean {
     return this.vision === null || this.vision[index] === 1;
+  }
+
+  /**
+   * Whether the realm has any idea what is on this tile.
+   *
+   * With no memory mask supplied this answers "yes" for everything, which collapses the three
+   * states back to the two the game shipped with — so a caller that has not been updated draws
+   * the old fog rather than a black map.
+   */
+  private knows(index: number): boolean {
+    return this.known === null || this.known[index] === 1;
   }
 
   /** Ownership overlay. The array is read live each frame, so mutating it in place is fine. */
@@ -271,11 +291,18 @@ export class MapRenderer {
   }
 
   /**
-   * Darken everything out of sight.
+   * Darken everything out of sight, in two weights.
    *
-   * A wash rather than a blackout: terrain, coastlines and city dots stay faintly readable, so
-   * the map is still a map. What the wash cannot hide — ownership, armies, whose city that is —
-   * is withheld by the layers underneath instead of being painted and then covered up.
+   * Known ground gets a wash: terrain, coastlines and city dots stay faintly readable, so the map
+   * is still a map. What the wash cannot hide — ownership, armies, whose city that is — is
+   * withheld by the layers underneath instead of being painted and then covered up.
+   *
+   * Unknown ground gets opaque black, which hides everything by construction. That is the whole
+   * reason the layers underneath do not need a second set of checks: nothing painted there
+   * survives this pass.
+   *
+   * Two passes rather than one, setting `fillStyle` twice instead of per tile — on a 70 × 35 map
+   * filled tile by tile that is the difference between two style changes a frame and two thousand.
    */
   private drawFog(
     x0: number,
@@ -289,14 +316,19 @@ export class MapRenderer {
     const { ctx, world } = this;
     const size = Math.ceil(zoom) + 1;
 
-    ctx.fillStyle = FOG_COLOR;
-    for (let y = y0; y <= y1; y++) {
-      const sy = Math.floor(origin.y + (y - y0) * zoom);
-      for (let x = x0; x <= x1; x++) {
-        if (this.sees(y * world.width + x)) continue;
-        ctx.fillRect(Math.floor(origin.x + (x - x0) * zoom), sy, size, size);
+    const wash = (test: (index: number) => boolean, color: string): void => {
+      ctx.fillStyle = color;
+      for (let y = y0; y <= y1; y++) {
+        const sy = Math.floor(origin.y + (y - y0) * zoom);
+        for (let x = x0; x <= x1; x++) {
+          if (!test(y * world.width + x)) continue;
+          ctx.fillRect(Math.floor(origin.x + (x - x0) * zoom), sy, size, size);
+        }
       }
-    }
+    };
+
+    wash((index) => !this.sees(index) && this.knows(index), FOG_COLOR);
+    wash((index) => !this.knows(index), SHROUD_COLOR);
   }
 
   /**

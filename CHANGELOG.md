@@ -13,6 +13,82 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.14.1] — 2026-08-04
+
+### Added
+
+- **CHEAT — a fog-off toggle, for testing.** Click **Pause five times, then 1× five times** and
+  the fog comes off the whole map. A **FOG** button then appears beside the speeds to put it back,
+  because the useful thing is flipping between the two rather than seeing the map once. Session
+  only, never saved, and it touches nothing but what is drawn. Recorded in
+  [docs/OWED.md](docs/OWED.md) beside the max-speed cheat — **neither ships in 1.0.0**.
+- A test that marches an army east through the real movement code and asserts new ground is
+  revealed. It pins the behaviour that reads as a bug: an army must get **11 tiles clear of a
+  settlement** before it uncovers anything, because the settlement already knows 10 tiles in every
+  direction and an army only sees 3.
+
+### Notes
+
+- Investigated a report that the black shroud does not lift when armies march east. **The
+  simulation is correct** — measured on a real campaign, discovered ground grows from 441 tiles to
+  541 as an army marches from x=17 to x=37, and stops only when the army is destroyed. See §2 of
+  [docs/NEXT.md](docs/NEXT.md) for what is more likely going on.
+
+## [0.14.0] — 2026-08-03
+
+**Manpower, and a map that remembers.** Gold no longer decides the size of an army, and the far
+side of Europe is genuinely dark until somebody rides out and looks at it.
+
+### Added
+
+- **The manpower ceiling.** A realm may keep **a fifth of its people under arms** — 20%,
+  owner-authored, counting soldiers among its people.
+  - Recruiting **moves** a man rather than removing one: he comes off a settlement's population
+    and goes into the men under arms, and the total the fifth is taken of does not change. So the
+    ceiling never moves when a unit is raised. It moves when people are born, and when land
+    changes hands.
+  - Garrisons, field armies **and units still in training** all count — the men were levied when
+    the order went out, so leaving the queue out would let a realm order twenty units against one
+    unit's worth of room. A settlement's own derived defence does not count, and ships draw
+    nobody.
+  - **It binds hard, and it is meant to.** The opening realm — one Village of 1,000 people plus
+    the Light Infantry it is granted — has a ceiling of 220 men and 100 already standing, so there
+    is room for exactly one more unit. The third is eighty-odd months of growth away. **Conquest
+    is the only fast way to raise it**, which is where the design already puts victory.
+  - The rival realms are held to the same ceiling through the same function the player's recruit
+    panel calls. A realm at its limit trains nothing anywhere, however full its treasury.
+  - Shown in the top bar as men under arms against the ceiling, and in the recruit panel as the
+    room remaining, with its own refusal reason when it is the limit that bites.
+- **The map remembers where you have been.** Fog now has **three states** instead of two: ground
+  in sight is clear, ground the realm *knows* takes the 62% wash, and ground it has never known is
+  **opaque black**.
+  - Known means ever seen, or within **10 tiles of one of the realm's settlements** —
+    owner-authored. A king knows his neighbours' country without having ridden through it, and
+    knows nothing whatever about a coast a thousand miles away.
+  - Knowledge is **never unlearned**. An army no longer drags a closing shroud behind it, and
+    losing a province does not erase its geography from the map.
+
+### Changed
+
+- **Save format is v7.** Discovered ground is the one part of fog that has to be stored, because
+  "has anyone ever stood here" is a fact about the campaign's history and cannot be derived. A v6
+  save migrates and opens knowing what it can see and the country around its own settlements; the
+  ground it once marched over is not recoverable, because v6 never recorded it.
+- Fog is no longer *only* a presentation filter. Current sight is still derived, still recomputed
+  from scratch, and **still read by nothing in the simulation** — the new mask is written by the
+  tick and read by the renderer, and nothing in between consults it.
+- The AI's unit-picking now checks three limits rather than two, and on a small realm the manpower
+  ceiling is usually the one that binds.
+
+### Notes
+
+- **[OPEN]** A realm starved or carved down below its own ceiling disbands nobody — the ceiling
+  gates recruitment and does not conscript backwards. Whether an army should desert when the
+  ceiling drops below it is the owner's call, logged in `docs/OPEN-QUESTIONS.md`.
+- **[OPEN]** Whether 20% is the right share. The owner chose to judge it by playing; it is one
+  constant in `src/sim/manpower.ts` and no code depends on its value.
+- Naval moves to **0.15.0**, still blocked on the six ship questions.
+
 ## [0.13.0] — 2026-08-03
 
 **Fog of war, and realms that hold a country instead of a corridor.** Every defence bonus halved

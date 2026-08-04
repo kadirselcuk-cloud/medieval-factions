@@ -16,6 +16,7 @@ import {
   unitById,
 } from '../data/units';
 import { pushEvent } from './events';
+import { canRaise } from './manpower';
 import {
   IMPROVEMENT_KINDS,
   MILLI,
@@ -45,6 +46,7 @@ export type BuildFailure =
   | 'max-level'
   | 'wrong-improvement'
   | 'too-few-people'
+  | 'no-manpower'
   | 'already-have-one';
 
 export type BuildResult = { ok: true } | { ok: false; reason: BuildFailure };
@@ -257,10 +259,15 @@ export function manpowerCost(unitId: string): number {
 }
 
 /**
- * The most a settlement could levy right now without emptying itself.
+ * The most **this settlement** could levy right now without emptying itself.
  *
  * Population never falls below `MIN_POPULATION`, whether it is starved down there or recruited
  * down there — one floor, for the same reason.
+ *
+ * This is the local gate, and it is not the only one. The realm has a ceiling on the men it may
+ * keep under arms at all — see `freeManpower` in manpower.ts — and a settlement full of people
+ * inside a realm already at its limit can raise nothing. Two separate questions, two separate
+ * refusals, so the panel can say which one is biting.
  */
 export function availableManpower(city: CityState): number {
   return Math.max(0, city.population - MIN_POPULATION);
@@ -274,6 +281,9 @@ export function queueUnit(state: SimState, city: CityState, unitId: string): Bui
   }
   if (!canAfford(state, city.ownerIndex, unit.cost)) return fail('insufficient-resources');
   if (availableManpower(city) < unit.size) return fail('too-few-people');
+  // And the realm as a whole must have room under its manpower ceiling — a settlement with
+  // people to spare cannot raise men a realm at its limit has no room to keep.
+  if (!canRaise(state, city.ownerIndex, unit.size)) return fail('no-manpower');
 
   pay(state, city.ownerIndex, unit.cost);
   // Levied when the order is placed, like every other cost. The men leave their fields the

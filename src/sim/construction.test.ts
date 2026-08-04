@@ -44,6 +44,19 @@ function enrich(target = 100_000): void {
   }
 }
 
+/**
+ * Give the realm room under its manpower ceiling without touching the settlement being tested.
+ *
+ * Hands the Franks a second, populous city. Recruiting passes two separate gates — this
+ * settlement can spare the men, and the realm has room to keep them — and a test aimed at one
+ * must not be silently answered by the other.
+ */
+function grantManpowerRoom(people = 100_000): void {
+  const spare = state.cities.find((c) => c.ownerIndex !== FRANKS)!;
+  spare.ownerIndex = FRANKS;
+  spare.population = people;
+}
+
 describe('opening position', () => {
   it('starts with nothing built', () => {
     expect(paris.buildings).toEqual([]);
@@ -334,6 +347,7 @@ describe('recruitment and shipyards', () => {
 
   it('refuses to raise more men than the settlement can spare', () => {
     enrich();
+    grantManpowerRoom();
     paris.population = MIN_POPULATION + 99;
     expect(queueUnit(state, paris, 'light_infantry')).toEqual({
       ok: false,

@@ -9,16 +9,24 @@ Delete an entry when it ships, and say so in `CHANGELOG.md`.
 
 ## Debts — promised for a phase that has already shipped
 
-### 0. **REMOVE BEFORE RELEASE — the maximum-speed cheat**
-`MAX_SPEED` in [src/sim/game.ts](../src/sim/game.ts), `CHEAT_SEQUENCE` in
-[src/ui/BottomBar.tsx](../src/ui/BottomBar.tsx), and the note in the game menu's Options.
+### 0. **REMOVE BEFORE RELEASE — two testing cheats**
 
+**Maximum speed.** `MAX_SPEED` in [src/sim/game.ts](../src/sim/game.ts), `CHEAT_SEQUENCE` in
+[src/ui/BottomBar.tsx](../src/ui/BottomBar.tsx), and the note in the game menu's Options.
 Added in 0.10.1 at the owner's request, for judging balance by eye instead of by projection: it
 runs a century in about two and a half minutes. Unlocked by clicking **Pause three times, then
-10× three times**, and hidden until then. Session-only — deliberately not part of a save.
+10× three times**, and hidden until then.
 
-Every piece of it is commented `CHEAT — remove before release`, so `grep -rn "CHEAT" src/`
-finds the lot. **This must not ship in 1.0.0.**
+**Fog off.** `fogOff` / `fogRevealed` / `toggleFog` in [src/sim/game.ts](../src/sim/game.ts),
+`REVEAL_SEQUENCE` and the `FOG` button in [src/ui/BottomBar.tsx](../src/ui/BottomBar.tsx), and the
+null-mask branch on `<MapView>` in [src/ui/App.tsx](../src/ui/App.tsx). Added in 0.14.1 at the
+owner's request. Unlocked by clicking **Pause five times, then 1× five times**; a **FOG** button
+then appears to put the fog back, because the useful thing is flipping between the two rather than
+seeing the map once.
+
+Both are **session-only** — deliberately not part of a save — and neither touches the simulation.
+Every piece of both is commented `CHEAT — remove before release`, so `grep -rn "CHEAT" src/`
+finds the lot. **Neither must ship in 1.0.0.**
 
 ### 1. Nothing has been visually verified
 There is no browser automation in this environment, so **Claude has never seen the game
@@ -83,8 +91,12 @@ it is tagged **[GEN]** at its definition. None of it is owner-authored truth.
 | Season boundaries and modifiers | `docs/MECHANICS.md` §5 | **approved by owner** |
 | Halving every defence bonus (the halved figures themselves) | `src/data/terrain.ts`, `data/buildings.json` | **live** — the owner asked for half; where the scale lands is [GEN] |
 | Consolidation: radius 3 around each settlement, weakest army only | `src/sim/ai.ts` | **live** — decides how blobby the map is and how soon wars start |
-| A field army sees for itself, and there is no memory of ground once seen | `src/sim/vision.ts` | **live** — the sight figures themselves are owner-authored |
+| A field army sees for itself | `src/sim/vision.ts` | **live** — the sight figures themselves are owner-authored |
 | Every AI tuning number — income, odds, army sizes, reach, build weights, levy floors | `data/ai.json` | **live** — the five difficulties and five personalities are owner-named |
+| Counting units **still in training** against the manpower ceiling | `src/sim/manpower.ts` | **live** — the 20% share itself is owner-authored |
+| Nothing is disbanded when a realm falls below its own ceiling | `src/sim/manpower.ts` | **live** — see OPEN-QUESTIONS, owner to decide |
+| The 10-tile "known" band radiates from **settlements**, not from every owned tile | `src/sim/vision.ts` | **live** — the 10 tiles themselves are owner-authored |
+| The exact black of the unexplored shroud | `src/render/palette.ts` | **live** — the owner asked for black; the ink is mine |
 | Which realm gets which personality (rolled from the seed) | `src/sim/state.ts` | **live** — `data/factions.json` accepts an owner-authored `personality` instead |
 | Knight as the rung with no handicap either way | `data/ai.json` | **live** — the anchor the other four bend around |
 | The AI keeps `garrisonKeep` units by sorted id, not by strength | `src/sim/ai.ts` | **live** |
@@ -96,13 +108,13 @@ it is tagged **[GEN]** at its definition. None of it is owner-authored truth.
 
 Tracked in [ROADMAP.md](ROADMAP.md); listed here so nothing quietly disappears.
 
-- Per-faction unit names and the 10 elite units — 0.15.0, to be designed with the owner
-- Faction strengths and weaknesses — 0.15.0
-- The owner's 2D art, dropped into `data/art.json` as image paths — 0.15.0
+- Per-faction unit names and the 10 elite units — 0.16.0, to be designed with the owner
+- Faction strengths and weaknesses — 0.16.0
+- The owner’s 2D art, dropped into `data/art.json` as image paths — 0.16.0
 - **Diplomacy**, which is where honour goes. `dogpiles`, `attacksRealms` and `bullyFloorPermille`
   are wired, tested and permissive for all five personalities; the Honorable realm gets its
   character back when there is something to be honourable *about*
-- Naval — 0.14.0. Britons and Moors cannot leave their landmass until this exists — **and now
+- Naval — 0.15.0. Britons and Moors cannot leave their landmass until this exists — **and now
   neither can the AI**: a dozen independent cities in Scandinavia, Ireland, Cyprus and North
   Africa survive every campaign because no realm can reach them
 - Capacitor mobile wrap, ad and premium-unlock hooks — 1.0.0

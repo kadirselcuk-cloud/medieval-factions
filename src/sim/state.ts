@@ -10,6 +10,7 @@ import {
   type World,
 } from '../data/world';
 import { improvementAt, totalUpkeep } from './construction';
+import { rememberGround } from './vision';
 import {
   emptyLedger,
   MILLI,
@@ -150,10 +151,14 @@ export function createInitialState(
     improvementLevel: new Uint8Array(tileCount),
     improvementMonths: new Uint8Array(tileCount),
     improvementTarget: new Uint8Array(tileCount),
+    discovered: new Uint8Array(tileCount),
     events: [],
   };
 
   recomputeIncome(state, world);
+  // A realm opens knowing its own country — otherwise the first frame of a new campaign is black
+  // everywhere the capital is not looking, before a single tick has run.
+  rememberGround(state, world);
   return state;
 }
 

@@ -55,8 +55,12 @@ These were set by the owner and apply to every session.
 1. **Ask, don't assume.** If a mechanic, value, or rule is not written down in
    `docs/DESIGN.md`, ask. Do not invent game rules. Log the question in
    `docs/OPEN-QUESTIONS.md` if it can't be resolved immediately.
-2. **Always runnable.** A dev server must come up on localhost and hot-reload after every
-   change. Never leave `main` in a non-booting state.
+2. **Always runnable, and always running.** Never leave `main` in a non-booting state — and
+   **start `npm run dev` after every set of changes and leave it running.** Not started,
+   checked, and stopped: *left up*, on http://localhost:5173, so the owner can open it the
+   moment the turn ends. Claude has no browser (see [docs/OWED.md](docs/OWED.md) §1), so the
+   owner is the only one who can see the game render, and a server that has been shut down
+   again gives them nothing. Say in the report that it is running.
 3. **Versioning.** Semantic `MAJOR.MINOR.PATCH`. Single source of truth is `version` in
    `package.json`; it must match the top entry of `CHANGELOG.md` and the version shown in
    the game's UI.

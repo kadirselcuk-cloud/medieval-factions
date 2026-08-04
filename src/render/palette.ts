@@ -37,13 +37,24 @@ export const GRID_COLOR = 'rgba(10, 8, 5, 0.16)';
 export const VOID_COLOR = '#0d0b08';
 
 /**
- * The fog-of-war shroud, laid over everything out of sight.
+ * The fog-of-war shroud, laid over ground the realm knows but cannot currently see.
  *
  * A wash, not a blackout: the terrain beneath stays readable enough to navigate by, which is
  * what keeps the map a map. What must genuinely be hidden — ownership, armies, whose city that
  * is — is withheld before this is drawn rather than painted and covered over.
  */
 export const FOG_COLOR = 'rgba(8, 7, 5, 0.62)';
+
+/**
+ * And the shroud over ground the realm has never known — see vision.ts.
+ *
+ * **Opaque.** Not a heavier wash: there is nothing underneath worth hinting at, because the point
+ * is that the realm does not know what is there. Anything drawn under it — terrain, coastline, a
+ * rival's city — is covered outright, which is also why nothing needs gating out of the layers
+ * below. Slightly warmer than pure black so it reads as parchment edge rather than as a hole in
+ * the canvas. **[GEN]** — the owner specified black; the exact ink is mine.
+ */
+export const SHROUD_COLOR = '#0a0908';
 
 const SHADE_STEPS = 4;
 

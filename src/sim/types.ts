@@ -305,6 +305,19 @@ export interface SimState {
   /** Level being built toward while work is in progress. */
   improvementTarget: Uint8Array;
 
+  /**
+   * 1 per tile the **player's** realm has ever known — see vision.ts.
+   *
+   * The one part of fog of war that has to be remembered rather than derived, because "has anyone
+   * ever stood here" is a fact about the campaign's history. Monotonic: bits are only ever set,
+   * never cleared, so losing a province does not unlearn its geography.
+   *
+   * Player-only and write-only as far as the simulation is concerned. Nothing outside the renderer
+   * reads it, the rivals do not have one, and no rule consults it — a campaign runs identically
+   * whether or not it is maintained, which is what keeps it out of every determinism argument.
+   */
+  discovered: Uint8Array;
+
   /** Newest last. Trimmed to MAX_EVENTS. */
   events: GameEvent[];
 }

@@ -25,6 +25,7 @@ import {
   settlementUpgradeBlock,
 } from './construction';
 import { beginSiege, RELIEF_RANGE, siegeTarget } from './conquest';
+import { freeManpower } from './manpower';
 import { blockedBy, findPath, orderMove } from './movement';
 import {
   MAX_ARMY_UNITS,
@@ -324,6 +325,10 @@ function forceOf(state: SimState, factionIndex: number): number {
  * Ambitious one buys horse. Everything unaffordable in gold, in people, or in wages it could
  * not keep paying is filtered out first, so this can only ever return something safe to order.
  *
+ * **Three ceilings, and the lowest wins.** The realm's manpower ceiling is checked first and is
+ * the only one that is not local: a rival at its limit trains nothing anywhere, however full its
+ * settlements are, exactly as the player's recruit panel refuses. It plays the same rule.
+ *
  * **It stops well above the survival floor, and it never conscripts a settlement backwards.**
  * `MIN_POPULATION` is where a settlement stops shrinking, not where it is still worth anything:
  * manpower is spent permanently and flat growth never earns it back, so a realm that levies to
@@ -338,7 +343,11 @@ function bestUnit(state: SimState, city: CityState, mind: Mind): Unit | undefine
   const purse = mind.faction.monthlyIncome.gold;
   const earned = settlementUpgradeTo(city.tier)?.minPopulation ?? 0;
   const floor = Math.max(mind.character.levyFloor, earned);
-  const manpower = Math.min(availableManpower(city), Math.max(0, city.population - floor));
+  const manpower = Math.min(
+    availableManpower(city),
+    Math.max(0, city.population - floor),
+    freeManpower(state, city.ownerIndex),
+  );
 
   let best: Unit | undefined;
   let bestScore = 0;

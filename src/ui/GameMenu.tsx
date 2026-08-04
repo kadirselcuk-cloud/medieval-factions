@@ -140,6 +140,13 @@ export function GameMenu({
               Maximum speed is unlocked. It is a testing cheat and will not ship.
             </p>
           )}
+          {/* CHEAT — remove before release. */}
+          {game.fogRevealed && (
+            <p className="panel__note">
+              Fog of war is off. It is a testing cheat and will not ship — the FOG button beside
+              the speeds puts it back.
+            </p>
+          )}
         </div>
 
         <div className="overlay__list">

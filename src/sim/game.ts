@@ -6,6 +6,7 @@ import { autosave, serialise, SAVE_VERSION, writeSave, type SaveFile } from './s
 import { createInitialState } from './state';
 import { advance } from './tick';
 import type { AiDifficulty, SimState } from './types';
+import { rememberGround } from './vision';
 
 export const SPEEDS = [0, 1, 2, 5, 10] as const;
 
@@ -43,6 +44,8 @@ export class Game {
   private speedBeforeAutoPause: Speed = 1;
   /** CHEAT — remove before release. Session-only; deliberately not part of a save. */
   private cheatsOn = false;
+  /** CHEAT — remove before release. */
+  private fogOff = false;
   private autoPaused = false;
   private frameHandle = 0;
   private lastFrameTime = 0;
@@ -85,6 +88,23 @@ export class Game {
   unlockCheats(): void {
     if (this.cheatsOn) return;
     this.cheatsOn = true;
+    this.emit();
+  }
+
+  /**
+   * CHEAT — remove before release. See docs/OWED.md.
+   *
+   * Lifts the fog of war off the whole map, and puts it back. Session-only and deliberately not
+   * part of a save, like the speed cheat — it changes what is drawn and nothing else, so a
+   * campaign played with it off is the same campaign.
+   */
+  get fogRevealed(): boolean {
+    return this.fogOff;
+  }
+
+  /** CHEAT — remove before release. */
+  toggleFog(): void {
+    this.fogOff = !this.fogOff;
     this.emit();
   }
 
@@ -190,6 +210,10 @@ export class Game {
   /** Replace the running campaign, e.g. after loading a save. */
   loadState(state: SimState): void {
     this.state = state;
+    // Bring the remembered map up to date before the first frame. A campaign loaded and left
+    // paused never ticks, and a save migrated up from v6 carries no memory at all — either way
+    // the player would be looking at a black map until they pressed play.
+    rememberGround(state, this.world);
     this.accumulator = 0;
     this.lastAutosavedMonth = calendarAt(state.tick).totalMonths;
     this.emit();

@@ -149,6 +149,15 @@ function Campaign({
     [game.version, state, world],
   );
 
+  /*
+   * And what it remembers — the 62% wash, as against the black beyond it.
+   *
+   * Passed straight out of state, with no memo of its own. The tick maintains it (`rememberGround`
+   * in the simulation) by mutating it in place, so its identity never changes and memoising it
+   * would achieve nothing. `vision` is rebuilt every tick and shares the effect that hands both to
+   * the renderer, which is what gets the redraw.
+   */
+
   const selectedArmyId = selected
     ? (state.armies.find((army) => army.tileIndex === selected.index)?.id ?? null)
     : null;
@@ -245,11 +254,13 @@ function Campaign({
       />
 
       <main className="stage">
+        {/* CHEAT — remove before release: null masks draw the map with no fog at all. */}
         <MapView
           world={world}
           territory={territory}
           armies={armies}
-          vision={vision}
+          vision={game.fogRevealed ? null : vision}
+          known={game.fogRevealed ? null : state.discovered}
           selection={selected?.index ?? null}
           onHover={setHovered}
           onSelect={handleMapSelect}
@@ -353,6 +364,8 @@ function Campaign({
         fullscreen={fullscreen}
         cheatsUnlocked={game.cheatsUnlocked}
         onUnlockCheats={() => game.unlockCheats()}
+        fogRevealed={game.fogRevealed}
+        onToggleFog={() => game.toggleFog()}
       />
 
       <div className="rotate-gate">

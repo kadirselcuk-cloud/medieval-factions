@@ -17,8 +17,9 @@ import type { CityState, SimState } from './types';
  * 3 → 4: sieges. A v3 save has no settlement invested, because nothing could invest one.
  * 4 → 5: population became whole people, because growth stopped being a percentage.
  * 5 → 6: the rivals gained an AI. A v5 campaign was played against realms that did nothing.
+ * 6 → 7: the map remembers where the player has been. A v6 save never recorded it.
  */
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 
 const DB_NAME = 'medieval-factions';
 const DB_VERSION = 1;
@@ -47,12 +48,13 @@ export interface SaveFile extends SaveMeta {
   state: SerialisedState;
 }
 
-interface SerialisedState extends Omit<SimState, 'tileOwner' | 'improvementKind' | 'improvementLevel' | 'improvementMonths' | 'improvementTarget'> {
+interface SerialisedState extends Omit<SimState, 'tileOwner' | 'improvementKind' | 'improvementLevel' | 'improvementMonths' | 'improvementTarget' | 'discovered'> {
   tileOwner: number[];
   improvementKind: number[];
   improvementLevel: number[];
   improvementMonths: number[];
   improvementTarget: number[];
+  discovered: number[];
 }
 
 export function serialise(state: SimState): SerialisedState {
@@ -73,6 +75,7 @@ export function serialise(state: SimState): SerialisedState {
     improvementLevel: Array.from(state.improvementLevel),
     improvementMonths: Array.from(state.improvementMonths),
     improvementTarget: Array.from(state.improvementTarget),
+    discovered: Array.from(state.discovered),
   };
 }
 
@@ -94,6 +97,9 @@ export function deserialise(data: SerialisedState): SimState {
     improvementLevel: Uint8Array.from(data.improvementLevel),
     improvementMonths: Uint8Array.from(data.improvementMonths),
     improvementTarget: Uint8Array.from(data.improvementTarget),
+    // Sized from the tile grid rather than assumed present, so a save from before the map
+    // remembered anything deserialises into an empty memory instead of an undefined one.
+    discovered: Uint8Array.from(data.discovered ?? new Array<number>(data.tileOwner.length).fill(0)),
   };
 }
 
@@ -159,6 +165,16 @@ export function migrate(file: SaveFile): SaveFile {
             personality: rolledPersonality(state.seed, faction.id, faction.index),
           };
     }
+  }
+
+  // v6 kept no record of where the player had been, so there is nothing to recover: a campaign
+  // that has marched across Europe cannot be told which tiles it marched over. It opens knowing
+  // what it can see and the country around its own settlements, and re-explores the rest.
+  //
+  // Deliberately not backfilled from territory ever held — that information is not in the save
+  // either, and guessing it would hand a loaded campaign a map its own history never earned.
+  if (file.version < 7) {
+    state.discovered = state.discovered ?? new Array<number>(state.tileOwner.length).fill(0);
   }
 
   return { ...file, version: SAVE_VERSION, state };

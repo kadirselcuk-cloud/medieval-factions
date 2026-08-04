@@ -9,6 +9,7 @@ import { advanceSieges } from './conquest';
 import { pushEvent } from './events';
 import { advanceArmies } from './movement';
 import { recomputeIncome } from './state';
+import { rememberGround } from './vision';
 import {
   MILLI,
   MIN_POPULATION,
@@ -30,6 +31,10 @@ export function advance(state: SimState, world: World): void {
 
   accrueIncome(state);
   advanceArmies(state, world);
+  // After the armies have moved, so ground an army walked over this tick is remembered before it
+  // can walk off it again. Purely a record for the player's map — see vision.ts. Nothing below
+  // reads it, so where it sits in the tick cannot change an outcome.
+  rememberGround(state, world);
 
   if (isMonthBoundary(state.tick)) {
     advanceConstruction(state, world);
