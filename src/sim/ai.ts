@@ -8,7 +8,7 @@ import {
 import { settlementUpgradeTo } from '../data/buildings';
 import { improvementCost, MAX_IMPROVEMENT_LEVEL, tileOutput } from '../data/improvements';
 import { TERRAIN_PROFILE, type ImprovementKind } from '../data/terrain';
-import { recruitableUnits, unitById, type LandUnit } from '../data/units';
+import { canEmbarkFrom, recruitableUnits, unitById, type LandUnit } from '../data/units';
 import { featureAt, terrainAt, type World } from '../data/world';
 import { armiesOf, defenceOf, mobilise, stackSize, stackSoldiers } from './armies';
 import { defenderAdvantage, openFieldAdvantage } from './battle';
@@ -25,6 +25,7 @@ import {
   settlementUpgradeBlock,
 } from './construction';
 import { beginSiege, RELIEF_RANGE, siegeTarget } from './conquest';
+import { isCoastal } from './fleets';
 import { landmassOf, reachedIn, sameLandmass, walkingDistanceFrom } from './geography';
 import { runNavy } from './navalAi';
 import { freeManpower } from './manpower';
@@ -82,6 +83,17 @@ interface Mind {
    * Consulted when the role is chosen, so a claimer is only raised where there is work for it.
    */
   bare: ReadonlySet<number>;
+  /**
+   * The realm's own coastal harbours, and whether anything worth taking is across water.
+   *
+   * Both exist for one behaviour: **an army with nothing to do on this continent goes and waits for
+   * a boat** (docs/DESIGN.md decision 147). A realm that has conquered its whole landmass has
+   * objectives it cannot walk to, raids it cannot ride to and ground it cannot claim, so every
+   * branch of `order` failed and every army stood still — measured at 1600 as **66 of 66 idle**,
+   * while the realm's fleets sailed busily about with nothing to carry.
+   */
+  harbours: readonly CityState[];
+  overseasTargets: boolean;
 }
 
 export function runAi(state: SimState, world: World): void {
@@ -140,7 +152,30 @@ export function runAi(state: SimState, world: World): void {
       bare.add(landmassOf(world, index));
     }
 
-    const mind: Mind = { faction, level, character, strength, home, bare };
+    const harbours = mine.filter(
+      (city) => !city.siege && canEmbarkFrom(city.buildings) && isCoastal(world, city.tileIndex),
+    );
+
+    const mind: Mind = {
+      faction,
+      level,
+      character,
+      strength,
+      home,
+      bare,
+      harbours,
+      overseasTargets: false,
+    };
+    // Filled after the Mind exists because `willAttack` needs one. Anything worth taking that no
+    // army of this realm can walk to — which is what makes a port worth marching to.
+    mind.overseasTargets =
+      harbours.length > 0 &&
+      state.cities.some(
+        (city) =>
+          city.ownerIndex !== faction.index &&
+          !Number.isFinite(reachedIn(home, city.tileIndex)) &&
+          willAttack(state, city, mind),
+      );
     develop(state, world, mind);
 
     /**
@@ -585,7 +620,14 @@ function campaign(state: SimState, world: World, mind: Mind): void {
   const armies = [...armiesOf(state, mind.faction.index)].sort((a, b) => a.id - b.id);
   const held = state.cities.filter((c) => c.ownerIndex === mind.faction.index).length;
   const fronts = Math.max(1, Math.min(MAX_FRONTS, Math.floor(held / SETTLEMENTS_PER_FRONT)));
-  const objectives = pickObjectives(state, world, mind, armies, fronts);
+  let objectives = pickObjectives(state, world, mind, armies, fronts);
+
+  // **The floor.** Nothing the realm can beat is not the same as nothing to do — see
+  // `desperateObjective`. Only consulted when the ordinary choice came back empty.
+  if (objectives.length === 0 && armies.length > 0) {
+    const last = desperateObjective(state, world, mind);
+    if (last) objectives = [last];
+  }
   const objective = objectives[0];
 
   /**
@@ -899,10 +941,31 @@ function order(
   // out of anywhere to raid.
   if (army.role === 'raid') {
     const prize = pickRaid(state, world, mind, army);
-    if (prize) {
-      march(state, world, army, prize, mind);
-      return;
-    }
+    // A raid that cannot be routed falls through to the war rather than standing still.
+    if (prize && march(state, world, army, prize, mind)) return;
+  }
+
+  /**
+   * **No objective is not a reason to stand still** — owner-specified in 0.18.4.
+   *
+   * "There should never be a stalemate." Measured at 1500, there always was: **52 of 52 armies
+   * idle**, battles down to a trickle, one realm holding 45 cities and four holding 2–7 apiece and
+   * doing nothing for two hundred years.
+   *
+   * Two quite different realms end up here and both were frozen by the same gap. The **weak** one
+   * has objectives it cannot win, so `judge` refuses them all and it never fights again. The
+   * **dominant** one has taken every city it can walk to, so everything left is across water and
+   * `pickObjectives` filters it out — which is why a realm that conquers mainland Europe stops
+   * moving its armies while its fleets sail busily around (exactly what the owner saw).
+   *
+   * So a field army with no war to fight **raids** instead. A raid needs no favourable odds: it
+   * rides for the deepest thing it can reach, burns what it finds, and either takes a lightly held
+   * place or forces the strong realm to garrison against it. That is the guerilla answer to being
+   * outmatched, and it is the one thing a weaker realm can always afford to do.
+   */
+  if (!objective) {
+    const prize = pickRaid(state, world, mind, army);
+    if (prize && march(state, world, army, prize, mind)) return;
   }
 
   // **Too small to be an army? Find one.** Checked after claiming and raiding, which are jobs a
@@ -911,10 +974,22 @@ function order(
   // takes the place.
   if (rally(state, world, army, mind)) return;
 
-  if (objective) {
-    march(state, world, army, objective, mind);
-    return;
-  }
+  // **The objective, and then everything else.** Each step returns whether it actually issued an
+  // order, so an army whose road is blocked or whose target sits across water tries the next thing
+  // instead of standing in a field for a century.
+  if (objective && march(state, world, army, objective, mind)) return;
+
+  // Nowhere to fight it can reach: take ground instead. Since 0.18.4 that includes a rival's open
+  // fields, so there is essentially always somewhere for an army to be.
+  const ground = pickClaim(state, world, army, mind, Number.POSITIVE_INFINITY);
+  if (ground >= 0 && orderMove(state, world, army.id, ground).ok) return;
+
+  // **Nothing left on this continent: go and wait for a boat.** The end state of a realm that has
+  // won its landmass, and the reason 66 of 66 armies stood still at 1600 — every target, every
+  // raid and every acre was across water, and none of the branches above can cross it. Marching to
+  // a harbour is what turns an idle army into cargo: `loadUp` boards whatever is standing there.
+  if (mind.overseasTargets && boardShip(state, world, army, mind)) return;
+
   regroup(state, world, army, mind);
 }
 
@@ -1013,6 +1088,50 @@ function pickClaim(
     if (destination !== undefined) spokenFor.add(destination);
   }
 
+  /**
+   * **A rival's open fields count too, once there is no free ground left** — owner-specified in
+   * 0.18.4, and one of the two things that unstuck the late game.
+   *
+   * Taking a rival's tile used to be "an act of war that belongs to the objective, not to tidying
+   * up the border". That was right while there was free ground; it becomes a paralysis the moment
+   * there is not. Measured at 1500 with the map 100% claimed, **every one of 52 armies was idle** —
+   * claimers had nothing to claim, and a realm's border with its neighbour, which is the most
+   * valuable ground on the map, was invisible to the one job whose whole purpose is taking ground.
+   *
+   * And it is **income**: a tile pays its owner every month whether or not a city sits on it, so a
+   * realm that takes cities and leaves the fields between them is leaving money on the table.
+   *
+   * Free ground still comes first — it is cheaper, nobody fights for it, and it does not open a
+   * front. A rival's ground is only considered when there is none, and only where the realm would
+   * attack that rival anyway, so the scruples that govern war govern this too.
+   */
+  const enemyGround = (index: number): boolean => {
+    const owner = state.tileOwner[index] ?? -1;
+    if (owner < 0 || owner === mind.faction.index) return false;
+    // Never the tile a settlement stands on. That is a siege, and it belongs to the objective.
+    if (state.cities.some((city) => city.tileIndex === index)) return false;
+    const theirCity = state.cities.find((city) => city.ownerIndex === owner);
+    return theirCity !== undefined && willAttack(state, theirCity, mind);
+  };
+
+  for (const wantFree of [true, false]) {
+    const found = sweepForGround(state, world, army, mind, bound, spokenFor, wantFree, enemyGround);
+    if (found >= 0) return found;
+  }
+  return -1;
+}
+
+/** One pass over the tile grid, for `pickClaim`. Split out so it can run twice with two rules. */
+function sweepForGround(
+  state: SimState,
+  world: World,
+  army: ArmyState,
+  mind: Mind,
+  bound: number,
+  spokenFor: ReadonlySet<number>,
+  wantFree: boolean,
+  enemyGround: (index: number) => boolean,
+): number {
   let best = -1;
   let bestFromCity = Number.POSITIVE_INFINITY;
   let bestFromArmy = Number.POSITIVE_INFINITY;
@@ -1021,9 +1140,8 @@ function pickClaim(
   // array, once a month per claiming stack, and the box was never a saving worth the ground it
   // cost — the expensive checks are still last, and most tiles fail the first one.
   for (let index = 0; index < state.tileOwner.length; index++) {
-    // Unclaimed ground only. Taking a rival's tile is an act of war and belongs to the objective,
-    // not to tidying up the border.
-    if ((state.tileOwner[index] ?? -1) !== -1) continue;
+    const free = (state.tileOwner[index] ?? -1) === -1;
+    if (wantFree ? !free : free || !enemyGround(index)) continue;
     if (spokenFor.has(index)) continue;
 
     // Infinity is water or another landmass, and `Infinity > Infinity` is false — so unreachable
@@ -1276,6 +1394,43 @@ function pickObjectives(
 }
 
 /**
+ * The weakest thing the realm can reach, whatever the odds — the floor under `pickObjectives`.
+ *
+ * **"There should never be a stalemate"**, owner-specified in 0.18.4. `judge` refuses fights a realm
+ * would lose, which is right for choosing *between* wars and wrong as the last word: a realm with
+ * nothing it can beat simply stopped, for two hundred years, in every campaign measured.
+ *
+ * So when every candidate fails `judge`, the realm picks the softest target it can walk to and
+ * presses it anyway. It will often lose, and losing is fine — it costs the strong realm men and
+ * garrisons, which is precisely what a weaker power is *for*. What it must not do is nothing.
+ *
+ * Scruples still apply. A Peaceful realm will not open a war with a rival here any more than
+ * anywhere else; `willAttack` is checked exactly as it is above.
+ */
+function desperateObjective(
+  state: SimState,
+  world: World,
+  mind: Mind,
+): CityState | undefined {
+  let best: CityState | undefined;
+  let softest = Number.POSITIVE_INFINITY;
+
+  for (const city of state.cities) {
+    if (city.ownerIndex === mind.faction.index) continue;
+    if (!Number.isFinite(reachedIn(mind.home, city.tileIndex))) continue;
+    if (!willAttack(state, city, mind)) continue;
+
+    // Softest first, distance breaking the tie, then the index so the choice never wanders.
+    const effort = effortOf(city) * 4 + reachedIn(mind.home, city.tileIndex);
+    if (effort >= softest) continue;
+    softest = effort;
+    best = city;
+  }
+  void world;
+  return best;
+}
+
+/**
  * How far apart two objectives must be to count as separate wars, in tiles. **[GEN]**
  *
  * Eight — comfortably outside the 5 × 5 relief box, so two fronts can never be the same battle
@@ -1358,22 +1513,24 @@ function march(
   army: ArmyState,
   city: CityState,
   mind: Mind,
-): void {
+): boolean {
   // Storming is judged on what is at the walls now, not on what is on its way: an army that
   // marches onto the tile fights the moment it arrives, alone if it is the first there.
   const men = atTheWalls(state, world, mind, city.tileIndex, army);
   if (judge(state, world, city, mind, men, true)) {
-    orderMove(state, world, army.id, city.tileIndex);
-    return;
+    // **Returns whether the order stuck.** A march that cannot be routed used to fail silently and
+    // leave the army standing there — every month, for ever, because nothing else was tried. The
+    // caller now falls through to the next thing (owner-specified in 0.18.4: an army whose
+    // destination is unreachable should switch targets).
+    return orderMove(state, world, army.id, city.tileIndex).ok;
   }
 
   const route = findPath(state, world, army, city.tileIndex);
-  if (!route || route.length === 0) return;
+  if (!route || route.length === 0) return false;
 
   const gate = route[route.length - 2];
   if (gate !== undefined) {
-    orderMove(state, world, army.id, gate);
-    return;
+    return orderMove(state, world, army.id, gate).ok;
   }
 
   // Already at the gates and not strong enough to go in. A realm that will starve a city out
@@ -1381,6 +1538,8 @@ function march(
   // tries the walls again next month. **This is where honour actually costs something** — it
   // has to mass a force big enough to storm, while everyone else only has to outlast the grain.
   if (mind.character.prefersSiege) beginSiege(state, world, army.id);
+  // Standing at the gates *is* doing something, whether or not the siege was laid.
+  return true;
 }
 
 /**
@@ -1478,6 +1637,37 @@ function rally(state: SimState, world: World, army: ArmyState, mind: Mind): bool
 
   if (!best) return false;
   return orderMove(state, world, army.id, best.tileIndex).ok;
+}
+
+/**
+ * Send an army to a harbour to be shipped somewhere it can fight.
+ *
+ * The nearest of the realm's ports that is not already crowded — several armies queueing on one
+ * quay is fine and in fact wanted, since it is how a **multi-stack landing** gets assembled, but
+ * they must not all pick the same quay when the realm has four, or three fronts' worth of shipping
+ * leaves from one harbour and the rest stand empty.
+ *
+ * An army already standing on a quay stays there. That is not idleness — it is cargo waiting.
+ */
+function boardShip(state: SimState, world: World, army: ArmyState, mind: Mind): boolean {
+  const waiting = (city: CityState) =>
+    state.armies.filter(
+      (other) => other.ownerIndex === mind.faction.index && other.tileIndex === city.tileIndex,
+    ).length;
+
+  if (mind.harbours.some((city) => city.tileIndex === army.tileIndex)) return true;
+
+  const port = [...mind.harbours]
+    .filter((city) => Number.isFinite(reachedIn(mind.home, city.tileIndex)))
+    .sort(
+      (a, b) =>
+        waiting(a) - waiting(b) ||
+        chebyshev(world, a.tileIndex, army.tileIndex) -
+          chebyshev(world, b.tileIndex, army.tileIndex) ||
+        a.cityIndex - b.cityIndex,
+    )[0];
+
+  return port !== undefined && orderMove(state, world, army.id, port.tileIndex).ok;
 }
 
 function regroup(state: SimState, world: World, army: ArmyState, mind: Mind): void {

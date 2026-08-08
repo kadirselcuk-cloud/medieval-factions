@@ -131,6 +131,8 @@ it is tagged **[GEN]** at its definition. None of it is owner-authored truth.
 | Defenders count as 1 tile of distance per 100 soldiers when picking a target | `src/sim/ai.ts` | **live** — `DEFENDERS_PER_TILE`. Owner asked for easy targets; the exchange rate is mine |
 | Ship rather than march when the walk is 3× the sail and ≥12 tiles | `src/sim/navalAi.ts` | **live** — `SEA_SHORTCUT`. The dial for how sea-dominated the map feels |
 | A fleet will not unload within 6 tiles of home, and hunts within 15 | `src/sim/navalAi.ts` | **live** — `HOME_SHORE`, `HUNTING_RANGE` |
+| A realm with nothing winnable presses the softest reachable target anyway | `src/sim/ai.ts` | **live** — `desperateObjective`. Owner asked for no stalemates; that a hopeless attack is better than none is mine |
+| Loaded fleets are dealt across up to 4 beaches | `src/sim/navalAi.ts` | **live** — `MAX_BEACHES` |
 | One harbour of departure, nearest the target by sea | `src/sim/navalAi.ts` | **live** — spread across every port, hulls arrive two at a time and carry nothing |
 | A landed army is its own frontier, but only where its realm holds no settlement | `src/sim/ai.ts` | **live** — without it an expedition stands on its beach until the winter takes it |
 

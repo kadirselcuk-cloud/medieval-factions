@@ -942,6 +942,8 @@ roughly one improvement a year and its conquests stayed bare ground for a centur
 - ~~**It cannot cross water.**~~ — **it can, since 0.18.0.** See §10.
 - **It does not manoeuvre armies** or garrison a captured city deliberately. It **splits** one only
   at a quayside, to fit the berths (decision 129).
+- **It has no notion of a truce or a breathing space.** A realm that cannot win still attacks, which
+  is deliberate (decision 145) but is not the same thing as knowing when to stop.
 - **It has no diplomacy.** The personalities are written to drive it when it arrives.
 
 ### How big its armies are, and how many wars it fights — since 0.18.2
@@ -982,6 +984,61 @@ behind, and the escort has to be waiting when the transports are ready. A realm 
 to march at** — the Britons on their island, the Moors in North Africa — wants a bigger navy still,
 because the sea is the only direction it has. Result: **19–30 fleets**, and two or three realms
 holding ground on more than one landmass.
+
+### There is never a stalemate — since 0.18.4
+
+The single hardest property in this file to keep true, because every rule that causes a stalemate is
+locally sensible. Measured before it was addressed: from 1500 onward, **52 of 52 armies idle**,
+battles dwindling, the map frozen at one realm of 46 cities and four of 1–7 for two centuries.
+
+**Every branch has something after it, and a failed order falls through.** An army's orders are a
+ladder, tried in order, each rung reached only when the one above it produced nothing:
+
+| | |
+|---|---|
+| 1 | **Relieve** a siege on one of the realm's own settlements |
+| 2 | **Hold the post**, if it is a border guard |
+| 3 | **Take ground**, if it is a claimer, or a field army with the border to tidy |
+| 4 | **Storm or invest** a settlement it is already standing beside |
+| 5 | **Raid** — for a raiding column, and for *any* army whose realm has no objective |
+| 6 | **Rally** into a bigger friendly stack, if it is under half strength |
+| 7 | **March on the objective** for its front |
+| 8 | **Take ground** — unclaimed first, then **a rival's open fields** |
+| 9 | **Walk to a harbour** and wait to be shipped, if anything worth taking is across water |
+| 10 | **Regroup** on the garrison with the most men waiting |
+
+Before 0.18.4 several of these returned without trying the next: `march` failed silently when the
+road was blocked or the target unreachable, and an army with no objective went straight to regroup.
+
+**A realm with nothing it can beat attacks the softest thing it can reach.** `judge` refuses fights a
+realm would lose, which is the right rule for choosing *between* wars and the wrong one as the last
+word — a realm that fails it everywhere simply stopped. It now presses the weakest reachable
+settlement anyway. It will often lose, and that is the point: losing costs the strong realm men and
+garrisons, which is what a weaker power is for. Scruples still apply; a Peaceful realm will not open
+a war here that it would not open anywhere else.
+
+**A rival's open fields count as claimable ground** once free ground has run out. Taking a rival's
+tile used to belong to the objective rather than to tidying the border, which was right while there
+was free ground and became paralysis the moment there was not — since 0.18.3 the map finishes 90–100%
+claimed, so the job whose whole purpose is taking ground had none to take. It is also **income**: a
+tile pays its owner every month whether or not a city stands on it.
+
+**A realm that has taken its own landmass sends its armies to the harbours.** Objectives, raids and
+claimable ground are all filtered by what an army can walk to, so a realm that has won its continent
+had every branch come back empty while its fleets sailed about with nothing to carry — which is
+exactly the case the owner reported as "a nation conquers mainland Europe and the armies stop". Such
+an army now marches to a port and waits as cargo, spread across the realm's harbours rather than all
+onto one quay, which is also how a **multi-stack landing** gets assembled.
+
+**Transports board raiding columns as well as field armies.** A raider that cannot reach anything to
+raid is as stuck as any other stack, and shipping one to an undefended coast is worth far more than
+leaving it at home. This was a real bug rather than a design gap: measured at 1600, one realm had 11
+armies waiting on quays, 21 fleets, and **one of them loaded**.
+
+**Landings are spread across up to four beaches.** All the convoys used to sail for the single best
+one. Dealing them round the reachable coasts is harder to defend against and far more likely to find
+a beach nobody is watching; the first convoy still takes the chosen target, so a realm with one fleet
+behaves as it always did.
 
 ### What it recruits — a roll of three, since 0.18.1
 

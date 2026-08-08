@@ -270,12 +270,27 @@ export function runNavy(
    * with three berths left and nothing else coming should not wait for ever. `callToThePort` keeps
    * summoning stacks to the quayside in the meantime, and `loadUp` keeps taking the part that fits.
    */
+  /**
+   * **Loaded fleets spread across several beaches, not all onto one** — owner-specified in 0.18.4
+   * ("make landings from unexpected places, with more than one stack if required").
+   *
+   * `expedition` names the best landing; `otherLandings` names the rest, one per reachable coast.
+   * Fleets are dealt round them in id order, so a realm with four loaded convoys puts men ashore in
+   * four places rather than queueing all four behind the same headland — which is both harder to
+   * defend against and far more likely to find a beach nobody is watching.
+   *
+   * The first fleet always takes the chosen target, so a realm with one convoy behaves exactly as
+   * it did before.
+   */
+  const beaches = [target, ...otherLandings(state, world, factionIndex, seas, target)];
+  let dealt = 0;
   for (const fleet of fleets) {
     const aboard = stackSize(fleet.cargo);
     if (aboard === 0) continue;
     const { capacity, used } = berths(fleet);
     if (aboard < LANDING_FORCE && used < capacity && waitingForMore(state, world, fleet)) continue;
-    setCourse(state, world, fleet, target);
+    setCourse(state, world, fleet, beaches[dealt % beaches.length] ?? target);
+    dealt += 1;
   }
 
   /**
@@ -746,13 +761,28 @@ function loadUp(
     const quay = seaNeighbours(world, fleet.tileIndex).filter((tile) => harbours.has(tile));
     if (quay.length === 0) continue;
 
-    // **Any field army on the quay will do, whatever its size** — since 0.18.1 the part that fits
-    // goes and the rest stays ashore (decision 129). Before splitting existed this filtered on
-    // `size <= room`, and a stack one unit too large for the boats simply stood there forever.
+    /**
+     * **Any field army or raiding column on the quay, whatever its size.**
+     *
+     * Size stopped mattering in 0.18.1: the part that fits goes and the rest stays ashore
+     * (decision 129). **Role stopped mattering in 0.18.4**, and that one was doing real damage.
+     *
+     * Once every realm has taken its own landmass, a stack with nothing to do walks to a harbour to
+     * wait for shipping — and `order` sends *raiders* there as readily as field armies, because a
+     * raider that cannot reach anything to raid is just as stuck. This filtered on `field` alone, so
+     * those columns stood on the quay for ever while the boats beside them sailed empty. Measured at
+     * 1600: Spain had **11 armies waiting on quays, 21 fleets, and 1 of them loaded**.
+     *
+     * Shipping a raiding column is also exactly the guerilla behaviour a weaker realm wants — a
+     * fast stack landed on an undefended coast is worth far more than the same stack at home.
+     *
+     * Guards and claimers never appear here: `order` returns before they could be sent to a quay,
+     * because both have work where they stand.
+     */
     const army = armiesOf(state, factionIndex)
       .filter(
         (candidate: ArmyState) =>
-          candidate.role === 'field' &&
+          (candidate.role === 'field' || candidate.role === 'raid') &&
           quay.includes(candidate.tileIndex) &&
           stackSize(candidate.units) > 0,
       )
@@ -899,6 +929,44 @@ function waitingForMore(state: SimState, world: World, fleet: FleetState): boole
  * with a transport tacking between two islands until its escort deserts — which is the same reason
  * the plan itself is annual rather than monthly.
  */
+/**
+ * Every other coast this realm could put men on, one per landmass, nearest first.
+ *
+ * The supply of "unexpected places". `expedition` picks the single best beach and every convoy used
+ * to sail for it; this hands back the runners-up so they can be dealt out instead. A landing on a
+ * coast nobody is watching is worth more than a fifth stack behind the same headland, and against a
+ * realm that has learned to garrison one beach it is the only thing that works.
+ *
+ * Cheap: it reuses the same `landingsByLandmass` sweep the target came from.
+ */
+function otherLandings(
+  state: SimState,
+  world: World,
+  factionIndex: number,
+  seas: Int32Array,
+  chosen: Expedition,
+): Expedition[] {
+  const held = new Set(
+    state.cities
+      .filter((city) => city.ownerIndex === factionIndex)
+      .map((city) => landmassOf(world, city.tileIndex)),
+  );
+
+  return [...landingsByLandmass(state, world, factionIndex, seas).entries()]
+    .filter(([landmass, site]) => !held.has(landmass) && site.water !== chosen.water)
+    .sort((a, b) => a[1].distance - b[1].distance || a[1].water - b[1].water)
+    .slice(0, MAX_BEACHES)
+    .map(([, site]) => ({ city: chosen.city, water: site.water, beach: site.beach, distance: site.distance }));
+}
+
+/**
+ * How many separate beaches a realm will land on at once. **[GEN]**
+ *
+ * Four, counting the chosen one. More than that and a realm is scattering single stacks around the
+ * map faster than any of them can take a city.
+ */
+const MAX_BEACHES = 3;
+
 function setCourse(
   state: SimState,
   world: World,

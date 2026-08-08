@@ -890,3 +890,51 @@ describe('a realm keeps reaching', () => {
     expect(busy.length / state.fleets.length).toBeGreaterThan(0.4);
   });
 });
+
+/**
+ * **There is never a stalemate** — owner-specified in 0.18.4, and the hardest thing in this file
+ * to keep true, because every individual rule that causes one is locally sensible.
+ *
+ * Measured before the fix, at 1500 and after: **52 of 52 armies idle**, battles dwindling, one
+ * realm holding 46 cities and four holding 1–7 apiece and doing nothing for two hundred years.
+ * Three separate dead ends fed it, and all three had the same shape — a branch that could fail with
+ * nothing after it:
+ *
+ * - a realm whose every target failed `judge` chose no objective and stopped;
+ * - a realm that had taken its whole landmass had nothing it could *walk* to, so objectives, raids
+ *   and claimable ground all came back empty while its fleets sailed about with nothing to carry;
+ * - claimers ran out of unclaimed ground once the map filled, and a rival's fields were invisible
+ *   to them.
+ */
+describe('a campaign never settles into a stalemate', () => {
+  const state = campaign();
+  years(state, 180);
+
+  const held = () =>
+    state.factions
+      .filter((f) => f.alive && f.ai)
+      .map((f) => state.cities.filter((c) => c.ownerIndex === f.index).length)
+      .join(',');
+
+  // One run, three questions. Simulating 180 years is expensive enough without doing it thrice.
+  const idleBefore = state.armies.filter((army) => army.path.length === 0).length;
+  const armiesBefore = state.armies.length;
+  const battlesBefore = state.nextBattleId;
+  const groundBefore = held();
+  years(state, 30);
+
+  it('still has armies with somewhere to be', () => {
+    expect(armiesBefore).toBeGreaterThan(10);
+    // Not zero — an army that has just arrived, or one waiting on a quay to be shipped, is idle
+    // this month and doing exactly what it should. What must not happen is all of them, for ever.
+    expect(idleBefore / armiesBefore).toBeLessThan(0.75);
+  });
+
+  it('is still fighting', () => {
+    expect(state.nextBattleId).toBeGreaterThan(battlesBefore);
+  });
+
+  it('still moves ground between realms', () => {
+    expect(held()).not.toBe(groundBefore);
+  });
+});

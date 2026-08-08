@@ -1,6 +1,6 @@
 # Next
 
-Where the build is, and what to do next. Rewritten at the end of the 0.18.3 session.
+Where the build is, and what to do next. Rewritten at the end of the 0.18.4 session.
 
 **Delete or rewrite this file when its contents are done.** It is a handoff note, not a record —
 the records are [ROADMAP.md](ROADMAP.md), [OWED.md](OWED.md) and [CHANGELOG.md](../CHANGELOG.md).
@@ -9,7 +9,7 @@ the records are [ROADMAP.md](ROADMAP.md), [OWED.md](OWED.md) and [CHANGELOG.md](
 
 ## State of play
 
-**Version `0.18.3`**, on `main`. **274 tests pass**, typecheck clean, production build clean.
+**Version `0.18.4`**, on `main`. **277 tests pass**, typecheck clean, production build clean.
 Save format is **v9**. Migrations run from v1.
 
 **Naval shipped.** The last structural gap in the map is closed: ships, fleets, transports,
@@ -24,7 +24,7 @@ desertion rules that already existed simply started applying to hulls.
 
 ---
 
-## 1. What the last three sessions changed, all measured
+## 1. What the last four sessions changed, all measured
 
 **Nothing has been seen rendering** (see [OWED.md](OWED.md) §1). Everything below was *measured*, by
 instrumenting 120-year campaigns and reading what the rivals actually did — which is how every bug
@@ -38,6 +38,17 @@ listed here was found, and none of them would have failed a unit test.
 | Field armies | 158, averaging 3.9 units | **28–38, averaging 9.7–14.8** |
 | Fleets, and how many under way | none, then 8 idle | **16–25, with 8–18 sailing** |
 | Realms holding more than one landmass | 0 | **2–3** |
+
+And the late game, which 0.18.4 was entirely about — same seed, before and after:
+
+| Year | Before | After |
+|---|---|---|
+| 1500 | 49 of 52 armies idle, 1,213 battles | **9 of 47 idle, 1,529 battles** |
+| 1550 | **52 of 52 idle**, 1,336 | **14 of 60 idle**, 1,393 |
+| 1600 | **52 of 52 idle**, 1,363 | **23 of 54 idle**, 1,172 |
+
+The map used to freeze at [46,7,5,2,0] and stay there for two hundred years. It now keeps changing
+hands, and on a second seed the heaviest fighting of the whole campaign happens after 1550.
 
 The two the owner named by hand:
 
@@ -65,6 +76,13 @@ or generalised:
 8. **Shipping required no land route at all**, so a realm walked six years rather than sail one.
 9. The first fix for (4) held **claimers and raiders to a field army's bar**, which left 8.6% of the
    map permanently bare. They are deliberately one and three units.
+10. **Claimers ran out of ground** once the map filled, because a rival's open fields were invisible
+    to them — so the job whose whole purpose is taking ground had none to take.
+11. A realm whose every target failed `judge` **chose no objective and stopped**.
+12. A realm that had taken its whole landmass had **nothing it could walk to**, so objectives, raids
+    and ground all came back empty while its fleets sailed about with nothing to carry.
+13. And when those armies finally queued at the quays, **`loadUp` boarded field armies only** — most
+    of the ones waiting were raiders. 11 armies on quays, 21 fleets, 1 loaded.
 
 ### What is worth watching while playing
 

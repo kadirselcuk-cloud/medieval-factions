@@ -13,6 +13,66 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.18.4] — 2026-08-09
+
+**There is never a stalemate.** The owner reported armies freezing after 100–150 years, or the
+moment one realm took mainland Europe: the ships kept moving and the armies stopped. They were
+right, and it was total.
+
+Measured on the same seed, before and after:
+
+| Year | Before | After |
+|---|---|---|
+| 1500 | 49 of 52 armies idle, 1,213 battles | **9 of 47 idle, 1,529 battles** |
+| 1550 | **52 of 52 idle**, 1,336 battles | **14 of 60 idle**, 1,393 battles |
+| 1600 | **52 of 52 idle**, 1,363 battles | **23 of 54 idle**, 1,172 battles |
+
+The map used to freeze at [46,7,5,2,0] and stay there for two centuries. It now keeps changing
+hands, and a second seed runs its heaviest fighting of the whole campaign in the 1550–1600 window.
+
+### Fixed
+
+Four dead ends fed the freeze. Each was a branch that could fail with **nothing after it**, and
+each was locally sensible:
+
+- **Claimers ran out of ground.** `pickClaim` took unclaimed tiles only, and since 0.18.3 the map
+  finishes 90–100% claimed — so the job whose entire purpose is taking ground had none to take. A
+  rival's open fields are now fair game once free ground is gone. This is also **income**: a tile
+  pays its owner monthly whether or not a city stands on it, so a realm that takes cities and leaves
+  the fields between them is leaving money on the table.
+- **A realm with no winnable target chose no target.** `judge` refuses fights a realm would lose,
+  which is right for choosing between wars and wrong as the last word. When everything fails it, the
+  realm now presses the **softest thing it can reach** anyway. It often loses — and that is fine,
+  because it costs the strong realm men and garrisons, which is what a weaker power is for.
+- **A realm that had taken its whole landmass had nowhere to walk.** Objectives, raids and claimable
+  ground are all filtered by land reachability, so every branch came back empty while its fleets
+  sailed busily about with nothing to carry. An army with nothing to do on its own continent now
+  **marches to a harbour and waits to be shipped**, spread across the realm's ports rather than all
+  onto one quay.
+- **And then the boats would not take them.** `loadUp` boarded `field` armies only, but `order`
+  sends **raiders** to the quay just as readily — a raider that cannot reach anything to raid is
+  equally stuck. Measured at 1600: Spain had 11 armies waiting on quays, 21 fleets, and **1 of them
+  loaded**. It is now 4 of 8 loaded, and land war resumes on coasts nobody had reached in a century.
+
+### Changed
+
+- **An order that cannot be carried out falls through to the next one.** `march` returns whether it
+  actually issued a route; a blocked road or an unreachable target no longer leaves an army standing
+  in a field for a hundred years. The ladder is now objective → raid → rally → ground → a boat →
+  regroup, and each rung is tried only when the one above it failed.
+- **A field army with no objective raids.** Not a fallback to standing still: a raid needs no
+  favourable odds, rides for the deepest thing it can reach, and either takes a lightly held place
+  or forces the strong realm to garrison against it. That is the guerilla answer to being outmatched
+  and the one thing a weaker realm can always afford.
+- **Loaded fleets are dealt across up to four beaches** rather than all sailing for the same one.
+  Harder to defend against, and far more likely to find a coast nobody is watching. The first convoy
+  still takes the chosen target, so a realm with one fleet behaves exactly as before.
+
+### Added
+
+- 3 tests pinning the property directly: at 180 years the campaign still has armies with somewhere
+  to be, is still fighting, and is still moving ground between realms.
+
 ## [0.18.3] — 2026-08-09
 
 The owner played it and reported nine things. All nine, and the measurements after:
