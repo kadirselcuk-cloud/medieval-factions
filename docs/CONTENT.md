@@ -261,14 +261,59 @@ why ranged units currently dominate. This is the first number to reach for when 
 
 ## 4. Ships
 
-Built in coastal settlements. Light and Heavy ships are **renamed per faction**, like land units.
+Built in coastal settlements. **All four are renamed per faction** — owner-specified in 0.18.0,
+and a name may be shared by several factions (a Galleon can serve the Spanish, the French and the
+British). The names themselves are authored in 0.19.0 with the land units; the data layer carries
+four name slots per faction rather than two.
 
-| # | Ship | Cost | Upkeep | Requires |
+Cost, wood, upkeep and the building each requires are owner-authored. Crew, HP, damage and speed
+were supplied by Claude and **approved by the owner in 0.18.0** — still **[GEN]** in origin, so
+they are the first place to reach when naval balance is wrong.
+
+| # | Ship | Cost | Upkeep | Build | Requires | Crew | HP/man | Dmg/man | Berths |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | Transport | 50g 50w | 10g | 6 mo | Dock | 40 | 60 | 5 | 5 |
+| 2 | Light Ship | 100g 100w | 20g | 8 mo | Dock | 60 | 80 | 15 | — |
+| 3 | Heavy Ship | 250g 200w | 50g | 12 mo | Port | 120 | 120 | 25 | — |
+| 4 | Flagship | 500g 500w | 100g | 18 mo | Shipyard | 200 | 160 | 40 | — |
+
+**Every hull sails three tiles a month** — owner-specified in 0.18.1, replacing the 3/4/3/2 the
+phase shipped with. One speed for the whole roster means an escort never slows a convoy, so there
+is no reason not to send one.
+
+**Crew doubles as the ship's `size`, and HP and damage are per crewman** — exactly the shape of a
+land unit. That is the whole reason naval combat needed no second resolver: a fleet musters into
+`fightBattle` as formations like any army, and the manpower ceiling, the upkeep sum and the balance
+panel all read fleets through the same helpers they already read armies through.
+
+Strength on the same scale as the land roster (`size × hp × damage / 100`):
+
+| Ship | Strength | | Land unit | Strength |
 |---|---|---|---|---|
-| 1 | Transport | 50g | 10g | Dock |
-| 2 | Light Ship | 100g | 20g | Dock |
-| 3 | Heavy Ship | 250g | 50g | Port |
-| 4 | Flagship | 500g | 100g | Shipyard |
+| Transport | 120 | | Light Infantry | 2,000 |
+| Light Ship | 720 | | Sword Infantry | 2,250 |
+| Heavy Ship | 3,600 | | Heavy Cavalry | 3,200 |
+| Flagship | 12,800 | | | |
 
-HP, damage, crew size, build time, speeds, transport capacity and naval combat rules are all
-**[OPEN]** — no values were supplied.
+A Transport is nearly defenceless — 120 against a Light Ship's 720 — which is what makes escorting
+an invasion fleet a real decision rather than a formality.
+
+**Sea speed is 3 tiles a month against land's 0.5 and 1.** Crossing to Ireland is a season, not a
+reign. Ships are the fast way to move on this map, which is the point: it is the reason a naval
+realm plays differently from a continental one. Winter slows a fleet by the same 40% it slows an
+army, and open sea has no terrain cost and no owner, so a sea tile always costs exactly one tile's
+worth.
+
+### Transport capacity — owner-specified, revised in 0.18.1
+
+**One Transport carries five land units**, whatever their size: a 100-man Light Infantry and a
+40-man Heavy Cavalry each take one berth. Counting units rather than men keeps the number on the
+panel readable and keeps horses out of an argument about tonnage.
+
+**Four Transports lift a whole twenty-unit army** — 200 gold, 200 wood and 40 a month — so a full
+stack crosses in one convoy rather than in instalments. That is the figure the number was chosen
+for.
+
+Only Transports carry anything. A fleet's capacity is `transports × 5`, and cargo above it is lost
+when it stops fitting (see MECHANICS §10). Where the berths fall short of the army, **the part that
+fits sails and the rest stays ashore** (decision 129) — the one place a stack can be divided.

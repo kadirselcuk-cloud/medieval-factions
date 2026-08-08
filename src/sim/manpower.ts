@@ -47,7 +47,14 @@ export const MANPOWER_SHARE_PERMILLE = 200;
  *
  * A settlement's own derived defence is not manpower. It costs nothing, is not recruited, and
  * cannot leave the walls — it is part of the settlement rather than troops the realm raised.
- * Ships draw nobody: crew size has never been specified, and inventing one would invent a rule.
+ *
+ * **Ships do count, since 0.18.0** (docs/DESIGN.md decision 127). A crew is men, and a Flagship's
+ * two hundred of them are two Light Infantry the realm cannot also have. Moored hulls, hulls at
+ * sea, hulls **still on the slipway** and any army aboard all count — the slipway on the same
+ * reasoning that counts a unit in training, that the men were taken when the order went out.
+ *
+ * `unitById` resolves ships as well as land units, so `sizeOf` needs no naval branch: a ship id
+ * simply answers with its crew.
  */
 export function manpowerUnderArms(state: SimState, factionIndex: number): number {
   const sizeOf = (id: string, count: number): number => (unitById(id)?.size ?? 0) * count;
@@ -57,10 +64,17 @@ export function manpowerUnderArms(state: SimState, factionIndex: number): number
     if (city.ownerIndex !== factionIndex) continue;
     for (const [id, count] of Object.entries(city.garrison)) men += sizeOf(id, count);
     for (const order of city.recruitQueue) men += sizeOf(order.id, 1);
+    for (const [id, count] of Object.entries(city.fleet)) men += sizeOf(id, count);
+    for (const order of city.shipQueue) men += sizeOf(order.id, 1);
   }
   for (const army of state.armies) {
     if (army.ownerIndex !== factionIndex) continue;
     for (const [id, count] of Object.entries(army.units)) men += sizeOf(id, count);
+  }
+  for (const fleet of state.fleets) {
+    if (fleet.ownerIndex !== factionIndex) continue;
+    for (const [id, count] of Object.entries(fleet.ships)) men += sizeOf(id, count);
+    for (const [id, count] of Object.entries(fleet.cargo)) men += sizeOf(id, count);
   }
   return men;
 }

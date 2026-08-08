@@ -144,6 +144,8 @@ export function createInitialState(
     cities,
     armies: [],
     nextArmyId: 1,
+    fleets: [],
+    nextFleetId: 1,
     battles: [],
     nextBattleId: 1,
     tileOwner,

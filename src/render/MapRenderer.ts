@@ -46,6 +46,16 @@ export interface ArmyMarker {
   size: number;
   /** Tiles still to walk, in order. Drawn only for the selected army. */
   path: readonly number[];
+  /**
+   * Whether this is a stack or a squadron — since 0.18.0.
+   *
+   * Both are the same shape to the renderer, which is the point: a fleet is an army that floats
+   * and it needs a position, an owner, a size and a route, exactly as a stack does. Only the glyph
+   * differs, so one marker type and one drawing pass serve both.
+   */
+  kind: 'army' | 'fleet';
+  /** Land units aboard, for the fleet badge. Zero for an army, and for an empty fleet. */
+  cargo?: number;
 }
 
 export interface ArmyView {
@@ -57,6 +67,10 @@ export interface ArmyView {
   selectedId: number | null;
   /** The army waiting for a destination click, if any. */
   marchingId: number | null;
+  /** The fleet drawn as selected. Fleets and armies have separate id sequences, so separate keys. */
+  selectedFleetId?: number | null;
+  /** The fleet waiting for a destination click. */
+  sailingFleetId?: number | null;
 }
 
 /** A drag beyond this many pixels is a pan, not a click. */
@@ -356,9 +370,14 @@ export class MapRenderer {
     // says "under orders", not "moving this fast".
     const crawl = ((performance.now() / 45) % (dash + gap)) * -1;
 
+    const isChosen = (marker: ArmyMarker) =>
+      marker.kind === 'fleet'
+        ? marker.id === armies.selectedFleetId || marker.id === armies.sailingFleetId
+        : marker.id === armies.selectedId || marker.id === armies.marchingId;
+
     for (const marker of armies.markers) {
       if (marker.ownerIndex !== armies.playerIndex || marker.path.length === 0) continue;
-      const highlighted = marker.id === armies.selectedId || marker.id === armies.marchingId;
+      const highlighted = isChosen(marker);
 
       ctx.save();
       ctx.setLineDash([dash, gap]);
@@ -395,14 +414,30 @@ export class MapRenderer {
       if (!this.sees(marker.tileIndex)) continue;
       const x = marker.tileIndex % world.width;
       const y = Math.floor(marker.tileIndex / world.width);
-      const p = camera.worldToScreen(x + 0.28, y + 0.28, viewW, viewH);
+      // A fleet sits on open water with nothing to share the tile with, so it takes tile centre.
+      // An army is offset up-left to sit beside a settlement rather than on top of one.
+      const off = marker.kind === 'fleet' ? 0.5 : 0.28;
+      const p = camera.worldToScreen(x + off, y + off, viewW, viewH);
+      const chosen = isChosen(marker);
 
       ctx.beginPath();
-      ctx.rect(p.x - w / 2, p.y - h / 2, w, h);
+      if (marker.kind === 'fleet') {
+        // A hull: flat deck, pointed forefoot. Distinguishable from an army's rectangle at any
+        // zoom the markers are legible at, and it needs no glyph or second colour to say "ship".
+        const hw = w / 2;
+        const hh = h / 2;
+        ctx.moveTo(p.x - hw, p.y - hh);
+        ctx.lineTo(p.x + hw, p.y - hh);
+        ctx.lineTo(p.x + hw * 0.55, p.y + hh);
+        ctx.lineTo(p.x - hw * 0.55, p.y + hh);
+        ctx.closePath();
+      } else {
+        ctx.rect(p.x - w / 2, p.y - h / 2, w, h);
+      }
       ctx.fillStyle = armies.colors[marker.ownerIndex] ?? CITY_FILL;
       ctx.fill();
-      ctx.lineWidth = marker.id === armies.selectedId ? Math.max(2, zoom * 0.1) : Math.max(1, zoom * 0.05);
-      ctx.strokeStyle = marker.id === armies.selectedId ? '#ffe9a8' : CITY_STROKE;
+      ctx.lineWidth = chosen ? Math.max(2, zoom * 0.1) : Math.max(1, zoom * 0.05);
+      ctx.strokeStyle = chosen ? '#ffe9a8' : CITY_STROKE;
       ctx.stroke();
 
       if (zoom >= SHOW_GRID_AT) {
@@ -411,6 +446,22 @@ export class MapRenderer {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(String(marker.size), p.x, p.y + 0.5);
+      }
+
+      // A loaded transport is the most consequential thing on the map — an army that dies with its
+      // boats — so it says so, with a pip per unit aboard along the deck.
+      const aboard = marker.cargo ?? 0;
+      if (marker.kind === 'fleet' && aboard > 0 && zoom >= SHOW_GRID_AT) {
+        const r = Math.max(1, zoom * 0.045);
+        const span = w * 0.6;
+        const shown = Math.min(aboard, 6);
+        for (let i = 0; i < shown; i++) {
+          const t = shown === 1 ? 0.5 : i / (shown - 1);
+          ctx.beginPath();
+          ctx.arc(p.x - span / 2 + span * t, p.y - h / 2 - r * 1.8, r, 0, Math.PI * 2);
+          ctx.fillStyle = '#ffe9a8';
+          ctx.fill();
+        }
       }
     }
   }

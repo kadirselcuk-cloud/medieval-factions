@@ -149,3 +149,45 @@ export function reachedIn(distance: Int32Array, index: number): number {
   const steps = distance[index] ?? UNREACHABLE;
   return steps === UNREACHABLE ? Number.POSITIVE_INFINITY : steps;
 }
+
+/**
+ * The same sweep, over **water** — sailing distance from the given sea tiles to every other.
+ *
+ * The sea twin of `walkingDistanceFrom`, and it exists for the same reason: a realm deciding
+ * whether an overseas city is worth an expedition needs to know how far it actually is by ship, and
+ * one breadth-first pass answers it for every coast on the map at once. Straight lines are worse
+ * here than they were on land — the Mediterranean is full of places that are close on a ruler and a
+ * month apart around a peninsula.
+ *
+ * Distance is in **tiles sailed**. Open water has no terrain cost and no owner (docs/MECHANICS.md
+ * §10), so unlike a march there is nothing for this to be an approximation of: a sea tile costs one
+ * tile, and this is the true figure rather than a lower bound.
+ *
+ * Sources are sea tiles. A land tile handed in is ignored rather than treated as a port, because
+ * "which water can I sail from" is a question the caller has already answered.
+ */
+export function sailingDistanceFrom(world: World, sources: readonly number[]): Int32Array {
+  const distance = new Int32Array(world.width * world.height).fill(UNREACHABLE);
+  const queue: number[] = [];
+  const around: number[] = [];
+  const sailable = (index: number) => terrainOf(world, index) === 'water';
+
+  for (const source of sources) {
+    if (source < 0 || source >= distance.length) continue;
+    if (distance[source] !== UNREACHABLE || !sailable(source)) continue;
+    distance[source] = 0;
+    queue.push(source);
+  }
+
+  for (let head = 0; head < queue.length; head++) {
+    const index = queue[head]!;
+    const step = distance[index]! + 1;
+    for (const next of neighbours(world, index, around)) {
+      if (distance[next] !== UNREACHABLE || !sailable(next)) continue;
+      distance[next] = step;
+      queue.push(next);
+    }
+  }
+
+  return distance;
+}

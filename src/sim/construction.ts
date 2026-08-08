@@ -293,13 +293,28 @@ export function queueUnit(state: SimState, city: CityState, unitId: string): Bui
   return OK;
 }
 
+/**
+ * Lay down a hull.
+ *
+ * **Since 0.18.0 this levies men, exactly as `queueUnit` does** (docs/DESIGN.md decision 127). A
+ * ship used to be pure capital — gold and timber, no crew — so it went through here with only an
+ * affordability check. It has a crew now, and a crew is people: they come off the settlement's
+ * population and count against the realm's manpower ceiling from the month the keel is laid, on
+ * the same reasoning that counts a unit still in training.
+ *
+ * Without both gates a realm could build a navy its people could never man, and float straight
+ * past the fifth of itself it is allowed to keep under arms.
+ */
 export function queueShip(state: SimState, city: CityState, shipId: string): BuildResult {
   const ship = shipById(shipId);
   if (!ship) return fail('not-available');
   if (!buildableShips(city.buildings).some((s) => s.id === shipId)) return fail('not-available');
   if (!canAfford(state, city.ownerIndex, ship.cost)) return fail('insufficient-resources');
+  if (availableManpower(city) < ship.size) return fail('too-few-people');
+  if (!canRaise(state, city.ownerIndex, ship.size)) return fail('no-manpower');
 
   pay(state, city.ownerIndex, ship.cost);
+  city.population -= ship.size;
   city.shipQueue.push({ id: ship.id, monthsRemaining: ship.months });
   return OK;
 }
@@ -317,8 +332,10 @@ export function cancelProduction(
   const cost = which === 'recruit' ? unitById(order.id)?.cost : shipById(order.id)?.cost;
   if (cost) refund(state, city.ownerIndex, cost);
   // Men who were called up but never marched go home. Cancelling wastes the months already
-  // spent, not the people — the same bargain the treasury gets.
-  if (which === 'recruit') city.population += manpowerCost(order.id);
+  // spent, not the people — the same bargain the treasury gets. **Crews too, since 0.18.0**:
+  // `manpowerCost` reads ships through `unitById`, so a cancelled hull returns its crew without
+  // this line needing to know which queue it came from.
+  city.population += manpowerCost(order.id);
   queue.splice(position, 1);
   return OK;
 }
@@ -343,6 +360,18 @@ export function totalUpkeep(state: SimState, factionIndex: number): number {
   for (const army of state.armies) {
     if (army.ownerIndex !== factionIndex) continue;
     for (const [id, count] of Object.entries(army.units)) {
+      upkeep += (unitById(id)?.upkeep ?? 0) * count;
+    }
+  }
+  // Ships at sea, since 0.18.0. Launching a fleet used to take it off the payroll entirely, so a
+  // realm's wage bill fell the month it sailed — the moorings were the only place a hull was
+  // counted. An army aboard still draws its pay too: being on a boat is not being stood down.
+  for (const fleet of state.fleets) {
+    if (fleet.ownerIndex !== factionIndex) continue;
+    for (const [id, count] of Object.entries(fleet.ships)) {
+      upkeep += (unitById(id)?.upkeep ?? 0) * count;
+    }
+    for (const [id, count] of Object.entries(fleet.cargo)) {
       upkeep += (unitById(id)?.upkeep ?? 0) * count;
     }
   }

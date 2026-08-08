@@ -5,7 +5,9 @@ import { describeTile, type World } from '../data/world';
 import type { ArmyView, MapRenderer, TerritoryView, TileInfo } from '../render/MapRenderer';
 import { stackSize } from '../sim/armies';
 import { Game, type Speed } from '../sim/game';
+import { disembark, landingSites } from '../sim/fleets';
 import { orderMove } from '../sim/movement';
+import { orderSail } from '../sim/sailing';
 import type { AiDifficulty, BattleReport, GameEvent, SimState } from '../sim/types';
 import { visibleTiles } from '../sim/vision';
 import { BalancePanel } from './BalancePanel';
@@ -99,6 +101,8 @@ function Campaign({
   const [rosterKind, setRoster] = useState<RosterKind | null>(null);
   /** The army waiting for a destination click, if the player has pressed March. */
   const [marchingId, setMarching] = useState<number | null>(null);
+  /** The fleet waiting for a destination click. Its own slot — fleet ids are not army ids. */
+  const [sailingId, setSailing] = useState<number | null>(null);
   /** The balance panel is a developer tool, opened with B. */
   const [balanceOpen, setBalanceOpen] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
@@ -179,31 +183,53 @@ function Campaign({
     ? (state.armies.find((army) => army.tileIndex === selected.index)?.id ?? null)
     : null;
 
+  const selectedFleetId = selected
+    ? (state.fleets.find((fleet) => fleet.tileIndex === selected.index)?.id ?? null)
+    : null;
+
   const armies = useMemo<ArmyView>(
     () => ({
-      markers: state.armies.map((army) => ({
-        id: army.id,
-        tileIndex: army.tileIndex,
-        ownerIndex: army.ownerIndex,
-        size: stackSize(army.units),
-        path: army.path,
-      })),
+      // Armies and fleets share one marker list and one drawing pass. A fleet is an army that
+      // floats, and the renderer needs exactly what it needs for a stack — where, whose, how big,
+      // and where it is headed.
+      markers: [
+        ...state.armies.map((army) => ({
+          id: army.id,
+          tileIndex: army.tileIndex,
+          ownerIndex: army.ownerIndex,
+          size: stackSize(army.units),
+          path: army.path,
+          kind: 'army' as const,
+        })),
+        ...state.fleets.map((fleet) => ({
+          id: fleet.id,
+          tileIndex: fleet.tileIndex,
+          ownerIndex: fleet.ownerIndex,
+          size: stackSize(fleet.ships),
+          path: fleet.path,
+          kind: 'fleet' as const,
+          cargo: stackSize(fleet.cargo),
+        })),
+      ],
       colors: roster.map((f) => f.color),
       playerIndex: state.playerFactionIndex,
       selectedId: selectedArmyId,
       marchingId,
+      selectedFleetId,
+      sailingFleetId: sailingId,
     }),
     // Keyed on the simulation's version counter, not on `state`, which is mutated in place and
     // never changes identity. This is also what keeps the canvas repainting while armies march:
     // handing the renderer a fresh view is what marks it dirty.
-    [game.version, state, roster, selectedArmyId, marchingId],
+    [game.version, state, roster, selectedArmyId, marchingId, selectedFleetId, sailingId],
   );
 
   /**
-   * A map click is either a selection or a march order.
+   * A map click is either a selection, a march order, or a sailing order.
    *
-   * Once March is pressed the next click on the map is the destination, and nothing else —
-   * which is why the order is issued here rather than inside the panel that started it.
+   * Once March or Sail is pressed the next click on the map is the destination, and nothing else —
+   * which is why the order is issued here rather than inside the panel that started it. The two
+   * are mutually exclusive by construction: pressing either clears the other.
    */
   const handleMapSelect = useCallback(
     (tile: TileInfo | null) => {
@@ -213,9 +239,24 @@ function Campaign({
         if (!result.ok) return;
         return;
       }
+      if (sailingId !== null && tile) {
+        // Clicking a coastal land tile with a loaded fleet beside it is a landing, not a course:
+        // there is nowhere to sail to on land, and "put them ashore there" is plainly what the
+        // click meant. Anything else is a course.
+        const result = game.command((s) => {
+          const fleet = s.fleets.find((f) => f.id === sailingId);
+          if (fleet && landingSites(s, world, fleet).includes(tile.index)) {
+            return disembark(s, world, sailingId, tile.index);
+          }
+          return orderSail(s, world, sailingId, tile.index);
+        });
+        setSailing(null);
+        if (!result.ok) return;
+        return;
+      }
       setSelected(tile);
     },
-    [game, world, marchingId],
+    [game, world, marchingId, sailingId],
   );
 
   const handleReady = useCallback((renderer: MapRenderer | null) => {
@@ -252,6 +293,7 @@ function Campaign({
         setMenuOpen(false);
         setRoster(null);
         setMarching(null);
+        setSailing(null);
         setBalanceOpen(false);
         setBattle(null);
         setSelected(null);
@@ -290,6 +332,12 @@ function Campaign({
             <button onClick={() => setMarching(null)}>Cancel</button>
           </div>
         )}
+        {sailingId !== null && (
+          <div className="march-hint">
+            Click open water to sail to — or a coast beside the fleet to put the army ashore.
+            <button onClick={() => setSailing(null)}>Cancel</button>
+          </div>
+        )}
         {/* Every realm's economy, while the map is revealed — by the cheat or by defeat. */}
         {unfogged && <RealmWatch state={state} roster={roster} />}
 
@@ -307,7 +355,14 @@ function Campaign({
             world={world}
             roster={roster}
             visible={unfogged || vision[selected.index] === 1}
-            onMarch={setMarching}
+            onMarch={(id) => {
+              setSailing(null);
+              setMarching(id);
+            }}
+            onSail={(id) => {
+              setMarching(null);
+              setSailing(id);
+            }}
             onClose={() => setSelected(null)}
           />
         )}

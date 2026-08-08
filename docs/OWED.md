@@ -58,6 +58,10 @@ layout change is therefore written from the CSS outwards and confirmed by the ow
 - **AI opponents** — shipped in 0.12.0, owed since the roadmap was written. All twelve rivals
   build, develop their land, recruit, muster, campaign, besiege and relieve, at five difficulties
   and with five personalities. They play through the same functions the player's UI calls.
+- **Naval** — shipped in 0.18.0, and with it the promise that the Britons and Moors could
+  eventually leave their landmass. Four ship types with owner-approved statistics, transports,
+  embarkation at a Dock and landing on any coast, blockade by adjacency, battle at sea through the
+  existing resolver, and rival realms that mount amphibious expeditions of their own.
 
 ---
 
@@ -105,6 +109,23 @@ it is tagged **[GEN]** at its definition. None of it is owner-authored truth.
 | Knight as the rung with no handicap either way | `data/ai.json` | **live** — the anchor the other four bend around |
 | The AI keeps `garrisonKeep` units by sorted id, not by strength | `src/sim/ai.ts` | **live** |
 | Tile yield valued as gold + 3× each material | `src/sim/ai.ts` | **live** — decides which improvement it digs |
+| Ship crew, HP and damage | `data/units.json` | **owner-approved in 0.18.0** — the figures are Claude's, the approval is the owner's. First place to reach when naval balance is wrong |
+| Ship berths (5) and sea speed (3 for every hull) | `data/units.json` | **owner-specified in 0.18.1** — not [GEN] |
+| Crew doubling as a ship's `size`, HP and damage per crewman | `src/data/units.ts` | **live** — the shape that let fleets reuse the land resolver. Owner chose it over per-vessel totals |
+| A fleet launches onto the lowest-indexed free sea tile beside the harbour | `src/sim/fleets.ts` | **live** — arbitrary, but fixed, which is what determinism needs |
+| Cargo shed in sorted unit id when a Transport is lost | `src/sim/fleets.ts` | **live** — the alternative is a rule about which men a captain saves, and nobody wrote one |
+| Lower fleet id is the attacker when two escorted fleets meet | `src/sim/sailing.ts` | **live** — a tie broken on strength or initiative would be a rule nobody has written |
+| Winter slows a fleet by the same 40% it slows an army | `src/sim/sailing.ts` | **live** — storms and short days, read as the same rule as mud |
+| Winter attrition does **not** touch fleets | `src/sim/tick.ts` | **live** — attrition is about hostile ground, and the sea belongs to nobody |
+| One amphibious expedition at a time per realm | `src/sim/navalAi.ts` | **live** — three at once splits an army into three that each land and die |
+| The naval plan is re-made once a year, staggered by realm | `src/sim/navalAi.ts` | **live** — `PLANNING_MONTHS`. Landing is still checked monthly; only target-picking is annual |
+| The AI wants a full army in berths and 1 escort, and stops at 8 hulls | `src/sim/navalAi.ts` | **live** — `BERTHS_WANTED`, `ESCORTS_WANTED`, `MAX_EXPEDITION_SHIPS` |
+| A fleet waits for 6 units before it sails, and a realm needs 3 armies to spare one | `src/sim/navalAi.ts` | **live** — `LANDING_FORCE`, `ARMIES_BEFORE_SAILING`. How willing a realm is to gamble an army on a beach |
+| An unsettled landmass outranks distance when picking a target | `src/sim/navalAi.ts` | **live** — `VIRGIN_ISLAND_BONUS`. Without it Ireland was chosen 6 times in 120 years against Novgorod's 173 |
+| Splitting takes the **heaviest** formations first | `src/sim/fleets.ts` | **live** — the owner specified that a stack may be split, not which men board |
+| The recruiting roll is equal thirds, and rerolls 12 times | `src/sim/ai.ts` | **live** — the three categories are owner-specified; the even split and the reroll bound are mine |
+| One harbour of departure, nearest the target by sea | `src/sim/navalAi.ts` | **live** — spread across every port, hulls arrive two at a time and carry nothing |
+| A landed army is its own frontier, but only where its realm holds no settlement | `src/sim/ai.ts` | **live** — without it an expedition stands on its beach until the winter takes it |
 
 ---
 
@@ -118,9 +139,6 @@ Tracked in [ROADMAP.md](ROADMAP.md); listed here so nothing quietly disappears.
 - **Diplomacy**, which is where honour goes. `dogpiles`, `attacksRealms` and `bullyFloorPermille`
   are wired, tested and permissive for all five personalities; the Honorable realm gets its
   character back when there is something to be honourable *about*
-- Naval — 0.18.0. Britons and Moors cannot leave their landmass until this exists — **and now
-  neither can the AI**: a dozen independent cities in Scandinavia, Ireland, Cyprus and North
-  Africa survive every campaign because no realm can reach them
 - Capacitor mobile wrap, ad and premium-unlock hooks — 1.0.0
 - Tactical battle map — 2.0.0
 

@@ -174,6 +174,43 @@ export interface ArmyState {
   role: ArmyRole;
 }
 
+/** docs/MECHANICS.md §10 — one fleet per sea tile, and the same twenty hulls an army gets. */
+export const MAX_FLEET_SHIPS = 20;
+
+/**
+ * A fleet at sea — docs/DESIGN.md decision 122.
+ *
+ * Deliberately the same entity as an `ArmyState` in a different medium: an owner, a tile, a bag of
+ * things by id, a route and banked movement points. That symmetry is not decoration. A ship's crew
+ * is its `size` and its HP and damage are per crewman, so `stackSoldiers`, `stackUpkeep`, the
+ * desertion roll, the manpower ceiling and `fightBattle` itself all work on `ships` unchanged —
+ * naval combat cost the project a resolver of exactly zero lines.
+ *
+ * A fleet exists **only on water**. Ships that are not at sea are not fleets: they are a count in
+ * `city.fleet`, exactly as an unmustered unit is a count in `city.garrison`.
+ */
+export interface FleetState {
+  /** Stable across the campaign, so a selection survives a save. Its own sequence, not the army's. */
+  readonly id: number;
+  ownerIndex: number;
+  /** Always a water tile. */
+  tileIndex: number;
+  /** Hulls under sail, by ship id. Never empty — a fleet that loses its last ship is removed. */
+  ships: Record<string, number>;
+  /**
+   * Land units aboard, by unit id.
+   *
+   * Capacity is `transports × 2` and is **rechecked after every loss**: cargo above what the
+   * surviving Transports can carry drowns (decision 126). Cargo is not an army — it has no id, no
+   * route and no role, and it becomes one again only when it steps ashore.
+   */
+  cargo: Record<string, number>;
+  /** Tiles still to sail, in order, excluding the tile the fleet sits on. Empty when idle. */
+  path: number[];
+  /** Banked sail points, spent on entering the next tile. Same scale as an army's `march`. */
+  sail: number;
+}
+
 // ------------------------------------------------------------------- battles
 
 /** 0 attacker, 1 defender. Used as an index throughout a battle report. */
@@ -308,6 +345,10 @@ export interface SimState {
   armies: ArmyState[];
   /** Next army id to hand out. Monotonic — ids are never reused, so a stale selection is safe. */
   nextArmyId: number;
+  /** Fleets at sea. Ships in harbour live in `CityState.fleet` and are not here. */
+  fleets: FleetState[];
+  /** Next fleet id. Its own sequence — an army and a fleet may share a number without ambiguity. */
+  nextFleetId: number;
   /** Recently fought battles, newest first, trimmed to MAX_STORED_BATTLES. */
   battles: BattleReport[];
   nextBattleId: number;

@@ -232,8 +232,13 @@ function reconstruct(cameFrom: Int32Array, start: number, goal: number): number[
   return path.reverse();
 }
 
-/** Binary min-heap keyed on f-score. Small enough to be worth not pulling in a dependency. */
-class Heap {
+/**
+ * Binary min-heap keyed on f-score. Small enough to be worth not pulling in a dependency.
+ *
+ * Exported since 0.18.0 so the sea pathfinder can share it. A second copy would be a second thing
+ * to get wrong, and the two searches differ in what a tile costs, not in how the frontier is kept.
+ */
+export class Heap {
   private readonly items: number[] = [];
   private readonly keys: number[] = [];
 

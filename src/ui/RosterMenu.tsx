@@ -1,6 +1,7 @@
 import type { JSX } from 'react';
 import { describeTile, type TileInfo, type World } from '../data/world';
 import { armiesOf, stackSize, stackSoldiers, stackUpkeep } from '../sim/armies';
+import { berths, fleetsOf } from '../sim/fleets';
 import { TIER_NAME, type SimState } from '../sim/types';
 import { num } from './format';
 
@@ -35,7 +36,9 @@ export function RosterMenu({
 }: RosterMenuProps): JSX.Element {
   const owned = state.cities.filter((city) => city.ownerIndex === state.playerFactionIndex);
   const armies = armiesOf(state, state.playerFactionIndex);
-  const count = kind === 'cities' ? owned.length : kind === 'armies' ? armies.length : 0;
+  const fleets = fleetsOf(state, state.playerFactionIndex);
+  const count =
+    kind === 'cities' ? owned.length : kind === 'armies' ? armies.length : fleets.length;
 
   return (
     <div className="overlay" role="dialog" aria-label={ROSTER_LABEL[kind]}>
@@ -43,7 +46,7 @@ export function RosterMenu({
         <header className="overlay__header">
           <h2>
             {ROSTER_ICON[kind]} {ROSTER_LABEL[kind]}
-            {kind !== 'navies' && <span className="panel__muted"> · {count}</span>}
+            <span className="panel__muted"> · {count}</span>
           </h2>
           <button type="button" className="panel__close" onClick={onClose} title="Close">
             ✕
@@ -51,12 +54,47 @@ export function RosterMenu({
         </header>
 
         <div className="overlay__list">
-          {kind === 'navies' && (
+          {kind === 'navies' && fleets.length === 0 && (
             <p className="panel__note">
-              Fleets put to sea in a later phase. Ships built so far are moored in their home
-              settlement, under its Armies tab.
+              No fleet is at sea. Build ships in a coastal settlement's Navy tab, then put them to
+              sea from the same place.
             </p>
           )}
+
+          {kind === 'navies' &&
+            fleets.map((fleet) => {
+              const x = fleet.tileIndex % world.width;
+              const y = Math.floor(fleet.tileIndex / world.width);
+              const { capacity, used } = berths(fleet);
+              return (
+                <button
+                  type="button"
+                  className="save-row save-row--button"
+                  key={fleet.id}
+                  onClick={() => {
+                    onSelect(describeTile(world, x, y));
+                    onClose();
+                  }}
+                >
+                  <span className="save-row__main">
+                    <span className="save-row__name">
+                      {stackSize(fleet.ships)} ships
+                      {used > 0 ? ` · ${used} units aboard` : ''}
+                    </span>
+                    <span className="panel__muted">
+                      {num(stackSoldiers(fleet.ships))} crew · {stackUpkeep(fleet.ships)} g/mo ·{' '}
+                      {used}/{capacity} berths
+                      {fleet.path.length > 0
+                        ? ` · sailing, ${fleet.path.length} tiles`
+                        : ' · lying to'}
+                    </span>
+                  </span>
+                  <span className="panel__muted">
+                    {x}, {y}
+                  </span>
+                </button>
+              );
+            })}
 
           {kind === 'cities' && owned.length === 0 && (
             <p className="panel__note">You hold no settlements.</p>

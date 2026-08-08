@@ -29,7 +29,7 @@ Outstanding commitments and slipped work are tracked separately in [OWED.md](OWE
 | 0.15.0 | Land distance, sight, and watching the end | The AI measures reach by walking distance instead of straight lines, so it stops chasing cities across water; sight becomes a diamond; a defeated player keeps watching with the fog lifted | ✅ shipped |
 | 0.16.0 | A medieval pace, and armies with jobs | Foot crosses a tile every two months and horse one a month; rival realms detach raiders, border guards and claimers; the AI develops conquered ground far faster | ✅ shipped |
 | 0.17.0 | Total war | No realm has a reach limit; personality becomes raid/guard odds; territory changes march speed; the Golden Horde is authored Ambitious | ✅ shipped |
-| 0.18.0 | Naval | Four ship types, transports, embarkation; unblocks Britons and Moors — **and the AI, which cannot reach Scandinavia, Ireland or Africa at all** | next, blocked on six ship questions |
+| 0.18.0 | Naval | Four ship types, transports, embarkation, blockade and battle at sea; the AI mounts amphibious expeditions — Scandinavia, Ireland, Cyprus and Africa are reachable at last | ✅ shipped |
 | 0.19.0 | Identity & polish | Per-faction unit names, faction bonuses, 10 elite units, the owner's real art, balance pass | |
 | 1.0.0 | Release | Capacitor wrap for Android/iOS, ad and premium hooks wired but inert, phone performance pass | |
 | 2.0.0 | Phase B | Tactical battle map — regiment-level units, move/attack/hold orders | |
@@ -45,10 +45,15 @@ defence bonus so that attacking is a realistic thing to do, and consolidation �
 country rather than a corridor across the map.
 
 Naval moved up the priority list without moving in the table. Building the AI showed that
-**every settlement no realm can reach is across water** — a century-long campaign settles down
-with a dozen independent cities in Scandinavia, Ireland, Cyprus and North Africa that nobody can
-touch, and Iberia and Britain each cut off from the other. That is a map problem the naval phase
-fixes, not an AI one.
+**every settlement no realm can reach is across water** — a century-long campaign settled down
+with a dozen independent cities in Scandinavia, Ireland, Cyprus and North Africa that nobody could
+touch, and Iberia and Britain each cut off from the other. That was a map problem the naval phase
+fixed, not an AI one.
+
+It cost far less than its position in the table suggested, because of one decision: **a ship is a
+unit** — crew as `size`, HP and damage per crewman. Naval combat therefore reuses the auto-resolve
+built in 0.9.0 outright, and fleets fall out of the manpower, upkeep and desertion rules that were
+already written. The phase is a movement system and an AI behaviour, not a second game.
 
 Flat population was not planned either. It became a phase once 0.8.3's balance panel measured
 the compounding curve and found it unbounded at any rate above zero — half a trillion people in

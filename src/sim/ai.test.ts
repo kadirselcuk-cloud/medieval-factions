@@ -674,3 +674,90 @@ describe('fog of war', () => {
     expect(JSON.stringify(serialise(without))).toBe(JSON.stringify(serialise(withFog)));
   });
 });
+
+/**
+ * What a realm recruits — owner-specified in 0.18.1, and the fix for a game with one unit in it.
+ *
+ * The old rule was a pure argmax on `size × hp × damage`, so heavy cavalry (3200) beat sword
+ * infantry (2250) for every personality and **spear infantry was never built by anybody**, despite
+ * doing double damage to horse. The roll of three is what puts a shape back into an army.
+ */
+describe('an army with a shape', () => {
+  const state = campaign();
+  years(state, 60);
+
+  /** Every unit the world has under arms, by id. */
+  const muster = () => {
+    const mix: Record<string, number> = {};
+    for (const army of state.armies) {
+      for (const [id, n] of Object.entries(army.units)) mix[id] = (mix[id] ?? 0) + n;
+    }
+    for (const city of state.cities) {
+      for (const [id, n] of Object.entries(city.garrison)) mix[id] = (mix[id] ?? 0) + n;
+    }
+    return mix;
+  };
+
+  it('builds spear infantry, which the pure argmax never once did', () => {
+    expect(muster().spear_infantry ?? 0).toBeGreaterThan(0);
+  });
+
+  it('fields a mixed roster rather than one unit repeated', () => {
+    const mix = muster();
+    const total = Object.values(mix).reduce((a, b) => a + b, 0);
+    expect(total).toBeGreaterThan(50);
+
+    // No single unit type dominates. Under the old argmax the best unit took essentially the whole
+    // army the moment a realm could pay its wages.
+    const biggest = Math.max(...Object.values(mix));
+    expect(biggest / total).toBeLessThan(0.6);
+
+    // And the roster is genuinely broad, not two units in a ratio.
+    expect(Object.keys(mix).length).toBeGreaterThanOrEqual(5);
+  });
+
+  it('fields missiles and ground troops both', () => {
+    const mix = muster();
+    const missiles = (mix.archer ?? 0) + (mix.cavalry_archer ?? 0);
+    const ground = (mix.light_infantry ?? 0) + (mix.sword_infantry ?? 0) + (mix.heavy_cavalry ?? 0);
+    expect(missiles).toBeGreaterThan(0);
+    expect(ground).toBeGreaterThan(0);
+  });
+
+  it('stays deterministic — the roll comes from the campaign seed', () => {
+    const a = campaign(LEVEL_DIFFICULTY, 909);
+    const b = campaign(LEVEL_DIFFICULTY, 909);
+    years(a, 20);
+    years(b, 20);
+    expect(JSON.stringify(serialise(b))).toBe(JSON.stringify(serialise(a)));
+  });
+});
+
+/**
+ * Rival realms cross water — docs/MECHANICS.md §10.
+ *
+ * The naval phase exists for the settlements no realm can march to. This asserts the thing that
+ * was actually broken for most of 0.18.0's development: that an expedition completes at all.
+ */
+describe('a rival realm sails', () => {
+  it('takes settlements no realm could ever have walked to', () => {
+    const state = campaign(LEVEL_DIFFICULTY, 77);
+    const independents = roster.findIndex((f) => f.religion === 'none');
+
+    // Landmasses no playable realm starts on — Ireland, Sardinia, Crete, Cyprus and the north.
+    const settled = new Set(
+      state.cities
+        .filter((c) => c.ownerIndex !== independents)
+        .map((c) => landmassOf(world, c.tileIndex)),
+    );
+    const marooned = state.cities.filter((c) => !settled.has(landmassOf(world, c.tileIndex)));
+    expect(marooned.length).toBeGreaterThan(0);
+
+    years(state, 120);
+
+    // Deliberately not "all of them": which islands fall is a balance outcome and varies by seed.
+    // What must hold is that the sea is no longer a wall.
+    const taken = marooned.filter((c) => c.ownerIndex !== independents);
+    expect(taken.length).toBeGreaterThan(marooned.length / 2);
+  });
+});

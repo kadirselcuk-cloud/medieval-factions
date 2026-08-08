@@ -46,9 +46,20 @@ in [`data/ai.json`](../data/ai.json), so retuning any of it is a data change.
 - **Should difficulty be changeable mid-campaign?** — `PROPOSED`: no. It is written into every
   rival at creation and kept in the save, so a campaign is always played against the opponents it
   was begun against.
-- ~~**Can the AI reach every settlement?**~~ — **no, and it is not an AI problem.** Scandinavia,
-  Ireland, Cyprus and North Africa are unreachable by land, so a dozen independent cities survive
-  any campaign and Iberia is cut off from Britain. The naval phase (0.18.0) fixes it.
+- ~~**Can the AI reach every settlement?**~~ — **it can now, since 0.18.0**, and the honest answer
+  is *it can, but it rarely does.* Rival realms build harbours, put fleets to sea, load an army and
+  land it — measured over 120 years from seed 4242 — but of the 8 settlements on landmasses no realm
+  starts on, **1 falls in a century and a fifth.** The structural gap is closed; the tuning that
+  would make a naval realm reshape the map is not done. Levers and ruled-out causes in NEXT.md §1.
+  - **Revised in 0.18.1, and now largely working.** Five to seven of the seven marooned settlements
+    fall in 120 years, and on one seed the map ends with **no independent city standing anywhere**.
+    Ireland is the most stubborn and survives some campaigns. Four bugs were behind the old figure:
+    fleets unloaded onto their own coast, targets were chosen by distance so nobody ever sailed for
+    an island, the navy was levied after the army and so could never afford a crew, and a fleet
+    would sail with whatever two units were on the quay.
+  - **How many overseas expeditions should a realm run at once?** — `PROPOSED`, **[GEN]**: one.
+    Three at a time splits an army a realm can barely spare into three that each land and die. But
+    one also means a realm that takes an island has no second wave.
 - **Do rival realms deserve a smarter endgame?** — `OPEN`, and **smaller than it looked**. Most of
   the freeze was a bug, fixed in 0.15.0: realms measured distance in straight lines, pinned
   themselves on cities across water that no army could reach, and never considered the ones they
@@ -59,7 +70,8 @@ in [`data/ai.json`](../data/ai.json), so retuning any of it is a data change.
     other. That may be the right shape for a game about being the one who breaks the balance, or it
     may want something — attrition, ambition, a claim system — to unfreeze it.
   - Separately, **14 independent cities survive any campaign** because they are genuinely across
-    water. That one is the naval phase, not the AI.
+    water. That one was the naval phase, and it shipped in 0.18.0 — whether the AI actually
+    *sails* often enough to take them is now a balance question rather than a structural one.
 
 ## Winter attrition — shipped in 0.17.1
 
@@ -138,16 +150,51 @@ two Spear Infantry and kill 8), and the **3× rout rule** fires cleanly in large
   the opening is tight and the first conquest matters enormously. One constant,
   `MANPOWER_SHARE_PERMILLE` in `src/sim/manpower.ts`, and no code depends on its value.
 
-## Due before naval (build phase 0.18.0)
+## ~~Due before naval~~ — all six answered by the owner, 0.18.0
 
-- **Ship statistics.** — `OPEN`. Only cost, upkeep and building requirement were given. Need
-  HP, damage, crew size, build time, and strategic speed for all four ship types.
-- **Transport capacity.** — `OPEN`. How many land units does one Transport carry?
-- **Naval combat.** — `OPEN`. Do fleets fight using the same auto-resolve algorithm? Can a
-  fleet intercept a transport? What happens to the cargo army if the transport dies?
-- **Embark / disembark.** — `OPEN`. Can an army board only at a Dock, or from any coastal
-  tile it owns?
-- **Are Transport and Flagship also renamed per faction**, or only Light and Heavy ships?
+Every question that blocked the naval phase was resolved before it was built. Recorded in
+[DESIGN.md](DESIGN.md) decisions 121–128, [MECHANICS.md](MECHANICS.md) §10 and
+[CONTENT.md](CONTENT.md) §4.
+
+- ~~**Ship statistics.**~~ — **approved**. Crew doubles as `size` and HP/damage are per crewman,
+  so a ship has a land unit's exact shape and the shipped resolver fights fleets unchanged. The
+  figures are Claude's and remain **[GEN]** in origin — see the table in CONTENT §4.
+- ~~**Transport capacity.**~~ — **two land units per Transport**, whatever their size, and only
+  Transports carry.
+- ~~**Naval combat.**~~ — the **same auto-resolve**, no defender's advantage at sea. **A warship
+  intercepts within one tile**, so a blockade closes a strait; two transport convoys pass
+  untouched. **Cargo is lost with the ship.**
+- ~~**Embark / disembark.**~~ — **board at a Dock, land on any coast** the enemy does not hold.
+  Owning the beach is not required.
+- ~~**Are Transport and Flagship also renamed per faction?**~~ — **all four are**, and a name may
+  be shared across factions (one Galleon can serve Spain, France and Britain). Names land in
+  0.19.0; 0.18.0 leaves four slots rather than two.
+
+Two things these answers settled elsewhere in this file, both marked at their own entries below:
+**ships now draw crew against the manpower ceiling**, and **fleets desert in debt** like armies.
+
+### Raised by building it — none of these blocked 0.18.0
+
+- **Can a landing be opposed?** — `OPEN`. Putting an army ashore currently needs a beach with no
+  hostile army or settlement on it, so an amphibious assault against a defended coast is
+  *impossible* rather than *expensive*. A defender who garrisons every shore tile is unlandable-on.
+  Whether a contested landing should be a battle fought at a penalty was never specified.
+- **Should a siege be blockadable from the sea?** — `OPEN`. A besieged port trades and reinforces by
+  water untouched; a fleet sitting off it does nothing. Given a siege already cuts income and stalls
+  queues, a naval half to the rule is arguable but was not asked for.
+- **Can a fleet be split?** — `OPEN`, and now the *only* half of the splitting question still open.
+  **An army can be split at a quayside** as of 0.18.1 (decision 129) — the part that fits the berths
+  sails and the rest stays ashore. A fleet still cannot: it can be merged and docked, but no
+  squadron can be detached, so an escort cannot be peeled off to scout and a convoy cannot be
+  divided across two landings.
+- **Should an army be splittable in the field, not only at a quay?** — `OPEN`. The quayside case was
+  forced by the boats; the general case is still the unanswered question under "Raised by armies".
+- **Is a stalemate at sea meant to be a standoff?** — `PROPOSED`, **[GEN]**. Interception requires
+  one of the two fleets to have **moved this tick**, or two fleets that fought to the 48-turn cap
+  and both survived would re-fight 120 times a month. The consequence is that two stationary fleets
+  can glower at each other indefinitely, and either breaks it by ordering a course onto the other.
+- **Should a defeated fleet retreat rather than sink?** — `OPEN`, and the sea version of the
+  unanswered land question. A beaten fleet is destroyed outright, and its cargo with it.
 
 ## Economy — shipped, but these were never answered
 
@@ -214,16 +261,18 @@ two Spear Infantry and kill 8), and the **3× rout rule** fires cleanly in large
 
 ## Raised by the 0.6.x economy work
 
-- **Do fleets desert too?** — `OPEN`. The owner specified that *armies* have a 10% monthly
-  desertion chance while in debt. Ships cost upkeep but are currently immune.
-- **Ship statistics.** — `OPEN`, partly. Costs, wood, and upkeep are owner-authored; HP,
-  damage, crew size and build times are **[GEN]** (6 / 8 / 12 / 18 months).
+- ~~**Do fleets desert too?**~~ — **answered in 0.18.0: yes**, at the same 10% per ship per month.
+  A ship was capital and therefore exempt; a ship with a crew is a payroll. A deserting Transport
+  takes its cargo with it, per the cargo rule.
+- ~~**Ship statistics.**~~ — **answered in 0.18.0.** Costs, wood, upkeep and build times are
+  owner-authored; crew, HP, damage and sea speed are **[GEN]** and owner-approved. CONTENT §4.
 - **Is there a floor on debt?** — `OPEN`. A realm can now sink arbitrarily deep. The
   population floor of 100 per settlement caps the bleeding, but nothing stops the number
   itself running away.
-- ~~**Do units draw from a settlement's population?**~~ — **answered in 0.12.0: yes**, the same
-  question as the one above it. **Ships still draw nobody** — crew size was never specified for
-  them, and that half stays `OPEN`.
+- ~~**Do units draw from a settlement's population?**~~ — **answered in 0.12.0: yes**, and the
+  ships half **answered in 0.18.0: they do now.** Crew size exists, so a crew is men, and men come
+  off a settlement's population and count against the manpower ceiling like any other levy —
+  moored, at sea, or still on the slipway.
 
 ## Minor, any time
 

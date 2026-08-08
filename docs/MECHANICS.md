@@ -30,7 +30,8 @@ Conquer every other faction. All factions permanently hostile; no diplomacy in v
 ## 3. Map & territory
 
 - [`data/maps/europe-1350.json`](../data/maps/europe-1350.json) — 70 × 35 square tiles,
-  58 cities, 42 resource nodes. Validated.
+  60 cities, 42 resource nodes. Validated. (13 playable capitals plus the Independents' 47, which
+  is the figure CONTENT §1 has always given; the 58 here was stale.)
 - A tile glyph `C`/`G`/`S`/`I`/`T` marks a feature; the tile's **underlying terrain** is in the
   feature record's own `terrain` field.
 - The map view is **zoomable and draggable**.
@@ -334,7 +335,13 @@ exactly two reasons: people are born, and land changes hands.
 Counted as under arms: garrisons, field armies, **and units still in training** — the men were
 levied when the order went out, so leaving the queue out would let a realm order twenty units
 against one unit's worth of room. Not counted: a settlement's own derived defence, which is not
-recruited and cannot leave the walls, and ships, which draw nobody.
+recruited and cannot leave the walls.
+
+**Ships draw crew, since 0.18.0.** Moored hulls, hulls at sea, hulls still on the slipway and any
+army aboard all count. A Flagship is 200 men — two Light Infantry and change — so a realm cannot
+build a navy and an army out of the same fifth of its people. This is why a rival realm decides its
+ships **before** it decides its soldiers (decision 132); levying first left it permanently unable to
+lay down a hull.
 
 | | |
 |---|---:|
@@ -932,12 +939,34 @@ roughly one improvement a year and its conquests stayed bare ground for a centur
 
 ### What the AI cannot do yet
 
-- **It cannot cross water.** Every remaining independent settlement in a long campaign is in
-  Scandinavia, Ireland, Cyprus or across Gibraltar, and no realm can reach any of them. This is
-  the naval phase (0.18.0), not an AI limitation. Since 0.15.0 a realm at least **knows** this and
-  spends its attention on what it can reach.
-- **It does not split or manoeuvre armies**, garrison a captured city deliberately, or raid.
+- ~~**It cannot cross water.**~~ — **it can, since 0.18.0.** See §10.
+- **It does not manoeuvre armies** or garrison a captured city deliberately. It **splits** one only
+  at a quayside, to fit the berths (decision 129).
 - **It has no diplomacy.** The personalities are written to drive it when it arrives.
+
+### What it recruits — a roll of three, since 0.18.1
+
+Owner-specified, and it is the fix for a game that had one unit in it. The old rule was a pure
+argmax on `size × hp × damage` bent by the personality's bias, and its consequence was that
+**heavy_cavalry (3200) beat sword_infantry (2250) for every personality**: every realm bought heavy
+cavalry the moment it could pay the wages, and spear infantry — which does double damage to horse —
+was never built by anybody in a century.
+
+Each order is now decided by an equal roll of three:
+
+| Roll | Picks |
+|---|---|
+| 1 in 3 | **The strongest it can build** — the old argmax, still bent by personality |
+| 1 in 3 | **A missile unit** — Archer or Cavalry Archer, at random |
+| 1 in 3 | **A ground unit** — anything that fights hand to hand, horse included, at random |
+
+**Rerolled until it lands on something the settlement can actually produce**, up to twelve times,
+then falling back to the strongest buildable unit. A Village with no Archery Range rolls the missile
+third and simply rolls again rather than ordering nothing that month.
+
+Measured over 120 years, the world's muster: **archer 24%, light infantry 23%, heavy cavalry 22%,
+light cavalry 10%, sword 8%, spear 4%, skirmisher 3%, shock 3%**. The counters the roster already
+had — `antiCavalry`, `rangedResist`, the charge — matter for the first time.
 
 Since 0.14.0 a rival is also held to the **manpower ceiling** (§5), through the same function the
 player's recruit panel calls: a realm at its limit trains nothing anywhere, however full its
@@ -1065,3 +1094,157 @@ went black everywhere would be unnavigable rather than mysterious.
 
 Over **unknown** ground there is no geography to show, and the black is opaque. That is also why
 the layers underneath need no second set of checks — nothing painted there survives the pass.
+
+---
+
+## 10. Naval — since 0.18.0
+
+The last structural gap in the map. Before this every acre a realm could **march** to got claimed
+and everything else sat out the campaign: a dozen independent cities in Scandinavia, Ireland,
+Cyprus and North Africa survived every century, and Iberia and Britain could not reach each other.
+Ships are how the rest of the map joins the game.
+
+Ship statistics, crew and transport capacity are in [CONTENT.md](CONTENT.md) §4. This section is
+the rules that move them.
+
+### A fleet is an army that floats
+
+Deliberately the same entity in a different medium. A `FleetState` carries an owner, a tile, a bag
+of ships, a route and banked movement points, exactly as an `ArmyState` does — and because a ship's
+crew is its `size` and its HP and damage are per crewman, the **same auto-resolve fights both**.
+
+The parallel runs all the way down:
+
+| Land | Sea |
+|---|---|
+| `city.garrison` — recruited units in a settlement | `city.fleet` — completed ships moored there |
+| `mobilise()` raises an army from the garrison | `launch()` puts a fleet to sea from the moorings |
+| `standDown()` returns it to the garrison | `dock()` returns it to the moorings |
+| one army per land tile | one fleet per sea tile |
+| `MAX_ARMY_UNITS` = 20 | `MAX_FLEET_SHIPS` = 20 |
+
+A fleet exists **only on water**. Ships that are not at sea are not fleets at all — they are a
+count in `city.fleet`, the way an unmustered unit is a count in `city.garrison`.
+
+### Sailing
+
+Sea movement uses the same integer march-point arithmetic as land (§3), with two differences:
+**open sea has no terrain cost and no owner**, so a sea tile always costs exactly one tile's worth,
+and there is no unclaimed or hostile-ground multiplier because nobody holds the ocean.
+
+Winter is the one modifier that survives — the same −40% an army suffers. Storms and short days
+are not a different rule from mud and short days.
+
+A fleet sails at its **slowest ship** — which, since every hull makes three tiles a month
+(owner-specified in 0.18.1), is any of them. An escort never slows a convoy, so there is no reason
+not to send one.
+
+### Embarking and disembarking — owner-specified in 0.18.0
+
+**Board at a Dock, land on any coast.** The asymmetry is the rule, not an oversight:
+
+- **Embarking** needs a settlement the realm owns with a Dock (or a Port or Shipyard above it),
+  and a fleet with a free berth on a sea tile beside it. Loading an army takes a harbour.
+- **Disembarking** needs only a land tile beside the fleet that no hostile army or settlement
+  holds. **The realm need not own it, and there need be nothing built on it.** An amphibious
+  landing is precisely the thing you do on a beach the enemy does not hold.
+
+A landed army claims the tile it steps onto, the same way a march claims ground by presence
+(DESIGN decision 21). That is how a realm gets its first acre on a new landmass.
+
+Cargo is **five land units per Transport** and only Transports carry — four hulls lift a whole
+twenty-unit army. Warships escort; they do not haul.
+
+Where the berths fall short, **the part that fits sails and the rest stays ashore** as the army it
+was, keeping its id and its orders (decision 129). Heaviest formations board first: if only half an
+army crosses, it should be the half that can fight. This is the only place in the game where a
+stack can be divided, and it is deliberately confined to a quayside rather than being a field order.
+
+### Naval combat
+
+**A warship intercepts within one tile** — owner-specified. Two hostile fleets that end a tick
+orthogonally adjacent fight, without either having to move onto the other. This is what makes a
+blockade mean something on a map whose sea lanes are narrow straits: a Light Ship in the Channel
+actually closes it, rather than watching transports slide past on the diagonal.
+
+Only a fleet with a **warship** can force the interception. Two transport convoys pass each other
+untouched — neither has anything to fight with, and a battle between them would be two merchantmen
+staring.
+
+The battle itself is the **shipped auto-resolve, unchanged** — the same 50-tile field, the same
+activation order, the same damage formula and the same 3× rout rule. Ships have no `range`, so they
+close and fight in melee. The tile carries no defender's advantage: there is no ground at sea.
+
+Order is fixed for determinism — fleets by id, and where both sides carry warships the lower id is
+the attacker.
+
+### What happens to the army aboard — owner-specified in 0.18.0
+
+**Cargo is lost with the ship.** Not evacuated, not washed ashore. When the fighting stops, the
+fleet's capacity is recomputed from the Transports that survived and **cargo above it drowns**, in
+a fixed order so a save replays identically.
+
+This is the harshest rule in the game and it is meant to be. It makes escorting mandatory, makes
+one Light Ship in the right strait worth more than the army it drowns, and means an overseas
+invasion is a thing a realm can lose in an afternoon after paying for it for a decade.
+
+It applies to **every** way a Transport can go: sunk in battle, and deserted for want of pay.
+
+### Crews draw on manpower, and fleets desert
+
+Two consequences of ships finally having crews, both owner-decided in 0.18.0.
+
+**Crew counts against the manpower ceiling** (§5). A Flagship is 200 men — two Light Infantry and
+change — so a realm cannot build a navy and an army out of the same fifth of its people. Moored
+ships, ships at sea, ships **still being built**, and any army aboard all count, on the same
+reasoning that puts units in training under the ceiling: the men were taken when the order went out.
+
+**Fleets desert in debt**, at the same 10% per ship per month armies suffer. A ship was capital and
+therefore exempt; a ship with a crew is a payroll. A bankrupt realm watches its navy walk off the
+quay, and a deserting Transport takes its cargo with it under the rule above.
+
+Winter attrition does **not** touch fleets. It is a rule about standing on a hostile realm's
+ground with nobody willing to sell you grain, and the sea belongs to nobody.
+
+### How a rival realm crosses — and how often it thinks about it
+
+**One expedition at a time, per realm.** A realm that runs three amphibious operations at once
+splits an army it could barely spare into three that each land and die. One target, one fleet, one
+landing — and once a beachhead is ashore the ordinary land AI takes over, because **a landed army
+is its own frontier** on a landmass where its realm holds no settlement. Without that last clause
+an expedition stands on its beach until the winter takes it: reach is measured from settlements,
+and it has none there.
+
+The sequence is: pick a target → lay down transports, then an escort → put to sea → call a field
+army to the quay → load at a Dock → wait for a landing force worth landing → sail → land.
+
+**What it sails for is not simply the nearest thing.** A landmass **no realm has settled** outranks
+distance outright (decision 133). Choosing by distance alone sent every fleet at the closest foreign
+coastline — which is almost always somebody else's land war reached by boat — and the islands the
+naval phase exists for were never anybody's nearest anything. Measured over 120 years: Novgorod
+chosen 173 times, Tunis 90, Edinburgh 55, and **Dublin 6**. Ireland was never invaded because nobody
+was ever closest to it.
+
+**The navy decides before the army does** (decision 132). A crew and a spearman come out of the same
+fifth of a realm's people, so a realm that levies first can never lay down a hull — measured, one
+realm ended a campaign with 81 armies, 8 harbours and a chosen target four sea tiles away it had
+never built a transport for. Ships get first claim, and an army called to a quay keeps its orders,
+because the land AI only re-routes stacks whose route is empty.
+
+**A fleet waits for six units, or a full hold, before it sails** (decision 134), and it may pull a
+committed stack off the line to get them — guarded by a three-army minimum, so a realm fighting for
+its life is never stripped. An army put ashore alone cannot retreat and cannot be reinforced inside
+a season.
+
+**The plan is made once a year, staggered by realm; landing is checked every month.** Choosing a
+target means sweeping the map twice — sailing distance to every sea tile, and the nearest landable
+shore of every landmass — and doing that for thirteen realms every month tripled the cost of a
+century-long campaign for nothing. An amphibious operation is a matter of years: the transports
+alone are six months on the slipway, so a realm reconsidering monthly is deciding the same thing
+twelve times rather than deciding it better. Putting men **ashore** is deliberately not on that
+cadence — it costs a look at four tiles and happens the month it becomes possible, because an army
+left floating beside the coast it crossed an ocean for is the one thing that must never wait.
+
+The stagger is `month % 12 === factionIndex % 12`, which spreads the thirteen sweeps across the
+year and keeps the schedule a pure function of the tick — no timer, no stored counter, nothing to
+migrate.

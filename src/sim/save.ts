@@ -20,8 +20,9 @@ import type { CityState, SimState } from './types';
  * 5 → 6: the rivals gained an AI. A v5 campaign was played against realms that did nothing.
  * 6 → 7: the map remembers where the player has been. A v6 save never recorded it.
  * 7 → 8: march points are a hundred times finer, so half-tile speeds stay integers.
+ * 8 → 9: fleets. A v8 campaign was fought entirely on land, because nothing could leave it.
  */
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 9;
 
 const DB_NAME = 'medieval-factions';
 const DB_VERSION = 1;
@@ -69,6 +70,8 @@ export function serialise(state: SimState): SerialisedState {
     cities: structuredClone(state.cities),
     armies: structuredClone(state.armies),
     nextArmyId: state.nextArmyId,
+    fleets: structuredClone(state.fleets),
+    nextFleetId: state.nextFleetId,
     battles: structuredClone(state.battles),
     nextBattleId: state.nextBattleId,
     events: structuredClone(state.events),
@@ -91,6 +94,8 @@ export function deserialise(data: SerialisedState): SimState {
     cities: structuredClone(data.cities),
     armies: structuredClone(data.armies ?? []),
     nextArmyId: data.nextArmyId ?? 1,
+    fleets: structuredClone(data.fleets ?? []),
+    nextFleetId: data.nextFleetId ?? 1,
     battles: structuredClone(data.battles ?? []),
     nextBattleId: data.nextBattleId ?? 1,
     events: structuredClone(data.events ?? []),
@@ -192,6 +197,19 @@ export function migrate(file: SaveFile): SaveFile {
       // army could be. The rival realms detach raiders and border guards from the next muster.
       army.role = army.role ?? 'field';
     }
+  }
+
+  // v8 was fought entirely on land, because nothing could leave it. Any ships a v8 realm built are
+  // still moored where it built them — `city.fleet` has existed since 0.5.0 and was simply inert —
+  // so nothing is lost and nothing needs reconstructing. The campaign opens with empty seas.
+  //
+  // Those moored hulls now have crews, so a loaded v8 realm may find itself **over the manpower
+  // ceiling** the moment it opens. That is correct and deliberately not corrected: the ceiling
+  // gates recruitment and disbands nobody (decision 99), so the realm raises no more men until its
+  // people catch up. Quietly scuttling a navy to make a number fit would be the worse surprise.
+  if (file.version < 9) {
+    state.fleets = state.fleets ?? [];
+    state.nextFleetId = state.nextFleetId ?? 1;
   }
 
   return { ...file, version: SAVE_VERSION, state };

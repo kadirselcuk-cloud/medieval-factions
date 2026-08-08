@@ -8,7 +8,7 @@ import {
 import { settlementUpgradeTo } from '../data/buildings';
 import { improvementCost, MAX_IMPROVEMENT_LEVEL, tileOutput } from '../data/improvements';
 import { TERRAIN_PROFILE, type ImprovementKind } from '../data/terrain';
-import { recruitableUnits, unitById, type Unit } from '../data/units';
+import { recruitableUnits, unitById, type LandUnit } from '../data/units';
 import { featureAt, terrainAt, type World } from '../data/world';
 import { armiesOf, defenceOf, mobilise, stackSize, stackSoldiers } from './armies';
 import { defenderAdvantage, openFieldAdvantage } from './battle';
@@ -26,6 +26,7 @@ import {
 } from './construction';
 import { beginSiege, RELIEF_RANGE, siegeTarget } from './conquest';
 import { landmassOf, reachedIn, sameLandmass, walkingDistanceFrom } from './geography';
+import { runNavy } from './navalAi';
 import { freeManpower } from './manpower';
 import { blockedBy, findPath, orderMove } from './movement';
 import {
@@ -99,10 +100,36 @@ export function runAi(state: SimState, world: World): void {
     // Measured from the realm's settlements, so "near" means near to something it holds rather
     // than near to whichever army happens to be standing closest. One sweep serves every
     // question this realm asks this month.
-    const home = walkingDistanceFrom(
-      world,
-      state.cities.filter((city) => city.ownerIndex === faction.index).map((city) => city.tileIndex),
-    );
+    const mine = state.cities.filter((city) => city.ownerIndex === faction.index);
+
+    /**
+     * **A landed army is its own frontier** — since 0.18.0.
+     *
+     * Reach is measured from a realm's borders and not from where an army happens to stand
+     * (decision 88), and that is still right for a campaign on one continent: a stack that wanders
+     * must not quietly extend what the realm considers near.
+     *
+     * An expeditionary force has no border to be measured from. Put six units ashore in Ireland and
+     * every Irish city still reads as infinitely far, because the sweep starts from settlements and
+     * the realm has none there — so the army that just crossed an ocean is handed no objective and
+     * stands on its beach until the winter takes it.
+     *
+     * So the exception is drawn exactly around that case, and no wider: an army counts as a source
+     * **only on a landmass where its realm holds no settlement at all.** On its home continent
+     * nothing changes, which is why no existing behaviour moved.
+     */
+    const settled = new Set(mine.map((city) => landmassOf(world, city.tileIndex)));
+    const beachheads = state.armies
+      .filter(
+        (army) =>
+          army.ownerIndex === faction.index && !settled.has(landmassOf(world, army.tileIndex)),
+      )
+      .map((army) => army.tileIndex);
+
+    const home = walkingDistanceFrom(world, [
+      ...mine.map((city) => city.tileIndex),
+      ...beachheads,
+    ]);
 
     // One pass over the map, reusing the sweep above: which landmasses still have ground on them
     // that this realm could walk to and nobody owns.
@@ -115,6 +142,29 @@ export function runAi(state: SimState, world: World): void {
 
     const mind: Mind = { faction, level, character, strength, home, bare };
     develop(state, world, mind);
+
+    /**
+     * **The navy decides before the army does, and that ordering is load-bearing.**
+     *
+     * A crew and a spearman come out of the same fifth of a realm's people (decision 127), and
+     * `levy` will spend every last man of it. Running the navy afterwards meant a realm with a real
+     * army could never lay down a hull: `queueShip` refused for manpower, every year, for ever.
+     * Measured — the Turks ended a campaign with 81 armies, 8 harbours and a chosen target four sea
+     * tiles away that they had never built a single transport for.
+     *
+     * So ships get first claim. It costs the land war very little, because a realm lays down at most
+     * one hull a year and only while it actually has an expedition in mind.
+     *
+     * Ordering `runNavy` before `campaign` also works in its favour: an army called to the quay is
+     * given its route here, and `campaign` only re-orders stacks whose route is empty, so the
+     * summons sticks instead of being overwritten the same month it was issued.
+     *
+     * The scruples cross the water with it. `willAttack` is handed in rather than reimplemented, so
+     * a Peaceful realm sails to independent cities and not to a rival's, an Honorable one still
+     * declines to pile onto a realm somebody else has by the throat, and none of that had to be
+     * written twice.
+     */
+    runNavy(state, world, faction.index, home, (city) => willAttack(state, city, mind));
     levy(state, mind);
     campaign(state, world, mind);
   }
@@ -357,7 +407,7 @@ function levy(state: SimState, mind: Mind): void {
 
   for (const city of held) {
     if (city.siege || city.recruitQueue.length > 0) continue;
-    const unit = bestUnit(state, city, mind);
+    const unit = rolledUnit(state, city, mind);
     if (unit) queueUnit(state, city, unit.id);
   }
 }
@@ -395,8 +445,14 @@ function forceOf(state: SimState, factionIndex: number): number {
  * Without the second floor a King-difficulty realm strips five Towns down to seven hundred people
  * between them and then cannot grow, garrison or feed itself.
  */
-function bestUnit(state: SimState, city: CityState, mind: Mind): Unit | undefined {
-  const bias = mind.character.unitBias;
+/**
+ * Everything this settlement could actually start today — the three ceilings, applied once.
+ *
+ * Split out of `bestUnit` when the roster choice stopped being a single argmax: every branch of
+ * that roll needs the same filter, and a branch that picked a unit the settlement could not pay
+ * for, crew or feed would silently produce nothing.
+ */
+function buildableHere(state: SimState, city: CityState, mind: Mind): readonly LandUnit[] {
   const purse = mind.faction.monthlyIncome.gold;
   const earned = settlementUpgradeTo(city.tier)?.minPopulation ?? 0;
   const floor = Math.max(mind.character.levyFloor, earned);
@@ -406,23 +462,86 @@ function bestUnit(state: SimState, city: CityState, mind: Mind): Unit | undefine
     freeManpower(state, city.ownerIndex),
   );
 
-  let best: Unit | undefined;
+  return recruitableUnits(city.tier, city.buildings).filter(
+    (unit) =>
+      unit.size <= manpower &&
+      canAfford(state, city.ownerIndex, unit.cost) &&
+      // Net income already has today's wages taken off it, so this leaves room for one more unit
+      // beyond the one being ordered — a margin, not a knife edge.
+      purse >= unit.upkeep * 2,
+  );
+}
+
+/** The original argmax: men × hit points × damage, bent by the personality's taste in troops. */
+function strongest(options: readonly LandUnit[], mind: Mind): LandUnit | undefined {
+  const bias = mind.character.unitBias;
+  let best: LandUnit | undefined;
   let bestScore = 0;
 
-  for (const unit of recruitableUnits(city.tier, city.buildings)) {
-    if (unit.size > manpower) continue;
-    if (!canAfford(state, city.ownerIndex, unit.cost)) continue;
-    // Net income already has today's wages taken off it, so this leaves room for one more unit
-    // beyond the one being ordered — a margin, not a knife edge.
-    if (purse < unit.upkeep * 2) continue;
-
+  for (const unit of options) {
     const score = Math.floor((unit.size * unit.hp * unit.damage) / 100) * bias[unit.class];
     if (score > bestScore || (score === bestScore && best && unit.id < best.id)) {
       bestScore = score;
       best = unit;
     }
   }
-  return best;
+  return best ?? options[0];
+}
+
+/**
+ * The two units the owner named as the missile arm — docs/DESIGN.md decision 130.
+ *
+ * Named rather than derived from `range > 0`, because that would sweep in the Skirmisher, and the
+ * owner asked for "a random archer or cavalry archer".
+ */
+const MISSILE_UNITS = ['archer', 'cavalry_archer'] as const;
+
+/**
+ * What a realm actually recruits — **owner-specified in 0.18.1**.
+ *
+ * The old rule was a pure argmax on `size × hp × damage`, and its consequence was a game with one
+ * unit in it: heavy_cavalry scores 3200 against sword_infantry's 2250, so **every** realm of every
+ * personality bought heavy cavalry the moment it could pay the wages, and spear infantry — which
+ * does double damage to horse — was never built by anybody in a hundred and twenty years.
+ *
+ * So the choice is now a roll of three, in equal thirds:
+ *
+ * 1. **The strongest it can build**, exactly as before, bent by personality. Realms still reach for
+ *    quality, and a Defensive realm still reaches differently from an Ambitious one.
+ * 2. **A missile unit** — an Archer or a Cavalry Archer.
+ * 3. **A ground unit** — anything that fights hand to hand, horse included.
+ *
+ * **Rerolled until it lands on something the settlement can actually produce**, which is the clause
+ * that makes it safe: a Village with no Archery Range rolls the missile third and simply rolls
+ * again, rather than ordering nothing that month. Bounded, and falling back to the strongest
+ * buildable unit, because an unbounded reroll against an empty category never returns.
+ *
+ * The point is an army with a shape. A realm that fields archers behind spears loses to cavalry
+ * far less badly than one that fields nothing but cavalry, and the counters the roster already
+ * has — `antiCavalry`, `rangedResist`, the charge — start to matter for the first time.
+ */
+const RECRUIT_ROLL_TRIES = 12;
+
+function rolledUnit(state: SimState, city: CityState, mind: Mind): LandUnit | undefined {
+  const affordable = buildableHere(state, city, mind);
+  if (affordable.length === 0) return undefined;
+
+  const missile = affordable.filter((unit) => (MISSILE_UNITS as readonly string[]).includes(unit.id));
+  const ground = affordable.filter((unit) => unit.range === 0);
+
+  for (let attempt = 0; attempt < RECRUIT_ROLL_TRIES; attempt++) {
+    const third = nextRandomInt(state, 3);
+
+    if (third === 0) return strongest(affordable, mind);
+    if (third === 1) {
+      if (missile.length > 0) return missile[nextRandomInt(state, missile.length)];
+      continue;
+    }
+    if (ground.length > 0) return ground[nextRandomInt(state, ground.length)];
+  }
+
+  // Every roll landed on a category this settlement cannot build. Take the best it can.
+  return strongest(affordable, mind);
 }
 
 // --------------------------------------------------------------------- war

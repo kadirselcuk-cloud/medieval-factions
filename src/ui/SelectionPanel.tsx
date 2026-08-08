@@ -20,7 +20,9 @@ import {
 import { TERRAIN_PROFILE, type ImprovementKind } from "../data/terrain";
 import {
   buildableShips,
+  canEmbarkFrom,
   defenceBuildings,
+  fleetCapacity,
   loadShips,
   loadUnits,
   recruitableUnits,
@@ -53,6 +55,18 @@ import {
 } from "../sim/armies";
 import { calendarAt } from "../sim/calendar";
 import { beginSiege, siegeTarget } from "../sim/conquest";
+import {
+  berths,
+  dock,
+  embark,
+  fitting,
+  fleetAt,
+  fleetSpeed,
+  landingSites,
+  launch,
+  orthogonalNeighbours,
+} from "../sim/fleets";
+import { haltFleet } from "../sim/sailing";
 import { assault, halt, SEASON_MOVEMENT, SPEED_SCALE } from "../sim/movement";
 import {
   buildOptions,
@@ -77,11 +91,13 @@ import { freeManpower, manpowerCap, manpowerUnderArms } from "../sim/manpower";
 import { cityGrowth } from "../sim/tick";
 import {
   MAX_ARMY_UNITS,
+  MAX_FLEET_SHIPS,
   TIER_NAME,
   whole,
   type ArmyRole,
   type ArmyState,
   type CityState,
+  type FleetState,
   type SimState,
 } from "../sim/types";
 import { num, signed } from "./format";
@@ -101,6 +117,8 @@ interface SelectionPanelProps {
   visible: boolean;
   /** Hands the map a march order to collect a destination for. */
   onMarch: (armyId: number) => void;
+  /** The same, for a fleet — or for a landing, if the tile clicked is a coast beside it. */
+  onSail: (fleetId: number) => void;
   onClose: () => void;
 }
 
@@ -134,7 +152,7 @@ function Row({ label, value }: { label: string; value: string }): JSX.Element {
 }
 
 export function SelectionPanel(props: SelectionPanelProps): JSX.Element {
-  const { tile, game, state, world, roster, visible, onMarch, onClose } = props;
+  const { tile, game, state, world, roster, visible, onMarch, onSail, onClose } = props;
   const [tab, setTab] = useState<Tab>("info");
 
   // Ground the player cannot see reads as unclaimed, because that is all they know about it.
@@ -160,6 +178,11 @@ export function SelectionPanel(props: SelectionPanelProps): JSX.Element {
   const army = armyAt(state, tile.index);
   const playersArmy =
     army && army.ownerIndex === state.playerFactionIndex ? army : undefined;
+
+  // A fleet is selected exactly as an army is — by clicking the water it sits on.
+  const fleet = fleetAt(state, tile.index);
+  const playersFleet =
+    fleet && fleet.ownerIndex === state.playerFactionIndex ? fleet : undefined;
 
   return (
     // Keyed on the tab so switching one closes any detail box the last tab had open.
@@ -241,6 +264,20 @@ export function SelectionPanel(props: SelectionPanelProps): JSX.Element {
               />
             )}
 
+            {/* Water never carries a settlement, so a fleet is always on an untabbed tile. */}
+            {playersFleet && (
+              <FleetCard
+                fleet={playersFleet}
+                game={game}
+                state={state}
+                world={world}
+                onSail={onSail}
+              />
+            )}
+            {visible && fleet && !playersFleet && (
+              <ForeignFleet fleet={fleet} roster={roster} />
+            )}
+
             {/*
               Anything standing here that is not the player's. Read-only, and shown for **any**
               tile the player can see — a rival's army used to render nothing at all, and a rival
@@ -295,7 +332,13 @@ export function SelectionPanel(props: SelectionPanelProps): JSX.Element {
 
         {tabbed && tab === "navy" && city && coastal && (
           <div className="panel__body">
-            <Navy city={city} game={game} state={state} coastal={coastal} />
+            <Navy
+              city={city}
+              game={game}
+              state={state}
+              world={world}
+              coastal={coastal}
+            />
           </div>
         )}
       </aside>
@@ -957,6 +1000,30 @@ function ArmyCard({
   const effective =
     (speed * (SEASON_MOVEMENT[calendarAt(state.tick).season] ?? 100)) / 100;
 
+  /**
+   * A fleet alongside with room for this army — the other half of "board at a Dock".
+   *
+   * Offered from the army's card as well as the fleet's, because the player is as likely to be
+   * looking at the troops as at the boats when the thought occurs, and an order that exists in
+   * only one of the two places is an order most people never find.
+   */
+  const port = state.cities.find(
+    (c) => c.tileIndex === army.tileIndex && c.ownerIndex === army.ownerIndex,
+  );
+  const transport =
+    port && canEmbarkFrom(port.buildings)
+      ? orthogonalNeighbours(world, army.tileIndex)
+          .map((t) => fleetAt(state, t))
+          .find((f) => f !== undefined && f.ownerIndex === army.ownerIndex && berths(f).capacity > 0)
+      : undefined;
+
+  // Berths free on that fleet, and whether the whole army would fit. Where it would not, the
+  // player gets the same split the AI gets (decision 129) — as an explicitly different button,
+  // because "some of your army sails and the rest does not" should never be a surprise.
+  const room = transport ? berths(transport).capacity - berths(transport).used : 0;
+  const wholeArmyFits = room >= stackSize(army.units);
+  const partial = transport && !wholeArmyFits && room > 0 ? fitting(army.units, room) : undefined;
+
   return (
     <div className="panel__section panel__section--first">
       <div className="panel__heading">Army</div>
@@ -1049,6 +1116,30 @@ function ArmyCard({
             Halt
           </button>
         )}
+        {transport && wholeArmyFits && (
+          <button
+            type="button"
+            className="action"
+            onClick={() =>
+              game.command((s) => embark(s, world, transport.id, army.id))
+            }
+            title="Board the fleet alongside — the whole army goes, and it is lost if the transports are"
+          >
+            Embark
+          </button>
+        )}
+        {transport && partial && (
+          <button
+            type="button"
+            className="action"
+            onClick={() =>
+              game.command((s) => embark(s, world, transport.id, army.id, partial))
+            }
+            title={`Only ${room} berth${room === 1 ? "" : "s"} free — the heaviest ${room} unit${room === 1 ? "" : "s"} board and the rest stay ashore`}
+          >
+            Embark {room} of {stackSize(army.units)}
+          </button>
+        )}
         {onOwnSettlement && (
           <button
             type="button"
@@ -1068,6 +1159,190 @@ function ArmyCard({
           Disband
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * A fleet at sea: its hulls, what it is carrying, and where it can put them.
+ *
+ * The naval `ArmyCard`, and deliberately laid out the same way — composition, then facts, then
+ * orders. The one thing it says that an army's card never has to is **what happens if it loses**:
+ * cargo is lost with the ship (docs/DESIGN.md decision 126), and a player who finds that out by
+ * watching six units drown has been ambushed by a rule rather than beaten by one.
+ */
+function FleetCard({
+  fleet,
+  game,
+  state,
+  world,
+  onSail,
+}: {
+  fleet: FleetState;
+  game: Game;
+  state: SimState;
+  world: World;
+  onSail: (fleetId: number) => void;
+}): JSX.Element {
+  const ships = Object.entries(fleet.ships).filter(([, count]) => count > 0);
+  const cargo = Object.entries(fleet.cargo).filter(([, count]) => count > 0);
+  const { capacity, used } = berths(fleet);
+  const speed = fleetSpeed(fleet);
+  const winter = calendarAt(state.tick).season === "winter";
+  const effective =
+    (speed * (SEASON_MOVEMENT[calendarAt(state.tick).season] ?? 100)) / 100;
+
+  const sites = landingSites(state, world, fleet);
+  const harbour = orthogonalNeighbours(world, fleet.tileIndex)
+    .map((t) => state.cities.find((c) => c.tileIndex === t))
+    .find((c) => c !== undefined && c.ownerIndex === fleet.ownerIndex);
+
+  // An army standing in a Dock beside the fleet, small enough for the berths that are free.
+  const loadable = harbour && canEmbarkFrom(harbour.buildings)
+    ? state.armies.find(
+        (a) =>
+          a.ownerIndex === fleet.ownerIndex &&
+          a.tileIndex === harbour.tileIndex &&
+          stackSize(a.units) > 0 &&
+          stackSize(a.units) <= capacity - used,
+      )
+    : undefined;
+
+  return (
+    <div className="panel__section panel__section--first">
+      <div className="panel__heading">Fleet</div>
+
+      {ships.map(([id, count]) => (
+        <div className="panel__row" key={id}>
+          <span className="panel__label">{shipById(id)?.name ?? id}</span>
+          <span className="panel__value">
+            ×{count}
+            <span className="panel__muted">
+              {" "}
+              · {(shipById(id)?.upkeep ?? 0) * count}g/mo
+            </span>
+          </span>
+        </div>
+      ))}
+
+      <Row
+        label="Hulls"
+        value={`${stackSize(fleet.ships)} / ${MAX_FLEET_SHIPS} ships`}
+      />
+      <Row label="Crew" value={num(stackSoldiers(fleet.ships))} />
+      <Row label="Upkeep" value={`${num(stackUpkeep(fleet.ships))} g/month`} />
+      <Row
+        label="Speed"
+        value={
+          winter
+            ? `${paceOf(effective)} · ${paceOf(speed)} in fair weather`
+            : paceOf(speed)
+        }
+      />
+      <Row label="Berths" value={`${used} / ${capacity} units`} />
+      <Row
+        label="Orders"
+        value={
+          fleet.path.length > 0
+            ? `Sailing · ${fleet.path.length} tiles to go`
+            : "Lying to"
+        }
+      />
+
+      {cargo.length > 0 && (
+        <>
+          <div className="panel__heading">Aboard</div>
+          {cargo.map(([id, count]) => (
+            <div className="panel__row" key={id}>
+              <span className="panel__label">{unitById(id)?.name ?? id}</span>
+              <span className="panel__value">×{count}</span>
+            </div>
+          ))}
+          <p className="panel__note">
+            These men are lost if the transports carrying them go down — in battle or
+            for want of pay. An escort is not decoration.
+          </p>
+        </>
+      )}
+
+      <div className="army-orders">
+        <button type="button" className="action" onClick={() => onSail(fleet.id)}>
+          Sail…
+        </button>
+        {loadable && (
+          <button
+            type="button"
+            className="action"
+            onClick={() =>
+              game.command((s) => embark(s, world, fleet.id, loadable.id))
+            }
+            title="Walk the army in the harbour aboard"
+          >
+            Embark
+          </button>
+        )}
+        {sites.length > 0 && (
+          <button
+            type="button"
+            className="action"
+            onClick={() => onSail(fleet.id)}
+            title="Then click the coast to land on — it need not be yours"
+          >
+            Land…
+          </button>
+        )}
+        {fleet.path.length > 0 && (
+          <button
+            type="button"
+            className="action"
+            onClick={() => game.command((s) => haltFleet(s, fleet.id))}
+            title="Cancel the whole course"
+          >
+            Heave to
+          </button>
+        )}
+        {harbour && (
+          <button
+            type="button"
+            className="action"
+            onClick={() => game.command((s) => dock(s, world, fleet.id))}
+            title="Tie up — the ships go back into the moorings and anything aboard goes ashore"
+          >
+            Dock
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Somebody else's fleet. Read-only, and shown for any water the player can see. */
+function ForeignFleet({
+  fleet,
+  roster,
+}: {
+  fleet: FleetState;
+  roster: readonly Faction[];
+}): JSX.Element {
+  const owner = roster[fleet.ownerIndex];
+  const ships = Object.entries(fleet.ships).filter(([, count]) => count > 0);
+
+  return (
+    <div className="panel__section">
+      <div className="panel__heading">
+        Fleet
+        {owner && <span className="panel__muted"> · {owner.name}</span>}
+      </div>
+      {ships.map(([id, count]) => (
+        <div className="panel__row" key={id}>
+          <span className="panel__label">{shipById(id)?.name ?? id}</span>
+          <span className="panel__value">×{count}</span>
+        </div>
+      ))}
+      <Row label="Crew" value={num(stackSoldiers(fleet.ships))} />
+      {stackSize(fleet.cargo) > 0 && (
+        <Row label="Carrying" value={`${stackSize(fleet.cargo)} units`} />
+      )}
     </div>
   );
 }
@@ -1399,7 +1674,7 @@ function buildingEffects(
       value: trains.map((unit) => unit.name).join(", "),
     });
   }
-  const launches = loadShips().filter((ship) => ship.requires === building.id);
+  const launches = loadShips().filter((ship) => ship.requiresBuilding === building.id);
   if (launches.length > 0) {
     rows.push({
       label: "Unlocks",
@@ -1455,11 +1730,13 @@ function Navy({
   city,
   game,
   state,
+  world,
   coastal,
 }: {
   city: CityState;
   game: Game;
   state: SimState;
+  world: World;
   coastal: boolean;
 }): JSX.Element {
   const moored = Object.entries(city.fleet).filter(([, count]) => count > 0);
@@ -1488,13 +1765,13 @@ function Navy({
         { label: "Upkeep", value: `${ship.upkeep} gold a month` },
         {
           label: "Needs",
-          value: buildingById(ship.requires)?.name ?? ship.requires,
+          value: buildingById(ship.requiresBuilding)?.name ?? ship.requiresBuilding,
         },
       ],
       reason: !coastal
         ? "This settlement does not border water."
         : !unlocked
-          ? `Needs a ${buildingById(ship.requires)?.name ?? ship.requires}, built in the Buildings tab.`
+          ? `Needs a ${buildingById(ship.requiresBuilding)?.name ?? ship.requiresBuilding}, built in the Buildings tab.`
           : affordable
             ? undefined
             : "Not enough in the treasury.",
@@ -1506,22 +1783,43 @@ function Navy({
   return (
     <>
       <div className="panel__section panel__section--first">
-        <div className="panel__heading">Fleet</div>
+        <div className="panel__heading">In harbour</div>
         {moored.length === 0 ? (
           <p className="panel__note">Nothing in harbour here.</p>
         ) : (
-          moored.map(([id, count]) => (
-            <div className="panel__row" key={id}>
-              <span className="panel__label">{shipById(id)?.name ?? id}</span>
-              <span className="panel__value">
-                ×{count}
-                <span className="panel__muted">
-                  {" "}
-                  · {(shipById(id)?.upkeep ?? 0) * count}g/mo
+          <>
+            {moored.map(([id, count]) => (
+              <div className="panel__row" key={id}>
+                <span className="panel__label">{shipById(id)?.name ?? id}</span>
+                <span className="panel__value">
+                  ×{count}
+                  <span className="panel__muted">
+                    {" "}
+                    · {(shipById(id)?.upkeep ?? 0) * count}g/mo ·{" "}
+                    {(shipById(id)?.size ?? 0) * count} crew
+                  </span>
                 </span>
-              </span>
+              </div>
+            ))}
+            <Row label="Berths" value={`${fleetCapacity(city.fleet)} units`} />
+            <div className="army-orders">
+              <button
+                type="button"
+                className="action"
+                onClick={() =>
+                  game.command((s) => {
+                    const here = s.cities.find((c) => c.tileIndex === city.tileIndex);
+                    return here
+                      ? launch(s, world, here, { ...here.fleet })
+                      : { ok: false as const, reason: "no-settlement" as const };
+                  })
+                }
+                title="Put every ship in harbour to sea, on the water beside the town"
+              >
+                Put to sea
+              </button>
             </div>
-          ))
+          </>
         )}
       </div>
 
@@ -1554,7 +1852,7 @@ function Navy({
       <BuildGrid
         heading="Shipyard"
         tiles={tiles}
-        note="Ships are built and moored here. Putting a fleet to sea comes with the naval phase."
+        note="Ships are built and moored here, then put to sea as a fleet. A crew is people — a hull draws its men from this settlement the month its keel is laid, and counts against the realm's manpower like any other levy."
       />
     </>
   );

@@ -13,6 +13,191 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.18.1] — 2026-08-04
+
+The owner's revisions to the naval phase, and the AI work that made them mean something. Naval
+conquest went from **1 marooned settlement taken in 120 years to 5–7 of 7**, and on one seed the map
+finishes with **no independent city left standing anywhere**.
+
+### Changed
+
+- **A Transport carries five land units**, up from two — owner-specified. Four Transports now lift a
+  full twenty-unit army, so a whole stack crosses in one convoy. `BERTHS_WANTED` follows it to
+  `MAX_ARMY_UNITS`.
+- **Every hull sails three tiles a month** — owner-specified. Previously 3/4/3/2, so an escort
+  slowed a convoy; a fleet now sails at one speed whatever is in it.
+- **Copenhagen has moved two tiles west**, onto the forest shore, and its old tile is open water.
+- **What a rival realm recruits is now a roll of three** — owner-specified, and it is the fix for a
+  game that had one unit in it. In equal thirds: the strongest unit it can build (the old argmax,
+  still bent by personality), a **missile** unit — Archer or Cavalry Archer — or a **ground** unit.
+  Rerolled up to twelve times until it lands on something the settlement can actually produce, so a
+  Village with no Archery Range rolls again rather than ordering nothing.
+  - Measured over 120 years, the world's muster went from heavy-cavalry monoculture to **archer 24%,
+    light infantry 23%, heavy cavalry 22%, light cavalry 10%, sword 8%, spear 4%**. Spear infantry —
+    which does double damage to horse and which the pure argmax had **never built once** — is now
+    fielded. The counters already in the roster start to matter.
+- **The navy decides before the army does.** A crew and a spearman come out of the same fifth of a
+  realm's people, and `levy` spent all of it, so `queueShip` was refused for manpower every year for
+  ever. Ordering `runNavy` ahead of `levy` and `campaign` gives ships first claim — and also makes
+  an army summoned to the quay keep its orders, since `campaign` only re-routes idle stacks.
+
+### Added
+
+- **Splitting a stack at the quayside.** `embark` takes an optional set of units, so a fleet with
+  too few berths loads the part that fits and the rest stays ashore as the army it was — same id,
+  same tile, still commandable. `fitting` picks the heaviest formations first, on the reasoning that
+  if only half an army crosses it should be the half that can fight. This is the only place in the
+  game where an army can be divided, and it is deliberately confined to a harbour.
+- **A fleet waits for a landing force worth landing** — six units, or a full hold — instead of
+  sailing with whatever happened to be on the quay that month. An army put ashore alone on a hostile
+  island cannot retreat and cannot be reinforced inside a season.
+- A realm will now **pull a committed stack off the line** for an invasion, rather than waiting for
+  an idle one that never comes, guarded by a three-army minimum and the annual cadence.
+- 8 tests: partial embark and the split order, the one-speed roster, four-transports-to-an-army, the
+  recruiting roll's spread and determinism, and an end-to-end assertion that marooned settlements
+  actually fall.
+
+### Fixed
+
+- **Loaded fleets unloaded onto their own coast.** `putAshore` landed on any adjacent beach, and the
+  quay a fleet loads at is beside one — so every expedition was a round trip of two tiles and no
+  fleet was ever observed carrying anything. A fleet now lands only on a landmass its realm holds no
+  settlement on.
+- **Ireland, and every island nobody happened to be near.** Targets were chosen purely by sea
+  distance, so realms always picked the nearest foreign *coastline* — which is usually somebody
+  else's land war reached by boat. Measured: Novgorod chosen 173 times in 120 years, Tunis 90,
+  Edinburgh 55 — and **Dublin 6**. A landmass **no realm has settled** now outranks distance
+  outright, which is what finally sends fleets to Sardinia, Crete, Cyprus and Ireland.
+- **The balance panel ignored ships at sea**, so a realm's wage bill appeared to fall the month it
+  launched a fleet. The simulation had been fixed in 0.18.0; the panel had not.
+
+---
+
+## [0.18.0] — 2026-08-04
+
+**Naval.** The last structural gap in the map. Until now every acre a realm could *march* to got
+claimed and everything else sat out the campaign — 64 tiles bare after 120 years, all of them on
+islands, plus a dozen independent cities in Scandinavia, Ireland, Cyprus and North Africa that
+survived every century because nobody could reach them, and Iberia and Britain unable to touch each
+other. Ships are how the rest of the map joins the game.
+
+**All six blocking questions were answered by the owner before a line was written**, and are
+recorded in [DESIGN.md](docs/DESIGN.md) decisions 121–128, [MECHANICS.md](docs/MECHANICS.md) §10 and
+[CONTENT.md](docs/CONTENT.md) §4.
+
+### Added
+
+- **A ship is a unit.** Its crew is its `size` and its HP and damage are **per crewman**, exactly
+  the shape of a land unit — so naval combat needed **no second resolver**. A fleet musters into the
+  shipped auto-resolve as formations, and `stackUpkeep`, `stackSoldiers`, the desertion roll, the
+  manpower ceiling and the balance panel all read fleets through the helpers they already read
+  armies through. `unitById` is the single seam that made it free; `loadUnits()` stays land-only, so
+  nothing that offers the player troops can offer a Flagship.
+- **Ship statistics**, owner-approved. Crew 40/60/120/200, HP per crewman 60/80/120/160, damage
+  5/15/25/40, sea speed 3/4/3/2 tiles a month. A Heavy Ship lands at roughly Heavy Cavalry's
+  strength for five times the gold; a Flagship is four times that again; a Transport is nearly
+  defenceless at 120 against a Light Ship's 720, which is what makes an escort a real decision.
+- **Fleets** — `FleetState`, deliberately an `ArmyState` in a different medium: an owner, a tile, a
+  bag of things by id, a route and banked movement points. `city.fleet` is to `launch()` what
+  `city.garrison` is to `mobilise()`. One fleet per sea tile, twenty hulls maximum. A fleet exists
+  **only on water**; hulls that are not at sea are a count in the harbour, not a fleet.
+- **Sailing.** The same integer march-point arithmetic as a march, with open water carrying no
+  terrain cost and no owner — a sea tile always costs exactly one tile's worth. Winter is the one
+  modifier that survives, the same −40%. A fleet sails at its slowest hull. Sea pathfinding is A*
+  over water, sharing the land pathfinder's heap.
+- **Transport capacity** — **two land units per Transport**, whatever their size, and only
+  Transports carry. A six-unit invasion needs three hulls before an escort is paid for.
+- **Embark and disembark** — **board at a Dock, land on any coast.** Loading an army needs a
+  harbour the realm owns; landing needs only a tile beside the fleet that no hostile army or
+  settlement holds, owned or not, built on or not. **A landed army claims the tile it steps onto**,
+  like any march — which is how a realm gets its first acre on a landmass it has never held, and
+  the single line that makes this phase change the map rather than merely add boats.
+- **Interception within one tile.** Two hostile fleets that end a tick orthogonally adjacent fight,
+  without either moving onto the other, so a Light Ship in a strait actually closes it. Only a fleet
+  carrying a **warship** can force it — two unescorted convoys pass untouched, having nothing to
+  fight with. Order is fixed for determinism: fleets by id, lower id the attacker. **One of the two
+  must have moved this tick**, or a pair that fought to the 48-turn cap and both survived would
+  re-fight 120 times a month; a blockade is unaffected, because what it catches is by definition
+  sailing.
+- **The AI crosses water.** One expedition at a time per realm: it finds the nearest settlement it
+  cannot walk to but can sail to, lays down transports and an escort, launches, **calls an idle
+  field army to the quay** — the largest that will actually fit the berths — loads it at a Dock,
+  sails, and puts it ashore. It goes through the same `queueShip`, `launch`, `embark`, `orderSail`
+  and `disembark` the player's UI calls, and it carries its scruples across the water:
+  `willAttack` is handed in rather than reimplemented, so a Peaceful realm sails to independent
+  cities and not to a rival's.
+- **A landed army is its own frontier.** Reach is measured from a realm's settlements, which left an
+  expeditionary force with every city on its new island reading as infinitely far — so it stood on
+  its beach until the winter took it. An army now counts as a source for the reach sweep **only on
+  a landmass where its realm holds no settlement at all**. Drawn exactly around the amphibious case
+  and no wider, so nothing on a home continent moved.
+- **Fleet UI** — fleets draw as hulls rather than rectangles, with a pip per unit aboard; a fleet
+  card mirroring the army card, with Sail, Embark, Land, Heave to and Dock; an Embark button on the
+  army card too, because the thought occurs as often looking at the troops as at the boats; **Put
+  to sea** in the Navy tab; and the **Navies roster is real** — it had been a placeholder saying
+  fleets would put to sea in a later phase, which is this one.
+- 40 naval tests, covering the ship-is-a-unit invariant, launching and docking, both halves of the
+  embark rule, sea pathfinding, interception and the standoff rule, cargo drowning, crews against
+  the ceiling, desertion, the v9 save round trip and v8 migration, and determinism across a save
+  mid-voyage.
+
+### Changed
+
+- **Crews count against the manpower ceiling**, and a hull levies its men the month its keel is
+  laid. Moored ships, ships at sea, ships still on the slipway and any army aboard all count. A
+  Flagship is 200 men — two Light Infantry and change — so a realm cannot build a navy and an army
+  out of the same fifth of its people. Supersedes the ships-draw-nobody clause of decision 82.
+- **Fleets desert in debt**, at the same 10% per ship per month armies suffer. A ship was capital
+  and therefore exempt; a ship with a crew is a payroll.
+- **Cargo is lost with the ship.** Capacity is recomputed from the surviving Transports after every
+  loss and anything above it drowns — in battle and in desertion alike, in sorted id order so a
+  save replays identically. The harshest rule in the game, on purpose.
+- `queueShip` now checks population and the manpower ceiling like `queueUnit`, and cancelling a
+  hull returns its crew.
+- Save format **v8 → v9**. A v8 campaign was fought entirely on land; it opens with empty seas and
+  its moored hulls intact, since `city.fleet` has existed since 0.5.0 and was simply inert. Such a
+  realm may open **over** its manpower ceiling now those hulls have crews — deliberately not
+  corrected, because the ceiling gates recruitment and disbands nobody (decision 99).
+- `Unit['class']` gains `naval`, and `recruitableUnits` is typed land-only so the AI's per-class
+  unit bias has no naval case it could never reach.
+
+### Fixed
+
+Four of these were found by instrumenting a 120-year campaign and measuring what the rival realms
+actually did, rather than by reasoning about the code. Without that the naval AI would have shipped
+looking complete and doing nothing.
+
+- **Ships at sea drew no wages.** `totalUpkeep` only counted hulls in the moorings, so a realm's
+  wage bill *fell* the month it launched a fleet. Found by a test written for the crew rules.
+- **The AI built fleets and never loaded one.** Three compounding causes, all measured: hulls were
+  launched a pair at a time from *every* port, so 28 berths sat in eight separate anchorages of
+  three; the target was 4 berths, and **an army cannot be split**, so a fleet that could not take a
+  whole stack took nothing; and loading was gated behind the annual planning month, which left a
+  two-unit army standing on a quay beside eight free berths because it was not that realm's turn to
+  think about ships. Now: one harbour of departure chosen for being nearest the target by sea, 8
+  berths wanted, and landing, loading and launching all local decisions made every month.
+  Before, over 120 years: 8 fleets, 28 berths, **0 men carried**. After: an army crosses and takes
+  a city no realm could reach.
+- **A summoned army could be too big for the boats it was summoned to.** `callToThePort` marched the
+  largest idle stack to the quay regardless of berths, where it stood unable to board and unable to
+  be sent anywhere else. It now calls the largest stack that actually fits.
+- The naval AI's landing search scanned the whole map once per candidate settlement — forty-odd
+  full sweeps per realm per month, which took the century-long consolidation test from 35 seconds
+  to 200. Inverted to one pass that files every shore under its landmass, and guarded behind a
+  cheap "is there anything across the water at all" check so a one-continent campaign does no
+  naval work whatever.
+- **The naval plan is now made once a year, staggered by realm**, rather than every month. Picking
+  a target sweeps the map twice, and doing that thirteen times a month still doubled the cost of a
+  century. An amphibious operation takes years — the transports alone are six months on the
+  slipway — so twelve re-decisions a year were twelve copies of one decision. **Landing stays
+  monthly**: it costs a look at four tiles, and an army left floating beside its beach is the one
+  thing that must never wait on a cadence.
+- `advanceFleets` allocated a sorted copy of the fleet list on every one of the 120 ticks in a
+  month, including for the many campaigns that have no fleet at all. It now leaves on a length
+  check.
+
+---
+
 ## [0.17.4] — 2026-08-04
 
 ### Fixed

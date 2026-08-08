@@ -7,7 +7,9 @@ import { calendarAt, isMonthBoundary, TICKS_PER_MONTH } from './calendar';
 import { advanceConstruction } from './construction';
 import { advanceSieges } from './conquest';
 import { pushEvent } from './events';
+import { drownExcessCargo, removeFleet } from './fleets';
 import { advanceArmies } from './movement';
+import { advanceFleets } from './sailing';
 import { recomputeIncome } from './state';
 import { rememberGround } from './vision';
 import {
@@ -31,9 +33,13 @@ export function advance(state: SimState, world: World): void {
 
   accrueIncome(state);
   advanceArmies(state, world);
-  // After the armies have moved, so ground an army walked over this tick is remembered before it
-  // can walk off it again. Purely a record for the player's map — see vision.ts. Nothing below
-  // reads it, so where it sits in the tick cannot change an outcome.
+  // After the armies, so a landing this tick meets a map the armies have already settled — and
+  // because a fleet that fights is a fleet that has finished moving, which the land pass does not
+  // need to know about.
+  advanceFleets(state, world);
+  // After both, so ground an army walked over or landed on this tick is remembered before it can
+  // move off again. Purely a record for the player's map — see vision.ts. Nothing below reads it,
+  // so where it sits in the tick cannot change an outcome.
   rememberGround(state, world);
 
   if (isMonthBoundary(state.tick)) {
@@ -57,10 +63,15 @@ export const DESERTION_CHANCE = 0.1;
 /**
  * Troops a faction cannot pay start walking home.
  *
- * Iteration order is fixed — cities by index then armies by id, unit ids sorted within each —
- * because the RNG is drawn per unit and the whole simulation has to stay reproducible from a
- * save. A settlement's own defenders are exempt: they cost nothing, so there is no wage to
+ * Iteration order is fixed — cities by index, then armies by id, then fleets by id, unit ids sorted
+ * within each — because the RNG is drawn per unit and the whole simulation has to stay reproducible
+ * from a save. A settlement's own defenders are exempt: they cost nothing, so there is no wage to
  * miss, and a bankrupt realm should not have its walls quietly opened.
+ *
+ * **Fleets desert too, since 0.18.0** (docs/DESIGN.md decision 127), at the same rate and for the
+ * same reason. A ship was capital and therefore immune; a ship with a crew is a payroll. And a
+ * deserting Transport takes its cargo down with it, because cargo is lost with the ship whatever
+ * sinks it — an army can be drowned by its own realm's bankruptcy.
  */
 function desertUnpaidTroops(state: SimState, world: World): void {
   for (const faction of state.factions) {
@@ -70,6 +81,7 @@ function desertUnpaidTroops(state: SimState, world: World): void {
       if (city.ownerIndex !== faction.index) continue;
       const where = world.cities[city.cityIndex]?.name ?? 'a settlement';
       desertFrom(state, city.garrison, faction.index, city.tileIndex, where);
+      desertFrom(state, city.fleet, faction.index, city.tileIndex, `the moorings at ${where}`);
     }
 
     for (const army of [...state.armies].sort((a, b) => a.id - b.id)) {
@@ -77,6 +89,25 @@ function desertUnpaidTroops(state: SimState, world: World): void {
       desertFrom(state, army.units, faction.index, army.tileIndex, 'the field');
       // An army that has lost every last man is not an army.
       if (Object.keys(army.units).length === 0) removeArmy(state, army.id);
+    }
+
+    for (const fleet of [...state.fleets].sort((a, b) => a.id - b.id)) {
+      if (fleet.ownerIndex !== faction.index) continue;
+      desertFrom(state, fleet.ships, faction.index, fleet.tileIndex, 'sea');
+      if (Object.keys(fleet.ships).length === 0) {
+        const lost = Object.values(fleet.cargo).reduce((n, count) => n + count, 0);
+        if (lost > 0) {
+          pushEvent(state, {
+            kind: 'desertion',
+            text: `${lost} unit${lost === 1 ? '' : 's'} lost when the last unpaid ship deserted`,
+            tileIndex: fleet.tileIndex,
+            factionIndex: fleet.ownerIndex,
+          });
+        }
+        removeFleet(state, fleet.id);
+      } else {
+        drownExcessCargo(state, fleet, 'when the crews walked off');
+      }
     }
   }
 }

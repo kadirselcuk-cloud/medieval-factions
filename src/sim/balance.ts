@@ -81,6 +81,15 @@ export function incomeBreakdown(
     result.upkeep -= stackUpkeep(army.units);
   }
 
+  // Ships at sea, and the army riding on them. The panel counted only what was moored, so the
+  // month a realm launched a fleet its wage bill appeared to *fall* — the same bug `totalUpkeep`
+  // had, and the panel exists precisely so the player can trust these figures.
+  for (const fleet of state.fleets) {
+    if (fleet.ownerIndex !== factionIndex) continue;
+    result.upkeep -= stackUpkeep(fleet.ships);
+    result.upkeep -= stackUpkeep(fleet.cargo);
+  }
+
   for (let index = 0; index < state.tileOwner.length; index++) {
     if ((state.tileOwner[index] ?? -1) !== factionIndex) continue;
     const x = index % world.width;
