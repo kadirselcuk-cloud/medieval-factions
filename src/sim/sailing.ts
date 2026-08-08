@@ -11,7 +11,7 @@ import {
   fleetSpeed,
   isWater,
   mergeFleets,
-  orthogonalNeighbours,
+  seaNeighbours,
   removeFleet,
 } from './fleets';
 import { Heap, MARCH_PER_TILE, SEASON_MOVEMENT } from './movement';
@@ -25,9 +25,10 @@ import { MAX_FLEET_SHIPS, type FleetState, type SimState } from './types';
  * points, `MARCH_PER_TILE` to cross a tile, the same seasonal percentage. Two things are simpler at
  * sea and one is harder.
  *
- * Simpler: **open water has no terrain cost and no owner**, so a sea tile always costs exactly one
- * tile's worth. There is no unclaimed-ground penalty and no hostile-ground penalty because nobody
- * holds the ocean, which is why the whole `tileMarchCost` apparatus has no counterpart here.
+ * Simpler: **open water has no terrain cost and no owner.** There is no unclaimed-ground penalty and
+ * no hostile-ground penalty because nobody holds the ocean, which is why the whole `tileMarchCost`
+ * apparatus has no counterpart here — a sea tile costs a tile, and the only thing that varies is
+ * whether the step was straight or diagonal.
  *
  * Harder: **a warship intercepts within one tile** (decision 125). On land a battle happens when an
  * army walks into one; at sea it happens when two fleets end a tick beside each other, neither
@@ -40,13 +41,48 @@ export function seaSpeedPercent(state: SimState): number {
   return SEASON_MOVEMENT[calendarAt(state.tick).season];
 }
 
-/** Fleets move orthogonally, as armies do. Diagonals would make every stated speed a lie. */
+/**
+ * Fleets move in **eight** directions — owner-specified in 0.18.3. Armies still move in four.
+ *
+ * The difference is geography, not a change of mind about diagonals. This map's water is a set of
+ * basins joined at single tiles and several of those joins are diagonal: with four-way movement the
+ * **Black Sea cannot reach the Mediterranean at all**, so a realm on it could build any navy it
+ * liked and never leave home. Eight-way makes the whole sea one body of water.
+ *
+ * Listed clockwise from north, and the order is fixed because it decides tie-breaks in the
+ * pathfinder and a route has to replay identically from a save.
+ */
 const STEPS: readonly (readonly [number, number])[] = [
   [0, -1],
+  [1, -1],
   [1, 0],
+  [1, 1],
   [0, 1],
+  [-1, 1],
   [-1, 0],
+  [-1, -1],
 ];
+
+/**
+ * What a diagonal costs, per-mille of a straight tile. **√2, to three places.**
+ *
+ * The reason armies have no diagonals is that one would let a stack cross √2 tiles of ground for
+ * the price of one, making every stated speed a lie in the corners of the map. Giving ships
+ * diagonals does not make that argument wrong — it makes it something to **pay for**. A diagonal
+ * costs what a diagonal is, so "three tiles a month" stays true in every direction.
+ *
+ * Exact in integers: `MARCH_PER_TILE` is 1,200,000, so a diagonal is 1,696,800 with no remainder.
+ */
+export const DIAGONAL_PERMILLE = 1414;
+
+/** March points to enter `to` from `from`, both sea tiles one step apart. */
+function seaStepCost(world: World, from: number, to: number): number {
+  const dx = Math.abs((to % world.width) - (from % world.width));
+  const dy = Math.abs(Math.floor(to / world.width) - Math.floor(from / world.width));
+  return dx === 1 && dy === 1
+    ? Math.floor((MARCH_PER_TILE * DIAGONAL_PERMILLE) / 1000)
+    : MARCH_PER_TILE;
+}
 
 export type SeaBlockReason = 'land' | 'hostile-fleet' | 'friendly-fleet';
 
@@ -78,9 +114,9 @@ export function seaBlockedBy(
 /**
  * A* over water from the fleet's tile to `destination`, start excluded. `null` if there is no route.
  *
- * Every sea tile costs the same, so this is a breadth-first search wearing an A*'s clothes — but it
- * is written as A* anyway, because a route that has to end on a hostile fleet is not uniform and
- * because the two pathfinders staying the same shape is worth more than the few lines saved.
+ * Genuinely an A* since 0.18.3: with eight-way movement a diagonal costs √2 and a straight step
+ * costs 1, so the frontier is no longer uniform and a breadth-first sweep would return routes that
+ * merely look short.
  */
 export function findSeaPath(
   state: SimState,
@@ -100,9 +136,15 @@ export function findSeaPath(
 
   const goalX = destination % world.width;
   const goalY = Math.floor(destination / world.width);
+  // **Chebyshev, not Manhattan.** With diagonals a fleet covers a tile of x and a tile of y in one
+  // step, so Manhattan distance would overestimate what is left, the heuristic would stop being
+  // admissible, and A* would start returning routes that merely look short. The larger axis is the
+  // fewest steps possible, and every step costs at least a straight tile.
   const heuristic = (index: number) =>
-    (Math.abs((index % world.width) - goalX) + Math.abs(Math.floor(index / world.width) - goalY)) *
-    MARCH_PER_TILE;
+    Math.max(
+      Math.abs((index % world.width) - goalX),
+      Math.abs(Math.floor(index / world.width) - goalY),
+    ) * MARCH_PER_TILE;
 
   const open = new Heap();
   best[from] = 0;
@@ -129,7 +171,7 @@ export function findSeaPath(
       const blocked = seaBlockedBy(state, world, fleet, next, next === destination);
       if (blocked !== null && !(next === destination && blocked === 'hostile-fleet')) continue;
 
-      const candidate = (best[current] ?? Number.POSITIVE_INFINITY) + MARCH_PER_TILE;
+      const candidate = (best[current] ?? Number.POSITIVE_INFINITY) + seaStepCost(world, current, next);
       if (candidate >= (best[next] ?? Number.POSITIVE_INFINITY)) continue;
 
       best[next] = candidate;
@@ -223,9 +265,11 @@ export function advanceFleets(state: SimState, world: World): void {
       const isLast = fleet.path.length === 1;
       const reason = seaBlockedBy(state, world, fleet, next, isLast);
 
+      const toll = seaStepCost(world, fleet.tileIndex, next);
+
       if (reason === 'hostile-fleet') {
-        if (fleet.sail < MARCH_PER_TILE) break;
-        fleet.sail -= MARCH_PER_TILE;
+        if (fleet.sail < toll) break;
+        fleet.sail -= toll;
         fleet.path = [];
         const defender = fleetAt(state, next);
         if (defender) fightAtSea(state, world, fleet, defender, next);
@@ -244,8 +288,8 @@ export function advanceFleets(state: SimState, world: World): void {
         break;
       }
 
-      if (fleet.sail < MARCH_PER_TILE) break;
-      fleet.sail -= MARCH_PER_TILE;
+      if (fleet.sail < toll) break;
+      fleet.sail -= toll;
       fleet.path.shift();
       fleet.tileIndex = next;
       moved.add(fleet.id);
@@ -291,7 +335,7 @@ function interceptAdjacent(state: SimState, world: World, moved: ReadonlySet<num
     if (!state.fleets.includes(fleet)) continue;
     if (!hasWarship(fleet.ships)) continue;
 
-    for (const tile of orthogonalNeighbours(world, fleet.tileIndex).sort((a, b) => a - b)) {
+    for (const tile of seaNeighbours(world, fleet.tileIndex).sort((a, b) => a - b)) {
       const other = fleetAt(state, tile);
       if (!other || other.ownerIndex === fleet.ownerIndex) continue;
       if (!moved.has(fleet.id) && !moved.has(other.id)) continue;

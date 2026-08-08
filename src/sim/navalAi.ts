@@ -20,7 +20,7 @@ import {
   isWater,
   landingSites,
   launch,
-  orthogonalNeighbours,
+  seaNeighbours,
   seaBeside,
 } from './fleets';
 import { landmassOf, reachedIn, sailingDistanceFrom, UNREACHABLE } from './geography';
@@ -121,6 +121,27 @@ const ARMIES_BEFORE_SAILING = 3;
 const VIRGIN_ISLAND_BONUS = 10_000;
 
 /**
+ * How much longer the march must be than the sail before a realm ships an army it could walk.
+ * **[GEN]**
+ *
+ * Three, with a floor of twelve tiles so short hops are never shipped. The real ratio of the two
+ * speeds is six — foot makes half a tile a month, a fleet three — so three is deliberately
+ * conservative: it takes a march that is *twice* as slow as the crossing before a realm bothers with
+ * boats, which leaves plenty of room for the loading, the waiting and the landing that shipping
+ * costs and marching does not.
+ */
+const SEA_SHORTCUT = 3;
+const SEA_SHORTCUT_FLOOR = 12;
+
+/**
+ * How near a realm's own ground a fleet may not unload, in tiles walked. **[GEN]**
+ *
+ * Six. Inside that the army could simply have marched, so putting it ashore there is a fleet
+ * undoing its own work — which is precisely the bug this replaces.
+ */
+const HOME_SHORE = 6;
+
+/**
  * Where a realm means to put an army ashore.
  *
  * `water` is the sea tile the fleet sails to; `beach` is the land tile beside it that the troops
@@ -184,7 +205,7 @@ export function runNavy(
    * hull finished this month is not launched into a fleet that has already sailed.
    */
   for (const fleet of fleets) {
-    if (stackSize(fleet.cargo) > 0) putAshore(state, world, fleet);
+    if (stackSize(fleet.cargo) > 0) putAshore(state, world, fleet, home);
   }
   loadUp(state, world, factionIndex, ports);
   for (const city of ports) putToSea(state, world, city, appetite);
@@ -192,6 +213,7 @@ export function runNavy(
   // here with the rest of the local work rather than behind the annual plan, which capped every
   // realm on the map at one hull a year however large it was.
   buildFleet(state, factionIndex, ports, appetite);
+  keepBusy(state, world, factionIndex, ports);
 
   /**
    * **The plan is made once a year, staggered by realm.**
@@ -332,16 +354,34 @@ function expedition(
   seas: Int32Array,
   willAttack: (city: CityState) => boolean,
 ): Expedition | undefined {
-  // Candidates first, and cheaply: if nothing on the map is across water and worth taking, the
-  // whole naval month is over before a single tile has been examined. On a one-continent campaign
-  // — which is most of them, most of the time — this is the only work that happens.
-  const wanted = state.cities.filter(
-    (city) =>
-      city.ownerIndex !== factionIndex &&
-      // Anything the realm can walk to is the land AI's business, and marching is always better.
-      !Number.isFinite(reachedIn(home, city.tileIndex)) &&
-      willAttack(city),
-  );
+  /**
+   * Candidates, cheaply — and **a long march counts as across the water** (owner-specified, 0.18.3).
+   *
+   * The original test was "no land route at all", on the reasoning that marching is always better
+   * than shipping. That is true of a border province and plainly false of the far end of the
+   * Mediterranean: foot crosses a tile every **two months** and a fleet crosses three tiles in one,
+   * so a coastal city forty tiles away round the Italian peninsula is six years' marching and under
+   * a year's sailing. A realm that insists on walking there arrives with an army the winters have
+   * eaten.
+   *
+   * So a settlement qualifies if there is no land route **or** the walk is more than
+   * `SEA_SHORTCUT` times the sail. `judge` and the ordinary land AI still handle everything nearer;
+   * this only catches the ones where the sea is genuinely the sensible road.
+   */
+  const wanted = state.cities.filter((city) => {
+    if (city.ownerIndex === factionIndex) return false;
+    if (!willAttack(city)) return false;
+
+    const byLand = reachedIn(home, city.tileIndex);
+    if (!Number.isFinite(byLand)) return true;
+
+    const bySea = Math.min(
+      ...seaBeside(world, city.tileIndex).map((water) => reachedIn(seas, water)),
+      Number.POSITIVE_INFINITY,
+    );
+    if (!Number.isFinite(bySea)) return false;
+    return byLand > SEA_SHORTCUT * bySea + SEA_SHORTCUT_FLOOR;
+  });
   if (wanted.length === 0) return undefined;
 
   // Landmasses somebody has already settled. Cheap, and computed once for the whole sort.
@@ -409,7 +449,7 @@ function landingsByLandmass(
     const distance = seas[water] ?? UNREACHABLE;
     if (distance === UNREACHABLE) continue;
 
-    for (const beach of orthogonalNeighbours(world, water)) {
+    for (const beach of seaNeighbours(world, water)) {
       const landmass = landmassOf(world, beach);
       if (landmass === 0) continue;
       if (settled.has(beach) || hostile.has(beach)) continue;
@@ -548,6 +588,119 @@ function buildFleet(
  * An escort alone may sail: a warship is useful at sea whether or not there is anything to carry.
  */
 /**
+ * **A fleet is never idle** — owner-specified in 0.18.3.
+ *
+ * A hull swinging at anchor is a hull drawing upkeep and crewed by men the manpower ceiling counted.
+ * Every month, any fleet with no route and nothing aboard is given a job, in this order:
+ *
+ * 1. **Hunt.** An enemy fleet within `HUNTING_RANGE`, if this one has a warship in it — closing on
+ *    it starts a battle, which is what a navy is for. Transports never hunt: a convoy that sails at
+ *    a warship is a convoy that drowns.
+ * 2. **Go where the army is.** An empty transport sails to whichever of the realm's harbours has a
+ *    field army standing in it, because that is the one place it can become useful. Ferrying was
+ *    already handled by `loadUp`; what was missing was the boat ever *going* to the quay.
+ * 3. **Go home.** Failing both, make for the nearest friendly harbour rather than sit in open water.
+ *
+ * Every order goes through `orderSail`, so an impossible route is simply not taken and the fleet
+ * tries again next month.
+ */
+function keepBusy(
+  state: SimState,
+  world: World,
+  factionIndex: number,
+  ports: readonly CityState[],
+): void {
+  for (const fleet of fleetsOf(state, factionIndex)) {
+    if (fleet.path.length > 0 || stackSize(fleet.cargo) > 0) continue;
+
+    if (hasWarship(fleet.ships) && hunt(state, world, fleet)) continue;
+
+    // Whichever harbour has troops waiting; failing that, the nearest harbour at all. Straight-line
+    // distance is enough to choose between them — `orderSail` does the real routing.
+    const quays = ports.filter((city) =>
+      seaBeside(world, city.tileIndex).some((water) => water !== fleet.tileIndex),
+    );
+    if (quays.length === 0) continue;
+
+    const waiting = quays.filter((city) =>
+      state.armies.some(
+        (army) => army.ownerIndex === factionIndex && army.tileIndex === city.tileIndex,
+      ),
+    );
+    const target = nearestOf(world, fleet.tileIndex, waiting.length > 0 ? waiting : quays);
+    if (!target) continue;
+
+    // Sail to the water beside it, not onto it — a fleet cannot enter a land tile.
+    const berth = nearestWater(world, fleet.tileIndex, seaBeside(world, target.tileIndex));
+    if (berth !== undefined && berth !== fleet.tileIndex) {
+      orderSail(state, world, fleet.id, berth);
+    }
+  }
+}
+
+/** Sail at the nearest enemy fleet worth catching. Returns true if a course was set. */
+function hunt(state: SimState, world: World, fleet: FleetState): boolean {
+  let quarry: FleetState | undefined;
+  let nearest = Number.POSITIVE_INFINITY;
+
+  for (const other of state.fleets) {
+    if (other.ownerIndex === fleet.ownerIndex) continue;
+    const distance = chebyshevTiles(world, fleet.tileIndex, other.tileIndex);
+    // Ties on the lower id, so two of our fleets never trade places chasing each other's targets.
+    if (distance > HUNTING_RANGE || distance > nearest) continue;
+    if (distance === nearest && quarry && other.id > quarry.id) continue;
+    nearest = distance;
+    quarry = other;
+  }
+
+  if (!quarry) return false;
+  return orderSail(state, world, fleet.id, quarry.tileIndex).ok;
+}
+
+/**
+ * How far a warship will sail to pick a fight, in tiles. **[GEN]**
+ *
+ * Fifteen — five months' sailing. Far enough that a navy patrols a sea rather than a harbour mouth,
+ * near enough that it does not cross the map to chase one transport and leave its own coast open.
+ */
+const HUNTING_RANGE = 15;
+
+function chebyshevTiles(world: World, a: number, b: number): number {
+  return Math.max(
+    Math.abs((a % world.width) - (b % world.width)),
+    Math.abs(Math.floor(a / world.width) - Math.floor(b / world.width)),
+  );
+}
+
+function nearestOf(
+  world: World,
+  from: number,
+  cities: readonly CityState[],
+): CityState | undefined {
+  let best: CityState | undefined;
+  let nearest = Number.POSITIVE_INFINITY;
+  for (const city of cities) {
+    const distance = chebyshevTiles(world, from, city.tileIndex);
+    if (distance >= nearest) continue;
+    nearest = distance;
+    best = city;
+  }
+  return best;
+}
+
+function nearestWater(world: World, from: number, water: readonly number[]): number | undefined {
+  let best: number | undefined;
+  let nearest = Number.POSITIVE_INFINITY;
+  for (const tile of water) {
+    const distance = chebyshevTiles(world, from, tile);
+    if (distance >= nearest) continue;
+    nearest = distance;
+    best = tile;
+  }
+  return best;
+}
+
+/**
  * Cast off, once the moorings hold a convoy rather than a boat.
  *
  * The old test — berths enough, **or any warship at all** — launched a lone escort the month it was
@@ -590,7 +743,7 @@ function loadUp(
     const room = capacity - used;
     if (room <= 0) continue;
 
-    const quay = orthogonalNeighbours(world, fleet.tileIndex).filter((tile) => harbours.has(tile));
+    const quay = seaNeighbours(world, fleet.tileIndex).filter((tile) => harbours.has(tile));
     if (quay.length === 0) continue;
 
     // **Any field army on the quay will do, whatever its size** — since 0.18.1 the part that fits
@@ -633,7 +786,7 @@ function callToThePort(
   base: CityState,
   home: Int32Array,
 ): void {
-  const alongside = orthogonalNeighbours(world, base.tileIndex)
+  const alongside = seaNeighbours(world, base.tileIndex)
     .map((tile) => state.fleets.find((f) => f.tileIndex === tile))
     .find((f) => f !== undefined && f.ownerIndex === factionIndex);
   if (!alongside) return;
@@ -708,15 +861,18 @@ function callToThePort(
  * city, the island is somewhere the realm lives, and moving troops there is the land AI's problem
  * rather than a landing.
  */
-function putAshore(state: SimState, world: World, fleet: FleetState): void {
-  const held = new Set(
-    state.cities
-      .filter((city) => city.ownerIndex === fleet.ownerIndex)
-      .map((city) => landmassOf(world, city.tileIndex)),
-  );
-
+function putAshore(state: SimState, world: World, fleet: FleetState, home: Int32Array): void {
   const beach = landingSites(state, world, fleet)
-    .filter((tile) => !held.has(landmassOf(world, tile)))
+    // **Not on our own doorstep.** Without some rule here the fleet unloaded the month after it
+    // loaded — the quay a fleet loads at is beside a coast, and that coast is a perfectly valid
+    // landing site. Measured before the rule existed, no fleet was ever seen carrying anything over
+    // 120 years, because every expedition was a round trip of two tiles.
+    //
+    // The test used to be "a landmass we hold no settlement on", which was right while the only
+    // reason to sail was to reach another landmass. Since 0.18.3 a realm also ships an army the long
+    // way round its **own** continent (see `SEA_SHORTCUT`), so the rule had to become one about
+    // distance rather than geography: land anywhere that is not a few tiles from home.
+    .filter((tile) => reachedIn(home, tile) > HOME_SHORE)
     .sort((a, b) => a - b)[0];
 
   if (beach !== undefined) disembark(state, world, fleet.id, beach);
@@ -730,7 +886,7 @@ function putAshore(state: SimState, world: World, fleet: FleetState): void {
  * and go, or it waits for ever with four men and a hundred years of upkeep.
  */
 function waitingForMore(state: SimState, world: World, fleet: FleetState): boolean {
-  const quay = orthogonalNeighbours(world, fleet.tileIndex);
+  const quay = seaNeighbours(world, fleet.tileIndex);
   return armiesOf(state, fleet.ownerIndex).some(
     (army) => army.role === 'field' && (quay.includes(army.tileIndex) || army.path.length > 0),
   );

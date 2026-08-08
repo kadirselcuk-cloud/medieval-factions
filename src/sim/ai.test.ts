@@ -839,3 +839,54 @@ describe('a large realm acts like one', () => {
     expect(spread).toBeGreaterThan(8);
   });
 });
+
+/**
+ * What 0.18.3 changed about ambition — the owner's report, in assertions.
+ *
+ * Four complaints, all about realms that grew large and then stopped doing anything interesting:
+ * they took cities but left the countryside between them bare, they ground against whatever was
+ * nearest rather than whatever was weakest, England never left its island, and Fez took Spain and
+ * ignored the whole of North Africa.
+ */
+describe('a realm keeps reaching', () => {
+  const state = campaign();
+  years(state, 120);
+
+  it('claims the ground between its cities, not only the cities', () => {
+    let land = 0;
+    let claimed = 0;
+    for (let index = 0; index < state.tileOwner.length; index++) {
+      if (landmassOf(world, index) === 0) continue;
+      land += 1;
+      if ((state.tileOwner[index] ?? -1) >= 0) claimed += 1;
+    }
+    // Measured at 90-100% across seeds. Before the claiming quotas were raised, a twelfth of the
+    // walkable map was still bare after 120 years.
+    expect(claimed / land).toBeGreaterThan(0.85);
+  });
+
+  it('leaves almost nothing independent', () => {
+    const independents = roster.findIndex((f) => f.religion === 'none');
+    const left = state.cities.filter((c) => c.ownerIndex === independents).length;
+    expect(left).toBeLessThanOrEqual(2);
+  });
+
+  it('gets realms onto coasts they did not start on', () => {
+    // England on its island and Fez in North Africa were the two the owner named.
+    const spread = state.factions.filter((faction) => {
+      if (!faction.alive || !faction.ai) return false;
+      const mine = state.cities.filter((city) => city.ownerIndex === faction.index);
+      return new Set(mine.map((city) => landmassOf(world, city.tileIndex))).size > 1;
+    });
+    expect(spread.length).toBeGreaterThan(0);
+  });
+
+  it('keeps its fleets doing something rather than swinging at anchor', () => {
+    expect(state.fleets.length).toBeGreaterThan(5);
+    // A fleet is idle only in the month it arrives somewhere; most should be under way.
+    const busy = state.fleets.filter(
+      (fleet) => fleet.path.length > 0 || stackSize(fleet.cargo) > 0,
+    );
+    expect(busy.length / state.fleets.length).toBeGreaterThan(0.4);
+  });
+});

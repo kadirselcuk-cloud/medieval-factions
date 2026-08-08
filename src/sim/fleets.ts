@@ -85,26 +85,59 @@ export function isWater(world: World, tile: number): boolean {
   return terrainOf(world, tile) === 'water';
 }
 
-/** The four orthogonal neighbours of a tile. Fleets move as armies do — no diagonals. */
-export function orthogonalNeighbours(world: World, index: number): number[] {
+/**
+ * The **eight** neighbours of a tile — owner-specified in 0.18.3.
+ *
+ * Armies move orthogonally, because a diagonal would let one cross √2 tiles of ground for the price
+ * of one and quietly make every stated marching speed a lie. **Ships do not**, and the reason is not
+ * a relaxation of that argument but geography: the sea on this map is a set of basins joined at
+ * single tiles, and several of those joins are diagonal.
+ *
+ * Measured on `europe-1350`: with four-way movement the water is **four separate basins**, and the
+ * **Black Sea (58 tiles) cannot reach the Mediterranean (693) at all** — the Bosphorus at
+ * Constantinople is a diagonal step. A Black Sea realm could build any navy it liked and never leave
+ * home. With eight-way movement the whole thing is one sea of 754 tiles, as it should be.
+ *
+ * The speed lie is paid for rather than ignored: a diagonal costs `DIAGONAL_PERMILLE` of a tile in
+ * `sailing.ts`, so "three tiles a month" stays true in every direction.
+ *
+ * Used for every naval adjacency, not only movement: which water a harbour can launch into, which
+ * fleet is alongside which quay, which beach a fleet can land on, and what a warship can intercept.
+ * A ship that can *sail* diagonally can obviously also tie up diagonally.
+ */
+export function seaNeighbours(world: World, index: number): number[] {
   const x = index % world.width;
   const y = Math.floor(index / world.width);
   const out: number[] = [];
-  if (inBounds(world, x, y - 1)) out.push(tileIndex(world, x, y - 1));
-  if (inBounds(world, x - 1, y)) out.push(tileIndex(world, x - 1, y));
-  if (inBounds(world, x + 1, y)) out.push(tileIndex(world, x + 1, y));
-  if (inBounds(world, x, y + 1)) out.push(tileIndex(world, x, y + 1));
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      if (inBounds(world, x + dx, y + dy)) out.push(tileIndex(world, x + dx, y + dy));
+    }
+  }
   return out;
+}
+
+/**
+ * 1 for a straight neighbour, 2 for a corner — an ordering, not a distance.
+ *
+ * Only ever used to rank the tiles around a harbour, so the true √2 would be pointless precision;
+ * what matters is that a corner sorts after a straight step.
+ */
+export function stepLength(world: World, from: number, to: number): number {
+  const dx = Math.abs((to % world.width) - (from % world.width));
+  const dy = Math.abs(Math.floor(to / world.width) - Math.floor(from / world.width));
+  return dx + dy;
 }
 
 /** Sea tiles beside a settlement — where a fleet has to be to load from it. */
 export function seaBeside(world: World, tile: number): number[] {
-  return orthogonalNeighbours(world, tile).filter((next) => isWater(world, next));
+  return seaNeighbours(world, tile).filter((next) => isWater(world, next));
 }
 
 /** A settlement is coastal if a ship can sit next to it. Nothing inland can ever build one. */
 export function isCoastal(world: World, tile: number): boolean {
-  return orthogonalNeighbours(world, tile).some((next) => isWater(world, next));
+  return seaNeighbours(world, tile).some((next) => isWater(world, next));
 }
 
 // ------------------------------------------------------------------ launching
@@ -114,8 +147,12 @@ export function isCoastal(world: World, tile: number): boolean {
  *
  * The naval `mobilise`. The fleet appears on a **water tile beside the settlement**, because a
  * fleet only ever exists on water — there is no such thing as a fleet standing in a city, only
- * hulls in `city.fleet` that have not been launched. Where several sea tiles touch the harbour the
- * lowest index wins, which is arbitrary but fixed, and fixed is what determinism needs.
+ * hulls in `city.fleet` that have not been launched.
+ *
+ * **Any of the eight tiles around the harbour, nearest first** — owner-specified in 0.18.3. Nearest
+ * means a straight neighbour before a corner, which is the difference between a ship leaving by the
+ * river mouth and leaving round the headland. Where two are equally near the lower index wins:
+ * arbitrary, but fixed, and fixed is what determinism needs.
  *
  * A fleet already sitting on that tile is reinforced rather than replaced, mirroring how a second
  * muster joins the stack already standing on a city.
@@ -133,7 +170,11 @@ export function launch(
     if ((city.fleet[id] ?? 0) < count) return fail('not-in-moorings');
   }
 
-  const water = seaBeside(world, city.tileIndex).sort((a, b) => a - b);
+  // Straight neighbours before corners, then by index. A corner is √2 away and a ship launched
+  // into one has already sailed further than it needed to.
+  const water = seaBeside(world, city.tileIndex).sort(
+    (a, b) => stepLength(world, city.tileIndex, a) - stepLength(world, city.tileIndex, b) || a - b,
+  );
   const free = water.find((tile) => {
     const standing = fleetAt(state, tile);
     return !standing || standing.ownerIndex === city.ownerIndex;
@@ -185,7 +226,7 @@ export function dock(state: SimState, world: World, fleetId: number): FleetResul
   const fleet = fleetById(state, fleetId);
   if (!fleet) return fail('no-such-fleet');
 
-  const harbour = orthogonalNeighbours(world, fleet.tileIndex)
+  const harbour = seaNeighbours(world, fleet.tileIndex)
     .map((tile) => state.cities.find((city) => city.tileIndex === tile))
     .find((city) => city !== undefined && city.ownerIndex === fleet.ownerIndex);
   if (!harbour) return fail('no-harbour');
@@ -297,7 +338,7 @@ export function embark(
   if (!canEmbarkFrom(city.buildings)) return fail('no-harbour');
 
   // The fleet has to actually be alongside. Sailing to the harbour is the player's problem.
-  if (!orthogonalNeighbours(world, city.tileIndex).includes(fleet.tileIndex)) {
+  if (!seaNeighbours(world, city.tileIndex).includes(fleet.tileIndex)) {
     return fail('not-alongside');
   }
 
@@ -353,7 +394,7 @@ export function landingBlockedBy(
   tile: number,
 ): 'water' | 'not-adjacent' | 'hostile-settlement' | 'hostile-army' | 'army-full' | null {
   if (isWater(world, tile)) return 'water';
-  if (!orthogonalNeighbours(world, fleet.tileIndex).includes(tile)) return 'not-adjacent';
+  if (!seaNeighbours(world, fleet.tileIndex).includes(tile)) return 'not-adjacent';
 
   const city = state.cities.find((c) => c.tileIndex === tile);
   if (city && city.ownerIndex !== fleet.ownerIndex) return 'hostile-settlement';
@@ -369,7 +410,7 @@ export function landingBlockedBy(
 /** Every beach this fleet could put an army on right now. */
 export function landingSites(state: SimState, world: World, fleet: FleetState): number[] {
   if (stackSize(fleet.cargo) === 0) return [];
-  return orthogonalNeighbours(world, fleet.tileIndex).filter(
+  return seaNeighbours(world, fleet.tileIndex).filter(
     (tile) => landingBlockedBy(state, world, fleet, tile) === null,
   );
 }

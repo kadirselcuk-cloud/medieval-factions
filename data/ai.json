@@ -15,7 +15,7 @@
       "improves": false,
       "raidStacks": 0,
       "guardStacks": 0,
-      "claimStacks": 1,
+      "claimStacks": 2,
       "improvementsAtOnce": 1
     },
     {
@@ -31,7 +31,7 @@
       "improves": true,
       "raidStacks": 0,
       "guardStacks": 1,
-      "claimStacks": 1,
+      "claimStacks": 2,
       "improvementsAtOnce": 1
     },
     {
@@ -47,7 +47,7 @@
       "improves": true,
       "raidStacks": 1,
       "guardStacks": 1,
-      "claimStacks": 1,
+      "claimStacks": 3,
       "improvementsAtOnce": 2
     },
     {
@@ -63,7 +63,7 @@
       "improves": true,
       "raidStacks": 1,
       "guardStacks": 2,
-      "claimStacks": 2,
+      "claimStacks": 3,
       "improvementsAtOnce": 3
     },
     {
@@ -79,7 +79,7 @@
       "improves": true,
       "raidStacks": 2,
       "guardStacks": 2,
-      "claimStacks": 2,
+      "claimStacks": 4,
       "improvementsAtOnce": 4
     }
   ],

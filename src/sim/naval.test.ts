@@ -27,13 +27,21 @@ import {
   landingBlockedBy,
   landingSites,
   launch,
-  orthogonalNeighbours,
+  seaNeighbours,
   seaBeside,
+  stepLength,
 } from './fleets';
 import { sailingDistanceFrom, UNREACHABLE } from './geography';
 import { canRaise, manpowerCap, manpowerUnderArms } from './manpower';
 import { MARCH_PER_TILE } from './movement';
-import { advanceFleets, fightAtSea, findSeaPath, orderSail, seaBlockedBy } from './sailing';
+import {
+  advanceFleets,
+  DIAGONAL_PERMILLE,
+  fightAtSea,
+  findSeaPath,
+  orderSail,
+  seaBlockedBy,
+} from './sailing';
 import { deserialise, migrate, serialise, SAVE_VERSION, type SaveFile } from './save';
 import { createInitialState } from './state';
 import { advanceBy } from './tick';
@@ -152,7 +160,7 @@ describe('launching and docking', () => {
   it('puts a fleet on the water beside the harbour, not on the harbour', () => {
     const fleet = putToSea({ transport: 2 });
     expect(isWater(world, fleet.tileIndex)).toBe(true);
-    expect(orthogonalNeighbours(world, port.tileIndex)).toContain(fleet.tileIndex);
+    expect(seaNeighbours(world, port.tileIndex)).toContain(fleet.tileIndex);
     expect(port.fleet).toEqual({});
   });
 
@@ -401,10 +409,10 @@ describe('battle at sea', () => {
    */
   function opposingFleets(mine: Record<string, number>, theirs: Record<string, number>) {
     const ours = putToSea(mine);
-    const beside = orthogonalNeighbours(world, ours.tileIndex).find(
+    const beside = seaNeighbours(world, ours.tileIndex).find(
       (tile) => isWater(world, tile) && !fleetAt(state, tile),
     )!;
-    const beyond = orthogonalNeighbours(world, beside).find(
+    const beyond = seaNeighbours(world, beside).find(
       (tile) => isWater(world, tile) && tile !== ours.tileIndex && !fleetAt(state, tile),
     )!;
 
@@ -446,7 +454,7 @@ describe('battle at sea', () => {
     const { ours, enemy } = opposingFleets({ flagship: 1 }, { flagship: 1 });
     // Both lying to, already adjacent. Without the movement clause this pair would fight 120
     // times a month, grinding each other down a tick at a time.
-    enemy.tileIndex = orthogonalNeighbours(world, ours.tileIndex).find(
+    enemy.tileIndex = seaNeighbours(world, ours.tileIndex).find(
       (tile) => isWater(world, tile) && tile !== ours.tileIndex,
     )!;
     enemy.path = [];
@@ -676,5 +684,117 @@ describe('the fleet cap', () => {
       ok: false,
       reason: 'fleet-full',
     });
+  });
+});
+
+/**
+ * Eight-way sea movement — owner-specified in 0.18.3.
+ *
+ * Armies still move in four directions. Ships do not, and the reason is geography rather than a
+ * change of heart about diagonals: this map's water is a set of basins joined at single tiles, and
+ * several of those joins are diagonal.
+ */
+describe('ships sail in eight directions', () => {
+  /** Flood-fill the water and return how many separate basins there are. */
+  const basins = (diagonal: boolean) => {
+    const size = world.width * world.height;
+    const seen = new Uint8Array(size);
+    const steps = diagonal
+      ? [[0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1]]
+      : [[0, -1], [1, 0], [0, 1], [-1, 0]];
+
+    const sizes: number[] = [];
+    for (let start = 0; start < size; start++) {
+      if (seen[start] || !isWater(world, start)) continue;
+      seen[start] = 1;
+      const queue = [start];
+      let count = 0;
+      for (let head = 0; head < queue.length; head++) {
+        const index = queue[head]!;
+        count += 1;
+        const x = index % world.width;
+        const y = Math.floor(index / world.width);
+        for (const step of steps) {
+          const nx = x + (step[0] ?? 0);
+          const ny = y + (step[1] ?? 0);
+          if (nx < 0 || ny < 0 || nx >= world.width || ny >= world.height) continue;
+          const next = ny * world.width + nx;
+          if (seen[next] || !isWater(world, next)) continue;
+          seen[next] = 1;
+          queue.push(next);
+        }
+      }
+      sizes.push(count);
+    }
+    return sizes.sort((a, b) => b - a);
+  };
+
+  it('joins the Black Sea to the Mediterranean, which four-way movement never could', () => {
+    // The Bosphorus at Constantinople is a diagonal step. Without diagonals the Black Sea is its
+    // own basin and a realm on it can build any navy it likes and never leave home.
+    const four = basins(false);
+    const eight = basins(true);
+
+    expect(four.length).toBeGreaterThan(eight.length);
+    // Four-way leaves a large sea and a separate, much smaller one; eight-way merges them.
+    expect(four[0]).toBeLessThan(eight[0]!);
+    expect(eight[0]).toBeGreaterThan(700);
+  });
+
+  it('reaches every neighbour of a sea tile, corners included', () => {
+    const fleet = putToSea({ transport: 1 });
+    const around = seaNeighbours(world, fleet.tileIndex).filter((t) => isWater(world, t));
+    expect(around.length).toBeGreaterThan(0);
+
+    for (const tile of around) {
+      // One step each, whether straight or diagonal.
+      expect(findSeaPath(state, world, fleet, tile)).toEqual([tile]);
+    }
+  });
+
+  it('charges a diagonal what a diagonal costs, so the stated speed stays honest', () => {
+    // √2 to three places. Without this, a fleet crossing corners would cover 4.2 tiles a month
+    // while the roster claims 3 — the exact reason armies have no diagonals at all.
+    expect(DIAGONAL_PERMILLE).toBe(1414);
+    expect(Math.floor((MARCH_PER_TILE * DIAGONAL_PERMILLE) / 1000)).toBe(1_696_800);
+  });
+});
+
+describe('a harbour launches into the nearest water', () => {
+  it('prefers a straight neighbour to a corner', () => {
+    const water = seaBeside(world, port.tileIndex);
+    const straight = water.filter((t) => stepLength(world, port.tileIndex, t) === 1);
+    const fleet = putToSea({ transport: 1 });
+
+    // Where the harbour has both, the ship leaves by the straight one.
+    if (straight.length > 0) expect(straight).toContain(fleet.tileIndex);
+    else expect(water).toContain(fleet.tileIndex);
+  });
+});
+
+/**
+ * The owner asked directly whether armies assault cities straight off the boats. They cannot, and
+ * this is the rule that stops them: a settlement someone else holds is not a landing site at all.
+ */
+describe('a landing finds a beach, never a city', () => {
+  it('refuses to put men ashore onto a hostile settlement', () => {
+    const fleet = putToSea({ transport: 2 });
+    fleet.cargo = { light_infantry: 2 };
+
+    // A settlement beside the fleet that belongs to somebody else.
+    const neighbour = seaNeighbours(world, fleet.tileIndex)
+      .map((tile) => state.cities.find((c) => c.tileIndex === tile))
+      .find((c) => c !== undefined);
+    if (!neighbour) return;
+    neighbour.ownerIndex = FRANKS === 0 ? 1 : 0;
+
+    expect(landingBlockedBy(state, world, fleet, neighbour.tileIndex)).toBe('hostile-settlement');
+    expect(landingSites(state, world, fleet)).not.toContain(neighbour.tileIndex);
+    expect(disembark(state, world, fleet.id, neighbour.tileIndex)).toEqual({
+      ok: false,
+      reason: 'blocked',
+    });
+    // The men are still aboard — nothing was quietly thrown at the walls.
+    expect(fleet.cargo).toEqual({ light_infantry: 2 });
   });
 });

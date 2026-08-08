@@ -13,6 +13,67 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.18.3] — 2026-08-09
+
+The owner played it and reported nine things. All nine, and the measurements after:
+
+| | Before | After |
+|---|---|---|
+| Sea basins on the map | **4** — the Black Sea could not reach the Mediterranean | **1** |
+| Walkable land claimed at 120y | ~88% | **90–100%** |
+| Independent cities surviving | 0–2 | **0–1** |
+| Fleets, and how many under way | 16–30, mostly idle | **16–25, with 8–18 sailing** |
+| The Moors | Spain, and nothing else in Africa | **Fez, Marrakesh, Tunis, Tripoli, Alexandria, Sardinia** |
+| The Britons | never left their island | **London, York, Edinburgh, Dublin, Bergen, Oslo, Uppsala** |
+
+### Changed
+
+- **Ships move in eight directions.** Armies still move in four. This is geography rather than a
+  change of heart about diagonals: the map's water is a set of basins joined at single tiles and
+  several of those joins are diagonal, so with four-way movement the **Black Sea (58 tiles) could
+  not reach the Mediterranean (693) at all** — the Bosphorus at Constantinople is a corner. A realm
+  on the Black Sea could build any navy it liked and never leave home. Eight-way makes the whole
+  thing one sea of 754 tiles.
+  - **A diagonal costs √2 of a tile**, so "three tiles a month" stays true in every direction. The
+    reason armies have no diagonals is that one would make every stated speed a lie; giving ships
+    diagonals does not make that argument wrong, it makes it something to pay for.
+  - The sea pathfinder's heuristic moved from Manhattan to **Chebyshev** to stay admissible, and the
+    AI's sailing-distance sweep went eight-way with it — otherwise a realm would measure a crossing
+    its own fleet can make as impossible.
+- **A harbour launches into the nearest of its eight water tiles**, straight neighbour before corner.
+- **Realms attack what is cheap, not merely what is near.** A settlement's defenders now count as
+  extra distance — 100 soldiers to the tile — so a realm reaches past the walled City on its
+  doorstep for the weakly held village behind it. A soft weight rather than a filter: `judge` still
+  refuses fights the realm cannot win, and this only orders the ones it can.
+- **A long march counts as being across the water.** A realm ships an army it could technically walk
+  when the march is more than three times the sail and at least twelve tiles. Foot makes half a tile
+  a month against a fleet's three, so the far end of the Mediterranean is six years' marching and
+  under a year's sailing — insisting on walking arrives with an army the winters have eaten.
+- **A fleet may not unload within six tiles of its own ground.** Replaces "not onto a landmass we
+  hold", which was right while the only reason to sail was to reach another landmass, and wrong the
+  moment a realm began shipping armies around its own coast.
+- **Claiming quotas raised** — 1–2 stacks per four settlements to 2–4. Realms were taking cities and
+  leaving the countryside between them bare.
+
+### Added
+
+- **A fleet is never idle.** With no route and nothing aboard it hunts the nearest enemy fleet within
+  fifteen tiles if it carries a warship, otherwise sails to whichever friendly harbour has an army
+  standing in it, otherwise makes for the nearest harbour rather than sitting in open water. A hull
+  at anchor is upkeep and a crew counted against the manpower ceiling, for nothing.
+- 9 tests: the Black Sea join, one-step reachability of all eight neighbours, the diagonal cost,
+  nearest-water launching, ground claimed, independents remaining, realms spanning landmasses,
+  fleets under way — and an explicit assertion that **an army cannot be put ashore onto a hostile
+  settlement**, which was a direct question from the owner.
+
+### Answered
+
+- **"Are the armies trying to attack the cities directly from the ships?"** No, and they never
+  could: a settlement somebody else holds is not a landing site, so `landingBlockedBy` rejects it
+  and it never appears in `landingSites`. Expeditions pick a **beach** on the target's landmass and
+  march inland from there. There is now a test pinning it, since the question was worth an answer
+  that cannot rot.
+
 ## [0.18.2] — 2026-08-08
 
 Three things a large realm was failing to do, all the same shape of bug: rules that were right for a

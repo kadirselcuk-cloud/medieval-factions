@@ -1,6 +1,6 @@
 # Next
 
-Where the build is, and what to do next. Rewritten at the end of the 0.18.2 session.
+Where the build is, and what to do next. Rewritten at the end of the 0.18.3 session.
 
 **Delete or rewrite this file when its contents are done.** It is a handoff note, not a record —
 the records are [ROADMAP.md](ROADMAP.md), [OWED.md](OWED.md) and [CHANGELOG.md](../CHANGELOG.md).
@@ -9,7 +9,7 @@ the records are [ROADMAP.md](ROADMAP.md), [OWED.md](OWED.md) and [CHANGELOG.md](
 
 ## State of play
 
-**Version `0.18.2`**, on `main`. **265 tests pass**, typecheck clean, production build clean.
+**Version `0.18.3`**, on `main`. **274 tests pass**, typecheck clean, production build clean.
 Save format is **v9**. Migrations run from v1.
 
 **Naval shipped.** The last structural gap in the map is closed: ships, fleets, transports,
@@ -24,64 +24,61 @@ desertion rules that already existed simply started applying to hulls.
 
 ---
 
-## 1. The sea is no longer a wall, and armies have a shape again
+## 1. What the last three sessions changed, all measured
 
 **Nothing has been seen rendering** (see [OWED.md](OWED.md) §1). Everything below was *measured*, by
 instrumenting 120-year campaigns and reading what the rivals actually did — which is how every bug
-in §1 was found, none of which a unit test would have caught.
+listed here was found, and none of them would have failed a unit test.
 
-### The three things 0.18.2 fixed, measured over 120 years
-
-| | Before | After |
+| | Before naval | Now |
 |---|---|---|
-| Field armies | 158, averaging **3.9 units** | ~55, averaging **9-12** |
-| Stacks of 4 or fewer | **78%** | **4-9%** |
-| Fleets on the whole map | **8** | **19-30** |
-| Realms on more than one landmass | 0-1 | **2-3** |
+| Sea basins on the map | 4 — the Black Sea was landlocked | **1** |
+| Independent cities surviving 120 years | 7–8 | **0–1** |
+| Walkable land claimed | ~88% | **90–100%** |
+| Field armies | 158, averaging 3.9 units | **28–38, averaging 9.7–14.8** |
+| Fleets, and how many under way | none, then 8 idle | **16–25, with 8–18 sailing** |
+| Realms holding more than one landmass | 0 | **2–3** |
 
-All three were the same shape of bug — rules right for a realm of three settlements, never scaled
-for one of thirty. See MECHANICS §8 and DESIGN 135-137.
+The two the owner named by hand:
 
-### Overseas conquest, measured over 120 years
+- **The Moors** held Spain and nothing else in Africa. They now hold **Fez, Marrakesh, Tunis,
+  Tripoli, Alexandria and Sardinia**.
+- **The Britons** never left their island. They now hold **London, York, Edinburgh, Dublin, Bergen,
+  Oslo and Uppsala**.
 
-Independent cities still standing at 1470, out of the 47 the map starts with:
+### The bugs behind those numbers, so nobody re-finds them
 
-| Seed | 4242 | 77 | 1350 | 999 |
-|---|---|---|---|---|
-| Independents left | **0** | **0** | 1 | 2 |
+Every one was a rule that was correct for a small realm on one continent and had never been scaled
+or generalised:
 
-Two of four seeds now finish with **no independent city anywhere on the map**. Before the naval
-phase, seven or eight survived every campaign because nobody could reach them; before 0.18.2, two.
-Dublin is the last to fall when one does not — Ireland is the furthest thing on the map from
-anybody, so it is always the last island anyone sails for.
-
-### Army composition, measured at 1470
-
-**light infantry 36-46%, archer 20-21%, sword 10%, heavy cavalry 7-13%, spear 6%, light cavalry
-4-6%, shock 3-4%, skirmisher 2-3%** — nine unit types fielded. Under the old pure argmax it was
-heavy cavalry and little else, and **spear infantry had never been built once** in a century by
-anybody. The counters already in the roster — anti-cavalry, ranged resistance, the charge — now
-have something to counter.
-
-Light Infantry runs at **two thirds** of every army for the first sixty years, and that is the
-**tier gate** rather than the recruiting roll: a Village can build Light Infantry and nothing else,
-so a young realm has one option however it rolls. The mix only becomes a statement about unit
-choice once settlements have the buildings to offer one.
+1. Loaded fleets **unloaded onto their own coast** — the quay a fleet loads at is beside a beach.
+2. Targets were chosen **purely by sea distance**, so realms sailed for the nearest foreign
+   coastline, which is usually somebody else's land war. Dublin was chosen 6 times in 120 years
+   against Novgorod's 173.
+3. The navy was **levied after the army** and so could never afford a crew. One realm ended a
+   campaign with 81 armies, 8 harbours and a target four sea tiles away it had never built a
+   transport for.
+4. **Founding an army cost two units**, so a realm of twenty cities founded twenty tiny ones.
+5. **One objective for the whole realm**, so an empire pointed 74 armies at a single town.
+6. **Hulls and escorts wanted were flat numbers** for a village and an empire alike.
+7. **Ships moved in four directions**, which left the Black Sea unable to reach the Mediterranean.
+8. **Shipping required no land route at all**, so a realm walked six years rather than sail one.
+9. The first fix for (4) held **claimers and raiders to a field army's bar**, which left 8.6% of the
+   map permanently bare. They are deliberately one and three units.
 
 ### What is worth watching while playing
 
-- **Are ships too fast?** 3 tiles a month against foot's 0.5 is a **sixfold** advantage. It makes a
-  crossing a season rather than a reign, which was the point, but it may make moving by sea strictly
-  better than marching anywhere there is a coast.
-- **Does the manpower ceiling bite too hard now?** A Flagship is 200 men — two Light Infantry. The
-  navy takes its crews before the army takes its soldiers (decision 132), so a realm that builds a
-  fleet is visibly a realm with a smaller army. This is the interaction that changes the *land*
-  game.
-- **Is the recruiting roll too even?** Equal thirds is the owner's specification, but the reroll
-  means a settlement that can only build one category effectively builds it three times as often.
-  `RECRUIT_ROLL_TRIES` and the split are in [ai.ts](../src/sim/ai.ts).
-- **Do fleets die usefully?** Interception, cargo drowning and blockade are all implemented and
-  unit-tested, but no campaign measurement has been taken of how often a convoy is actually caught.
+- **Are ships too fast, or too dominant?** Three tiles a month against foot's half is a sixfold
+  advantage, and a realm will now ship an army rather than march it whenever the walk is 3× the
+  sail. That is a big lever on how the map feels; `SEA_SHORTCUT` in
+  [navalAi.ts](../src/sim/navalAi.ts) is the dial.
+- **Is "cheapest target" too timid?** Defenders now count as distance at 100 soldiers a tile
+  (`DEFENDERS_PER_TILE` in [ai.ts](../src/sim/ai.ts)). Too high and realms would circle forever
+  looking for a soft target instead of pressing a war.
+- **Does the manpower ceiling bite too hard?** A Flagship is 200 men, the navy takes its crews before
+  the army takes its soldiers, and realms now want far more hulls than they did.
+- **Do fleets die usefully?** Interception, cargo drowning and blockade are implemented and tested,
+  but no campaign measurement has been taken of how often a convoy is actually caught.
 
 ---
 

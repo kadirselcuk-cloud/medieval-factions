@@ -1167,9 +1167,10 @@ count in `city.fleet`, the way an unmustered unit is a count in `city.garrison`.
 
 ### Sailing
 
-Sea movement uses the same integer march-point arithmetic as land (§3), with two differences:
-**open sea has no terrain cost and no owner**, so a sea tile always costs exactly one tile's worth,
-and there is no unclaimed or hostile-ground multiplier because nobody holds the ocean.
+Sea movement uses the same integer march-point arithmetic as land (§3), with two differences.
+**Open sea has no terrain cost and no owner**, so there is no unclaimed or hostile-ground multiplier
+— nobody holds the ocean. And **ships move in eight directions where armies move in four**, a
+straight step costing one tile and a diagonal √2; see "Ships move in eight directions" below.
 
 Winter is the one modifier that survives — the same −40% an army suffers. Storms and short days
 are not a different rule from mud and short days.
@@ -1177,6 +1178,70 @@ are not a different rule from mud and short days.
 A fleet sails at its **slowest ship** — which, since every hull makes three tiles a month
 (owner-specified in 0.18.1), is any of them. An escort never slows a convoy, so there is no reason
 not to send one.
+
+### Ships move in eight directions — since 0.18.3
+
+Armies move orthogonally and ships do not. That is not a relaxation of the argument against
+diagonals — which is that a diagonal lets something cross √2 tiles for the price of one, quietly
+making every stated speed a lie — but a fact about this map's water.
+
+Measured on `europe-1350`: with four-way movement the sea is **four separate basins**, and the
+**Black Sea (58 tiles) cannot reach the Mediterranean (693) at all**, because the Bosphorus at
+Constantinople is a diagonal step. A realm on the Black Sea could build any navy it liked and never
+leave home. Eight-way movement makes the whole thing **one sea of 754 tiles**.
+
+The speed lie is paid for rather than ignored: **a diagonal costs √2 of a tile** (`DIAGONAL_PERMILLE`
+= 1414), exact in the integer arithmetic because `MARCH_PER_TILE` is 1,200,000 and a diagonal is
+1,696,800. Three tiles a month stays three tiles a month in every direction.
+
+It applies to **every naval adjacency**, not only movement: which water a harbour launches into,
+which fleet is alongside which quay, which beach a fleet can land on, and what a warship intercepts.
+A ship that can sail diagonally can obviously also tie up diagonally.
+
+Two consequences worth knowing. The sea pathfinder's heuristic is **Chebyshev**, not Manhattan —
+with diagonals a fleet covers a tile of x and a tile of y in one step, so Manhattan would
+overestimate, stop being admissible, and start returning routes that merely look short. And the AI's
+sailing-distance sweep is eight-way to match, because a realm that measured crossings four-way would
+rule out voyages its own fleets could make.
+
+A **harbour launches into the nearest of its eight water tiles**, straight neighbour before corner.
+
+### What a realm attacks, and when it takes the boat — since 0.18.3
+
+**Cheap, not merely near.** A settlement's free defenders and its garrison count as extra distance —
+one tile per hundred soldiers — so a realm reaches past the walled City on its doorstep for the
+weakly held village behind it. Deliberately a soft weight and not a filter: `judge` already refuses
+fights the realm cannot win, and this only orders the ones it can, so a realm still takes a hard city
+when that is all there is.
+
+**A long march counts as being across the water.** The old rule was that a realm ships an army only
+where there is no land route at all, on the reasoning that marching is always better. That is true of
+a border province and plainly false of the far end of the Mediterranean: foot crosses a tile every
+**two months** and a fleet crosses three tiles in **one**, so a coastal city forty tiles away round
+the Italian peninsula is six years' marching against under a year's sailing, and a realm that insists
+on walking arrives with an army the winters have eaten.
+
+So a settlement qualifies for an expedition if there is no land route **or** the walk is more than
+**three times** the sail and at least twelve tiles. Three is conservative against the real speed
+ratio of six, which leaves room for the loading, the waiting and the landing that shipping costs and
+marching does not.
+
+**A fleet may not unload within six tiles of its own ground.** This replaces "not onto a landmass we
+hold a settlement on", which was the right rule while the only reason to sail was to reach another
+landmass, and the wrong one the moment a realm began shipping armies around its own coast. Both
+versions exist to stop the same thing: a fleet loading at a quay and unloading on the beach beside
+it, which is what it did before any rule existed at all.
+
+**A fleet is never idle.** With no route and nothing aboard it hunts the nearest enemy fleet within
+fifteen tiles if it carries a warship — transports never hunt, a convoy that sails at a warship is a
+convoy that drowns — otherwise it sails to whichever friendly harbour has an army standing in it,
+and failing both it makes for the nearest harbour rather than sitting in open water. A hull at anchor
+is upkeep and a crew counted against the manpower ceiling, for nothing.
+
+**A landing is never an assault.** A settlement somebody else holds is not a landing site, so an army
+can never be put ashore straight into a city: expeditions pick a **beach** on the target's landmass
+and march inland from there, and the walls are stormed or invested by the same rules as any other
+attack.
 
 ### Embarking and disembarking — owner-specified in 0.18.0
 

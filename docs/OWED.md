@@ -127,6 +127,10 @@ it is tagged **[GEN]** at its definition. None of it is owner-authored truth.
 | Founding a field army costs half a full stack; a stack below half strength rallies, within 12 tiles | `src/sim/ai.ts` | **live** — `RALLY_BELOW_FRACTION`, `RALLY_RANGE`. Owner asked for concentration; the thresholds are mine |
 | One front per 6 settlements, max 4, at least 8 tiles apart | `src/sim/ai.ts` | **live** — `SETTLEMENTS_PER_FRONT`, `MAX_FRONTS`, `FRONTS_APART`. Decides whether an empire feels like one |
 | How many hulls and escorts a realm wants, and the bonus for having no land war left | `src/sim/navalAi.ts` | **live** — `hullsWanted`, `escortsWanted`. The lever if the map fills with navies |
+| A diagonal at sea costs √2 of a tile | `src/sim/sailing.ts` | **live** — `DIAGONAL_PERMILLE`. Eight-way sailing is owner-specified; charging the true length for it is mine |
+| Defenders count as 1 tile of distance per 100 soldiers when picking a target | `src/sim/ai.ts` | **live** — `DEFENDERS_PER_TILE`. Owner asked for easy targets; the exchange rate is mine |
+| Ship rather than march when the walk is 3× the sail and ≥12 tiles | `src/sim/navalAi.ts` | **live** — `SEA_SHORTCUT`. The dial for how sea-dominated the map feels |
+| A fleet will not unload within 6 tiles of home, and hunts within 15 | `src/sim/navalAi.ts` | **live** — `HOME_SHORE`, `HUNTING_RANGE` |
 | One harbour of departure, nearest the target by sea | `src/sim/navalAi.ts` | **live** — spread across every port, hulls arrive two at a time and carry nothing |
 | A landed army is its own frontier, but only where its realm holds no settlement | `src/sim/ai.ts` | **live** — without it an expedition stands on its beach until the winter takes it |
 

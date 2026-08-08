@@ -64,7 +64,7 @@ import {
   fleetSpeed,
   landingSites,
   launch,
-  orthogonalNeighbours,
+  seaNeighbours,
 } from "../sim/fleets";
 import { haltFleet } from "../sim/sailing";
 import { assault, halt, SEASON_MOVEMENT, SPEED_SCALE } from "../sim/movement";
@@ -1012,7 +1012,7 @@ function ArmyCard({
   );
   const transport =
     port && canEmbarkFrom(port.buildings)
-      ? orthogonalNeighbours(world, army.tileIndex)
+      ? seaNeighbours(world, army.tileIndex)
           .map((t) => fleetAt(state, t))
           .find((f) => f !== undefined && f.ownerIndex === army.ownerIndex && berths(f).capacity > 0)
       : undefined;
@@ -1193,7 +1193,7 @@ function FleetCard({
     (speed * (SEASON_MOVEMENT[calendarAt(state.tick).season] ?? 100)) / 100;
 
   const sites = landingSites(state, world, fleet);
-  const harbour = orthogonalNeighbours(world, fleet.tileIndex)
+  const harbour = seaNeighbours(world, fleet.tileIndex)
     .map((t) => state.cities.find((c) => c.tileIndex === t))
     .find((c) => c !== undefined && c.ownerIndex === fleet.ownerIndex);
 

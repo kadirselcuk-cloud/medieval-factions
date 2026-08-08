@@ -1219,7 +1219,7 @@ function pickObjectives(
   // Everything worth taking, nearest to the realm's own border first. The whole list is built and
   // then sliced, rather than the single best being tracked, because a realm with several fronts
   // needs the runners-up — and the cost is one sort over the settlements that passed the filters.
-  const candidates: { city: CityState; distance: number }[] = [];
+  const candidates: { city: CityState; distance: number; cost: number }[] = [];
 
   for (const city of state.cities) {
     if (city.ownerIndex === mind.faction.index) continue;
@@ -1245,12 +1245,15 @@ function pickObjectives(
       (mind.character.prefersSiege && judge(state, world, city, mind, force, false));
     if (!takeable) continue;
 
-    candidates.push({ city, distance: fromHome });
+    candidates.push({ city, distance: fromHome, cost: fromHome + effortOf(city) });
   }
 
-  // Nearest first; the city index breaks a tie, so the choice is stable from month to month and a
-  // realm does not swap its objective for an equally distant one and march the other way.
-  candidates.sort((a, b) => a.distance - b.distance || a.city.cityIndex - b.city.cityIndex);
+  // **Cheapest first, not merely nearest** — owner-specified in 0.18.3. A realm should reach for
+  // the weakly held village three tiles further on rather than grind against the walled City on its
+  // doorstep, and before this the only thing distance competed with was nothing at all. The city
+  // index breaks a tie, so the choice is stable month to month and a realm does not swap objective
+  // for an equally good one and march the other way.
+  candidates.sort((a, b) => a.cost - b.cost || a.city.cityIndex - b.city.cityIndex);
 
   /**
    * **Fronts are kept apart.** Taking the top `n` by distance would hand a realm three objectives
@@ -1279,6 +1282,31 @@ function pickObjectives(
  * seen twice, and roughly a province apart at this map's scale.
  */
 const FRONTS_APART = 8;
+
+/**
+ * Soldiers of defence that make a settlement feel one tile further away. **[GEN]**
+ *
+ * A hundred, which is one Light Infantry. So a bare Village costs about a tile of extra distance, a
+ * built-up Town four or five, and a walled Capitol with a garrison in it a dozen or more — which is
+ * roughly how much further a realm *should* be willing to walk to avoid it.
+ *
+ * Deliberately a soft weight rather than a filter. `judge` already refuses fights the realm cannot
+ * win; this only decides the order among fights it can, so a realm still takes a hard city when
+ * that is all there is.
+ */
+const DEFENDERS_PER_TILE = 100;
+
+/**
+ * What a settlement costs to take, expressed in tiles of walking — owner-specified in 0.18.3.
+ *
+ * Its free defenders and its garrison both count. Walls do not enter directly: they are already in
+ * the defender's advantage that `judge` weighs, and counting them twice would make a realm refuse
+ * ever to besiege anything.
+ */
+function effortOf(city: CityState): number {
+  const men = stackSoldiers(defenceOf(city)) + stackSoldiers(city.garrison);
+  return Math.floor(men / DEFENDERS_PER_TILE);
+}
 
 /**
  * Whether this realm's character permits an attack on that one — the scruples, in one place.

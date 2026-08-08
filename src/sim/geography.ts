@@ -54,6 +54,20 @@ function neighbours(world: World, index: number, into: number[]): number[] {
   return into;
 }
 
+/** The eight neighbours of a tile. Fleets move diagonally; armies do not. */
+function diagonalNeighbours(world: World, index: number, into: number[]): number[] {
+  into.length = 0;
+  const x = index % world.width;
+  const y = Math.floor(index / world.width);
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      if (inBounds(world, x + dx, y + dy)) into.push(tileIndex(world, x + dx, y + dy));
+    }
+  }
+  return into;
+}
+
 /**
  * Every tile's landmass, labelled from 1. Water is 0.
  *
@@ -182,7 +196,10 @@ export function sailingDistanceFrom(world: World, sources: readonly number[]): I
   for (let head = 0; head < queue.length; head++) {
     const index = queue[head]!;
     const step = distance[index]! + 1;
-    for (const next of neighbours(world, index, around)) {
+    // **Eight-way**, unlike the land sweep above it. Ships move diagonally (docs/DESIGN.md 138) and
+    // this has to agree with them, or the AI would measure a crossing the Black Sea fleet can make
+    // as impossible — which is exactly what it did before 0.18.3.
+    for (const next of diagonalNeighbours(world, index, around)) {
       if (distance[next] !== UNREACHABLE || !sailable(next)) continue;
       distance[next] = step;
       queue.push(next);
