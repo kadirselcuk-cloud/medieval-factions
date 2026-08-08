@@ -1,6 +1,6 @@
 # Next
 
-Where the build is, and what to do next. Rewritten at the end of the 0.18.1 session.
+Where the build is, and what to do next. Rewritten at the end of the 0.18.2 session.
 
 **Delete or rewrite this file when its contents are done.** It is a handoff note, not a record —
 the records are [ROADMAP.md](ROADMAP.md), [OWED.md](OWED.md) and [CHANGELOG.md](../CHANGELOG.md).
@@ -9,7 +9,7 @@ the records are [ROADMAP.md](ROADMAP.md), [OWED.md](OWED.md) and [CHANGELOG.md](
 
 ## State of play
 
-**Version `0.18.1`**, on `main`. **261 tests pass**, typecheck clean, production build clean.
+**Version `0.18.2`**, on `main`. **265 tests pass**, typecheck clean, production build clean.
 Save format is **v9**. Migrations run from v1.
 
 **Naval shipped.** The last structural gap in the map is closed: ships, fleets, transports,
@@ -27,29 +27,46 @@ desertion rules that already existed simply started applying to hulls.
 ## 1. The sea is no longer a wall, and armies have a shape again
 
 **Nothing has been seen rendering** (see [OWED.md](OWED.md) §1). Everything below was *measured*, by
-instrumenting 120-year campaigns and reading what the rivals actually did — which is how six
-separate bugs were found that no unit test would have caught.
+instrumenting 120-year campaigns and reading what the rivals actually did — which is how every bug
+in §1 was found, none of which a unit test would have caught.
+
+### The three things 0.18.2 fixed, measured over 120 years
+
+| | Before | After |
+|---|---|---|
+| Field armies | 158, averaging **3.9 units** | ~55, averaging **9-12** |
+| Stacks of 4 or fewer | **78%** | **4-9%** |
+| Fleets on the whole map | **8** | **19-30** |
+| Realms on more than one landmass | 0-1 | **2-3** |
+
+All three were the same shape of bug — rules right for a realm of three settlements, never scaled
+for one of thirty. See MECHANICS §8 and DESIGN 135-137.
 
 ### Overseas conquest, measured over 120 years
 
-Of the 7 settlements on landmasses no realm starts on — Ireland, Sardinia, Crete, Cyprus, the north:
+Independent cities still standing at 1470, out of the 47 the map starts with:
 
-| Seed | Taken | Independents left standing |
-|---|---|---|
-| 77 | **7 / 7** | **none, anywhere on the map** |
-| 1350 | 6 / 7 | 1 (Dublin) |
-| 4242 | 5 / 7 | 2 (Dublin, Cyprus) |
+| Seed | 4242 | 77 | 1350 | 999 |
+|---|---|---|---|---|
+| Independents left | **0** | **0** | 1 | 2 |
 
-Before this session's fixes: **1 of 8**. **Ireland is the stubborn one** and survives some campaigns
-— it is the furthest thing on the map from anybody, so it is always the last island anyone sails
-for. Whether that is right or wants another nudge is a judgement to make by playing.
+Two of four seeds now finish with **no independent city anywhere on the map**. Before the naval
+phase, seven or eight survived every campaign because nobody could reach them; before 0.18.2, two.
+Dublin is the last to fall when one does not — Ireland is the furthest thing on the map from
+anybody, so it is always the last island anyone sails for.
 
-### Army composition, measured over 120 years
+### Army composition, measured at 1470
 
-The world's muster is now **archer 24%, light infantry 23%, heavy cavalry 22%, light cavalry 10%,
-sword 8%, spear 4%, skirmisher 3%, shock 3%**. Under the old pure argmax it was heavy cavalry and
-little else, and **spear infantry had never been built once** in a century by anybody. The counters
-already in the roster — anti-cavalry, ranged resistance, the charge — now have something to counter.
+**light infantry 36-46%, archer 20-21%, sword 10%, heavy cavalry 7-13%, spear 6%, light cavalry
+4-6%, shock 3-4%, skirmisher 2-3%** — nine unit types fielded. Under the old pure argmax it was
+heavy cavalry and little else, and **spear infantry had never been built once** in a century by
+anybody. The counters already in the roster — anti-cavalry, ranged resistance, the charge — now
+have something to counter.
+
+Light Infantry runs at **two thirds** of every army for the first sixty years, and that is the
+**tier gate** rather than the recruiting roll: a Village can build Light Infantry and nothing else,
+so a young realm has one option however it rolls. The mix only becomes a statement about unit
+choice once settlements have the buildings to offer one.
 
 ### What is worth watching while playing
 

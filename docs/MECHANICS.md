@@ -944,6 +944,45 @@ roughly one improvement a year and its conquests stayed bare ground for a centur
   at a quayside, to fit the berths (decision 129).
 - **It has no diplomacy.** The personalities are written to drive it when it arrives.
 
+### How big its armies are, and how many wars it fights — since 0.18.2
+
+Three rules that were right for a realm of three settlements and were never scaled for one of
+thirty. All three were measured at 120 years, and all three moved a long way.
+
+**Founding a new field army costs half a full stack** (decision 135). It used to cost two units,
+so a realm with twenty settlements founded twenty tiny armies — one per garrison that happened to
+have a spare pair — and none of them could take anything. The world ran **158 armies averaging 3.9
+units, 78% of them four or fewer**. Refusing to found does not cost the realm those men: they wait
+in the garrison and an understrength stack comes round to collect them.
+
+**And a field army below half strength goes and finds a bigger one.** Armies have always merged on
+contact; what was missing was a reason for two of them to be in the same place, because each was
+founded separately and marched at the objective by its own route. Only the smaller army moves, and
+ties break on the higher id — that asymmetry is what stops a pair walking through one another for
+ever. Result: **~55 armies averaging 9–12 units, with 4–9% small.**
+
+The bar is **per role**. A claimer is meant to be one unit and a raiding column three; the first
+version held them to a field army's bar and left **8.6% of reachable ground permanently bare**,
+because the claimers the realm needed could no longer be raised.
+
+**A realm fights one front per six settlements**, to a maximum of four, each at least 8 tiles from
+the others, and each army goes to whichever front is nearest it (decision 136). One objective for
+the whole realm is the right rule for a small realm — no single army beats a built-up City, so a
+realm that judges each stack separately never attacks anything — and an absurd one for an empire:
+the Turks held 22 cities and pointed 74 armies at a single town, most of them walking across the
+empire to get there. **A realm under six settlements still gets exactly one front**, so nothing
+about the early game changed.
+
+**Naval ambition scales, and a cornered realm goes to sea in earnest** (decision 137). Hulls and
+escorts wanted were flat figures — one escort, eight hulls, for a village and an empire alike — and
+the map ran **8 fleets in total**, the Turks holding one. They scale now, ships are built at every
+port every month rather than at one base once a year, and **escorts are laid down before
+transports**: a harbour launches when it holds a landing force, so whatever is built last is left
+behind, and the escort has to be waiting when the transports are ready. A realm with **nothing left
+to march at** — the Britons on their island, the Moors in North Africa — wants a bigger navy still,
+because the sea is the only direction it has. Result: **19–30 fleets**, and two or three realms
+holding ground on more than one landmass.
+
 ### What it recruits — a roll of three, since 0.18.1
 
 Owner-specified, and it is the fix for a game that had one unit in it. The old rule was a pure

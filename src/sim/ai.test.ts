@@ -684,7 +684,7 @@ describe('fog of war', () => {
  */
 describe('an army with a shape', () => {
   const state = campaign();
-  years(state, 60);
+  years(state, 120);
 
   /** Every unit the world has under arms, by id. */
   const muster = () => {
@@ -702,18 +702,27 @@ describe('an army with a shape', () => {
     expect(muster().spear_infantry ?? 0).toBeGreaterThan(0);
   });
 
+  /**
+   * Measured at 120 years deliberately, not earlier.
+   *
+   * Light Infantry runs at two thirds of every army for the first sixty years, and that is **not**
+   * this rule failing - it is the tier gate. A Village can build Light Infantry and nothing else, so
+   * a young realm has one option however it rolls. The mix only becomes a statement about unit
+   * choice once settlements have the buildings to offer one, and by then it is 36-46% of a roster
+   * of nine.
+   */
   it('fields a mixed roster rather than one unit repeated', () => {
     const mix = muster();
     const total = Object.values(mix).reduce((a, b) => a + b, 0);
-    expect(total).toBeGreaterThan(50);
+    expect(total).toBeGreaterThan(200);
 
     // No single unit type dominates. Under the old argmax the best unit took essentially the whole
     // army the moment a realm could pay its wages.
     const biggest = Math.max(...Object.values(mix));
-    expect(biggest / total).toBeLessThan(0.6);
+    expect(biggest / total).toBeLessThan(0.55);
 
     // And the roster is genuinely broad, not two units in a ratio.
-    expect(Object.keys(mix).length).toBeGreaterThanOrEqual(5);
+    expect(Object.keys(mix).length).toBeGreaterThanOrEqual(7);
   });
 
   it('fields missiles and ground troops both', () => {
@@ -759,5 +768,74 @@ describe('a rival realm sails', () => {
     // What must hold is that the sea is no longer a wall.
     const taken = marooned.filter((c) => c.ownerIndex !== independents);
     expect(taken.length).toBeGreaterThan(marooned.length / 2);
+  });
+});
+
+/**
+ * Concentration, fronts and the sea — the three things a large realm was failing to do.
+ *
+ * All three were the same shape of bug: rules that were right for a realm of three settlements and
+ * were never scaled for one of thirty. Measured at 120 years before the fix, the world ran 158
+ * armies averaging 3.9 units with 78% of them four or fewer, the Turks pointed 74 stacks at a single
+ * objective, and there were 8 fleets on the whole map.
+ */
+describe('a large realm acts like one', () => {
+  const state = campaign();
+  years(state, 120);
+
+  /**
+   * **Field armies only.** A claiming stack is one unit and a raiding column three — both by
+   * design (decisions 108, 118) — so counting them as "too small" would be asserting against
+   * rules the owner asked for. What must not be small is the force that fights the war.
+   */
+  const fieldStacks = () =>
+    state.armies.filter((army) => army.role === 'field').map((army) => stackSize(army.units));
+
+  it('concentrates its men instead of scattering them in detachments', () => {
+    const sizes = fieldStacks();
+    expect(sizes.length).toBeGreaterThan(5);
+
+    const average = sizes.reduce((a, b) => a + b, 0) / sizes.length;
+    expect(average).toBeGreaterThan(7);
+
+    // The headline symptom: a map covered in field stacks too small to take anything.
+    const tiny = sizes.filter((size) => size <= 4).length;
+    expect(tiny / sizes.length).toBeLessThan(0.2);
+  });
+
+  it('puts real fleets to sea, not one hull for the world', () => {
+    expect(state.fleets.length).toBeGreaterThan(10);
+  });
+
+  it('gets somebody off their starting landmass', () => {
+    const spread = state.factions.filter((faction) => {
+      if (!faction.alive || !faction.ai) return false;
+      const mine = state.cities.filter((city) => city.ownerIndex === faction.index);
+      return new Set(mine.map((city) => landmassOf(world, city.tileIndex))).size > 1;
+    });
+    // The Britons on their island and the Moors in North Africa used to take their own continent
+    // and then stop playing for a century.
+    expect(spread.length).toBeGreaterThan(0);
+  });
+
+  it('fights on more than one front once it is big enough', () => {
+    // A realm large enough for several fronts should have armies genuinely far apart, rather than
+    // every stack converging on one city at the other end of the empire.
+    const biggest = [...state.factions]
+      .filter((f) => f.alive && f.ai)
+      .sort(
+        (a, b) =>
+          state.cities.filter((c) => c.ownerIndex === b.index).length -
+          state.cities.filter((c) => c.ownerIndex === a.index).length,
+      )[0];
+    expect(biggest).toBeDefined();
+
+    const theirs = state.armies.filter((a) => a.ownerIndex === biggest?.index);
+    if (theirs.length < 4) return;
+
+    const xs = theirs.map((a) => a.tileIndex % world.width);
+    const ys = theirs.map((a) => Math.floor(a.tileIndex / world.width));
+    const spread = Math.max(...xs) - Math.min(...xs) + (Math.max(...ys) - Math.min(...ys));
+    expect(spread).toBeGreaterThan(8);
   });
 });

@@ -47,8 +47,24 @@ import { MAX_ARMY_UNITS, type ArmyState, type CityState, type FleetState, type S
  * `embark`, `orderSail`, `disembark` (decision 86). There is no back door to the sea either.
  */
 
-/** Escorts a realm wants before it will risk an army at sea. **[GEN]** */
-const ESCORTS_WANTED = 1;
+/**
+ * Escorts a realm wants before it will risk an army at sea, and the hulls it will build in all.
+ *
+ * **Both scale with the realm**, since 0.18.2. They were flat — one escort, eight hulls, for every
+ * realm from a village to an empire — and the consequence was measurable and exactly what the owner
+ * saw: at 120 years there were **eight fleets in the whole world**, and the Turks, holding 22 cities
+ * and 74 armies, had **one**. A realm that owns half the Mediterranean coast should not have the
+ * navy of a realm that owns a fishing village.
+ *
+ * A realm with no land war left wants more of both — see `navalAppetite`. **[GEN]**
+ */
+function escortsWanted(cities: number, landlocked: boolean): number {
+  return Math.min(6, 1 + Math.floor(cities / 6) + (landlocked ? 2 : 0));
+}
+
+function hullsWanted(cities: number, landlocked: boolean): number {
+  return Math.min(28, 6 + Math.floor(cities / 2) + (landlocked ? 6 : 0));
+}
 
 /**
  * How often a realm re-plans its expedition, in months. **[GEN]**
@@ -65,9 +81,6 @@ const ESCORTS_WANTED = 1;
  * tripling the sweep cost. Whatever limits how often a realm invades, it is not this.
  */
 const PLANNING_MONTHS = 12;
-
-/** Hulls a realm will keep building for one expedition. Beyond this it sails with what it has. */
-const MAX_EXPEDITION_SHIPS = 8;
 
 /**
  * Berths a realm wants before it stops building transports and starts building an escort.
@@ -135,20 +148,28 @@ export function runNavy(
   factionIndex: number,
   home: Int32Array,
   willAttack: (city: CityState) => boolean,
+  /**
+   * True when the realm's land war has run out — nothing it can march to and beat.
+   *
+   * This is the Britons on their island and the Moors in North Africa: realms that take everything
+   * their continent offers and then, having no objective, quietly stop playing for a century. A
+   * realm in that position should be pouring everything into the sea, because the sea is the only
+   * direction left, and it should want a bigger navy than a realm still busy on land.
+   */
+  landlocked: boolean,
 ): void {
   const fleets = [...fleetsOf(state, factionIndex)].sort((a, b) => a.id - b.id);
 
-  const ports = state.cities.filter(
-    (city) =>
-      city.ownerIndex === factionIndex &&
-      !city.siege &&
-      canEmbarkFrom(city.buildings) &&
-      isCoastal(world, city.tileIndex),
+  const mine = state.cities.filter((city) => city.ownerIndex === factionIndex);
+  const ports = mine.filter(
+    (city) => !city.siege && canEmbarkFrom(city.buildings) && isCoastal(world, city.tileIndex),
   );
 
   // No harbour and nothing at sea means there is no naval decision to make at all. A realm with a
   // fleet still afloat is handled even if it has just lost every port.
   if (ports.length === 0 && fleets.length === 0) return;
+
+  const appetite = navalAppetite(mine.length, landlocked, ports, fleets);
 
   /**
    * **The local half of the naval month, and it runs every month.**
@@ -166,7 +187,11 @@ export function runNavy(
     if (stackSize(fleet.cargo) > 0) putAshore(state, world, fleet);
   }
   loadUp(state, world, factionIndex, ports);
-  for (const city of ports) putToSea(state, world, city);
+  for (const city of ports) putToSea(state, world, city, appetite);
+  // Shipbuilding sweeps nothing — it is a decision about one settlement's queue — so it belongs
+  // here with the rest of the local work rather than behind the annual plan, which capped every
+  // realm on the map at one hull a year however large it was.
+  buildFleet(state, factionIndex, ports, appetite);
 
   /**
    * **The plan is made once a year, staggered by realm.**
@@ -232,14 +257,16 @@ export function runNavy(
   }
 
   /**
-   * **One harbour of departure, chosen for being nearest the target by sea.**
+   * **One harbour of departure, chosen for being nearest the target by sea** — and it is now only
+   * where the *army* is summoned to, not where the ships are built.
    *
-   * Hulls are **built** here and nowhere else, and the army is called here, and that concentration
-   * is the whole point. Built across every port a realm owns, they arrive one or two at a time in
-   * four separate anchorages — 28 berths across 8 fleets is fleets of three, and since an army
-   * cannot be split, fleets of three carry nothing at all. The same eight hulls in one place carry
-   * an army. (Launching and loading are not restricted to the base: those are local decisions taken
-   * monthly above, and a fleet that finds an army on any friendly quay should take it.)
+   * Hulls used to be built here and nowhere else, on the reasoning that eight of them spread across
+   * four anchorages is four fleets of two, and fleets of two carried nothing at all back when an
+   * army could not be split. Splitting exists now (decision 129) and a lone transport is a useful
+   * thing, so concentration is no longer worth capping a whole empire's shipyards to get.
+   *
+   * What still has to concentrate is the **landing force**. An army is summoned to one quay, and
+   * `loadUp` will put it aboard whatever fleet is alongside.
    *
    * A second sweep, outward from the landing water, is what says which port that is. `seas` runs
    * the other way — from all our coasts at once — so it can say how far the target is but not which
@@ -249,7 +276,6 @@ export function runNavy(
   const base = nearestPort(world, ports, toTarget);
   if (!base) return;
 
-  buildFleet(state, factionIndex, base, ports, fleets);
   callToThePort(state, world, factionIndex, base, home);
 }
 
@@ -411,15 +437,29 @@ function landingsByLandmass(
  * can pay — `queueShip` also refuses if the settlement has no people to crew it or the realm is at
  * its manpower ceiling, which is exactly the gate the player's own panel applies.
  */
-function buildFleet(
-  state: SimState,
-  factionIndex: number,
-  base: CityState,
+/**
+ * What the realm's navy is short of, counted across everything it owns or has on a slipway.
+ *
+ * One count, used by both the builder and the launcher, so a port cannot decide it has a full
+ * complement while the shipwright thinks otherwise.
+ */
+interface NavalAppetite {
+  hulls: number;
+  escorts: number;
+  berths: number;
+  wantsHulls: number;
+  wantsEscorts: number;
+  wantsBerths: number;
+  /** Nothing more is coming — every hull the realm means to build is built. */
+  complete: boolean;
+}
+
+function navalAppetite(
+  cities: number,
+  landlocked: boolean,
   ports: readonly CityState[],
   fleets: readonly FleetState[],
-): void {
-  // Counted across the whole realm, but **built only at the base**. A hull already afloat elsewhere
-  // still counts against the target, because it can sail round and join.
+): NavalAppetite {
   const afloat: UnitStack = {};
   for (const fleet of fleets) {
     for (const [id, count] of Object.entries(fleet.ships)) afloat[id] = (afloat[id] ?? 0) + count;
@@ -429,33 +469,73 @@ function buildFleet(
     for (const order of city.shipQueue) afloat[order.id] = (afloat[order.id] ?? 0) + 1;
   }
 
-  const hulls = stackSize(afloat);
-  if (hulls >= MAX_EXPEDITION_SHIPS) return;
-
-  // Hulls, not kinds of hull. The two agree exactly while `ESCORTS_WANTED` is 1 — a realm has an
-  // escort type iff it has an escort — and diverge the moment anyone raises it, which is precisely
-  // when a wrong count would be hardest to notice.
+  // Hulls, not kinds of hull, so the figure stays right however many escorts a realm wants.
   const escorts = Object.entries(afloat).reduce(
     (n, [id, count]) => n + (shipById(id)?.carries === 0 ? count : 0),
     0,
   );
 
-  const wantTransport = fleetCapacity(afloat) < BERTHS_WANTED;
-  const wantEscort = !wantTransport && escorts < ESCORTS_WANTED;
-  if (!wantTransport && !wantEscort) return;
-  if (base.shipQueue.length > 0) return;
+  const wantsHulls = hullsWanted(cities, landlocked);
+  const wantsEscorts = escortsWanted(cities, landlocked);
+  const hulls = stackSize(afloat);
+  const berths = fleetCapacity(afloat);
 
-  const options = buildableShips(base.buildings).filter((ship) =>
-    wantTransport ? ship.carries > 0 : ship.carries === 0,
-  );
-  // The strongest escort the harbour and the treasury will bear; for transports there is only one
-  // hull that carries anything, so the sort is a formality that keeps the choice fixed.
-  const pick = [...options]
-    .sort((a, b) => b.size * b.hp * b.damage - a.size * a.hp * a.damage || a.id.localeCompare(b.id))
-    .find((ship) => canAfford(state, factionIndex, ship.cost));
-  if (!pick) return;
+  return {
+    hulls,
+    escorts,
+    berths,
+    wantsHulls,
+    wantsEscorts,
+    wantsBerths: BERTHS_WANTED,
+    complete: hulls >= wantsHulls || (berths >= BERTHS_WANTED && escorts >= wantsEscorts),
+  };
+}
 
-  queueShip(state, base, pick.id);
+/**
+ * Lay down hulls — **at every port, every month**, and escorts before transports.
+ *
+ * Two changes from the version that produced eight fleets in a world, both deliberate.
+ *
+ * **Every port, monthly.** Building at the single base once a year capped a realm at one hull a
+ * year however large it was, so a twenty-city empire built its navy at exactly the rate a village
+ * did. Shipbuilding sweeps nothing and needs no target — it is a decision about one settlement's
+ * queue — so there was never a reason for it to sit behind the annual plan.
+ *
+ * **Escorts first.** This looks backwards and is not. `putToSea` launches a harbour's moorings when
+ * they hold a landing force, so whatever is built *last* tends to be left behind: with transports
+ * first, the convoy sailed the moment it had berths and the escort followed months later as a
+ * second fleet of one, which is neither an escort nor a fleet. Building the escort first leaves it
+ * tied up while the transports accumulate around it, and they all sail together.
+ */
+function buildFleet(
+  state: SimState,
+  factionIndex: number,
+  ports: readonly CityState[],
+  appetite: NavalAppetite,
+): void {
+  if (appetite.hulls >= appetite.wantsHulls) return;
+
+  const wantEscort = appetite.escorts < appetite.wantsEscorts;
+  const wantTransport = appetite.berths < appetite.wantsBerths;
+  if (!wantEscort && !wantTransport) return;
+
+  for (const base of ports) {
+    // One hull at a time per harbour. A queue is a commitment of gold and men, and a realm that
+    // stacked six of them at one port would starve every other queue it has.
+    if (base.shipQueue.length > 0) continue;
+
+    const options = buildableShips(base.buildings).filter((ship) =>
+      wantEscort ? ship.carries === 0 : ship.carries > 0,
+    );
+    // The strongest escort the harbour and the treasury will bear; for transports there is only one
+    // hull that carries anything, so the sort is a formality that keeps the choice fixed.
+    const pick = [...options]
+      .sort((a, b) => b.size * b.hp * b.damage - a.size * a.hp * a.damage || a.id.localeCompare(b.id))
+      .find((ship) => canAfford(state, factionIndex, ship.cost));
+    if (!pick) continue;
+
+    queueShip(state, base, pick.id);
+  }
 }
 
 /**
@@ -467,10 +547,24 @@ function buildFleet(
  *
  * An escort alone may sail: a warship is useful at sea whether or not there is anything to carry.
  */
-function putToSea(state: SimState, world: World, base: CityState): void {
+/**
+ * Cast off, once the moorings hold a convoy rather than a boat.
+ *
+ * The old test — berths enough, **or any warship at all** — launched a lone escort the month it was
+ * finished, as a fleet of one with nothing to escort. Now a harbour waits until it has berths for a
+ * real landing force, and only sails short when **nothing more is coming**: the realm has built
+ * every hull it means to, so waiting would be waiting for ever.
+ *
+ * A warship with no transports is still worth having at sea whatever else is true — it is the only
+ * thing that can close a strait, and it needs no cargo to do it.
+ */
+function putToSea(state: SimState, world: World, base: CityState, appetite: NavalAppetite): void {
   const moored = base.fleet;
   if (stackSize(moored) === 0) return;
-  if (fleetCapacity(moored) < BERTHS_WANTED && !hasWarship(moored)) return;
+
+  const enough = fleetCapacity(moored) >= BERTHS_WANTED;
+  const escortOnly = fleetCapacity(moored) === 0 && hasWarship(moored);
+  if (!enough && !escortOnly && !appetite.complete) return;
 
   launch(state, world, base, { ...moored });
 }

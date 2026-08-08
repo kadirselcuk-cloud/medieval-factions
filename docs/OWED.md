@@ -124,6 +124,9 @@ it is tagged **[GEN]** at its definition. None of it is owner-authored truth.
 | An unsettled landmass outranks distance when picking a target | `src/sim/navalAi.ts` | **live** — `VIRGIN_ISLAND_BONUS`. Without it Ireland was chosen 6 times in 120 years against Novgorod's 173 |
 | Splitting takes the **heaviest** formations first | `src/sim/fleets.ts` | **live** — the owner specified that a stack may be split, not which men board |
 | The recruiting roll is equal thirds, and rerolls 12 times | `src/sim/ai.ts` | **live** — the three categories are owner-specified; the even split and the reroll bound are mine |
+| Founding a field army costs half a full stack; a stack below half strength rallies, within 12 tiles | `src/sim/ai.ts` | **live** — `RALLY_BELOW_FRACTION`, `RALLY_RANGE`. Owner asked for concentration; the thresholds are mine |
+| One front per 6 settlements, max 4, at least 8 tiles apart | `src/sim/ai.ts` | **live** — `SETTLEMENTS_PER_FRONT`, `MAX_FRONTS`, `FRONTS_APART`. Decides whether an empire feels like one |
+| How many hulls and escorts a realm wants, and the bonus for having no land war left | `src/sim/navalAi.ts` | **live** — `hullsWanted`, `escortsWanted`. The lever if the map fills with navies |
 | One harbour of departure, nearest the target by sea | `src/sim/navalAi.ts` | **live** — spread across every port, hulls arrive two at a time and carry nothing |
 | A landed army is its own frontier, but only where its realm holds no settlement | `src/sim/ai.ts` | **live** — without it an expedition stands on its beach until the winter takes it |
 

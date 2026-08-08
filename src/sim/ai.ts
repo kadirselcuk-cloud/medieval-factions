@@ -164,7 +164,13 @@ export function runAi(state: SimState, world: World): void {
      * declines to pile onto a realm somebody else has by the throat, and none of that had to be
      * written twice.
      */
-    runNavy(state, world, faction.index, home, (city) => willAttack(state, city, mind));
+    // Whether the realm has any land war left at all. This is the Britons on their island and the
+    // Moors in North Africa — realms that take everything their continent offers and then stop
+    // playing, because nothing they can march to is worth attacking. They should be pouring
+    // everything into the sea instead, and `runNavy` gives them a bigger appetite for it.
+    const landlocked = !anyLandTarget(state, world, mind);
+
+    runNavy(state, world, faction.index, home, (city) => willAttack(state, city, mind), landlocked);
     levy(state, mind);
     campaign(state, world, mind);
   }
@@ -547,21 +553,40 @@ function rolledUnit(state: SimState, city: CityState, mind: Mind): LandUnit | un
 // --------------------------------------------------------------------- war
 
 /**
+ * Fronts a realm can fight at once — one per this many settlements. **[GEN]**
+ *
+ * Six, capped at four fronts. A realm of six cities has one war; an empire of twenty-four has four,
+ * which is about as many directions as it has borders.
+ */
+const SETTLEMENTS_PER_FRONT = 6;
+const MAX_FRONTS = 4;
+
+/**
  * The realm's war, for one month.
  *
- * **One objective for the whole realm, not one per army.** Armies are chosen for a target
- * together, because a realm that judges each stack on its own can never take a defended city:
- * no single army it is allowed to raise beats a built-up City with a garrison in it, so every
- * army separately concludes there is nothing to do and every border on the map sets like
- * concrete. Sending all of them at the same place is what a realm at war actually does, and the
- * siege rules do the rest — the first to arrive invests the place and the others gather at the
- * walls while the clock runs down.
+ * **One objective per front, and armies go to the nearest front.** The rule this replaces — one
+ * objective for the *whole realm* — exists for a good reason and is still the right rule for a
+ * small realm: no single army a realm is allowed to raise beats a built-up City with a garrison in
+ * it, so a realm that judges each stack separately concludes there is nothing to do anywhere and
+ * every border on the map sets like concrete. Sending everything at one place is what wins a war.
+ *
+ * But it does not scale. Measured at 120 years, the Turks held 22 cities and 74 armies and were
+ * pointing all of them at **one** city — most of them walking across an empire to get there, most
+ * of the way, most of the time. A realm that large has several borders and should be pushing on
+ * several of them (docs/DESIGN.md decision 136).
+ *
+ * So the count scales with what the realm holds, one front per six settlements to a maximum of
+ * four, and each army is sent to whichever front is nearest **it**. A small realm gets exactly one
+ * front and therefore exactly the old behaviour, which is why nothing about the early game moved.
  */
 function campaign(state: SimState, world: World, mind: Mind): void {
   muster(state, world, mind);
 
   const armies = [...armiesOf(state, mind.faction.index)].sort((a, b) => a.id - b.id);
-  const objective = pickObjective(state, world, mind, armies);
+  const held = state.cities.filter((c) => c.ownerIndex === mind.faction.index).length;
+  const fronts = Math.max(1, Math.min(MAX_FRONTS, Math.floor(held / SETTLEMENTS_PER_FRONT)));
+  const objectives = pickObjectives(state, world, mind, armies, fronts);
+  const objective = objectives[0];
 
   /**
    * **One army tidies the border; the rest go to war.**
@@ -587,8 +612,34 @@ function campaign(state: SimState, world: World, mind: Mind): void {
     // An army already walking somewhere is left to walk. Re-planning every month would produce
     // a realm whose armies oscillate between two targets and never reach either.
     if (army.path.length > 0) continue;
-    order(state, world, army, mind, objective, !objective || army.id === settler?.id);
+    order(state, world, army, mind, nearestFront(world, army, objectives), !objective || army.id === settler?.id);
   }
+}
+
+/**
+ * Which of the realm's wars this army belongs to — whichever front is closest to it.
+ *
+ * Straight-line distance is deliberate and sufficient. This only decides which of two or three
+ * objectives a stack is pointed at; `march` does the real pathfinding afterwards and will discover
+ * if there is no route. Ties go to the earlier front, which is the higher-priority one, because
+ * `pickObjectives` returns them in the order it chose them.
+ */
+function nearestFront(
+  world: World,
+  army: ArmyState,
+  objectives: readonly CityState[],
+): CityState | undefined {
+  if (objectives.length <= 1) return objectives[0];
+
+  let best: CityState | undefined;
+  let nearest = Number.POSITIVE_INFINITY;
+  for (const city of objectives) {
+    const distance = chebyshev(world, city.tileIndex, army.tileIndex);
+    if (distance >= nearest) continue;
+    nearest = distance;
+    best = city;
+  }
+  return best;
 }
 
 /**
@@ -621,12 +672,6 @@ function muster(state: SimState, world: World, mind: Mind): void {
     const standing = state.armies.some(
       (army) => army.tileIndex === city.tileIndex && army.ownerIndex === mind.faction.index,
     );
-    // **No cap on how many armies a realm fields.** It raises what it can pay for and spare the
-    // people for; if that is nine stacks, it is nine stacks. A *second* stack still has to be
-    // worth founding, though — one spare unit marching off alone is an army in name only and dies
-    // to the first village it meets. It need not be full: `regroup` walks understrength stacks
-    // round the realm's garrisons until they fill up.
-    if (!standing && fielded > 0 && spare < 2) continue;
 
     // What this stack is for decides how big it is and what goes in it, so it is chosen before
     // anything is picked out of the garrison rather than after.
@@ -640,6 +685,33 @@ function muster(state: SimState, world: World, mind: Mind): void {
 
     const wanted =
       role === 'claim' ? CLAIM_STACK_UNITS : role === 'raid' ? mind.character.raidUnits : spare;
+
+    /**
+     * **Founding a new stack costs half a proper army's worth of men — but only a *field* stack.**
+     *
+     * There is still no cap on how many armies a realm fields; what changed in 0.18.2 is the bar,
+     * which was two units for everything and is now half of what this difficulty calls a full army.
+     *
+     * Two was much too low for a field army. Measured at 120 years, the world ran **158 armies
+     * averaging 3.9 units, 78% of them four units or fewer** — the Turks alone fielded 74 stacks of
+     * about four across 22 cities. A realm with twenty settlements founded twenty tiny armies, one
+     * per garrison that happened to have a spare pair, and none of them could take anything. An army
+     * of four is not a smaller version of an army of twelve; it is a rounding error with upkeep.
+     *
+     * **The bar is per role, and that is not a detail.** A claimer is *meant* to be one unit and a
+     * raiding column three; holding them to a field army's bar stopped a realm raising either, and
+     * the first version of this change left 8.6% of reachable ground permanently bare because the
+     * claimers it needed could never be founded. So the threshold is whatever this role actually
+     * wants, and only the field force — where `wanted` is "everything spare" — is held to the half.
+     *
+     * Raising the bar does not cost the realm those men. They stay in the garrison, and `regroup`
+     * walks an understrength stack round to collect them — which is what that function was always
+     * for and what these tiny foundlings were quietly bypassing.
+     */
+    const half = Math.max(2, Math.ceil(Math.min(MAX_ARMY_UNITS, mind.level.armyUnits) / 2));
+    const foundAt = role === 'field' ? half : Math.max(1, wanted);
+    if (!standing && fielded > 0 && spare < foundAt) continue;
+
     const room = Math.min(spare, wanted, MAX_ARMY_UNITS);
     if (room <= 0) continue;
 
@@ -832,6 +904,12 @@ function order(
       return;
     }
   }
+
+  // **Too small to be an army? Find one.** Checked after claiming and raiding, which are jobs a
+  // single unit is *meant* to do, and before the war, which it is not. A four-unit stack sent at a
+  // defended city is four units thrown away; the same four folded into a stack of eight are what
+  // takes the place.
+  if (rally(state, world, army, mind)) return;
 
   if (objective) {
     march(state, world, army, objective, mind);
@@ -1128,17 +1206,20 @@ function atTheWalls(
  * far. Measuring the way an army actually moves makes an unreachable city infinitely far, which is
  * the truth, and lets the realm get on with what it can reach.
  */
-function pickObjective(
+function pickObjectives(
   state: SimState,
   world: World,
   mind: Mind,
   armies: readonly ArmyState[],
-): CityState | undefined {
+  wanted: number,
+): readonly CityState[] {
   const border = state.cities.filter((city) => city.ownerIndex === mind.faction.index);
-  if (border.length === 0 || armies.length === 0) return undefined;
+  if (border.length === 0 || armies.length === 0) return [];
 
-  let best: CityState | undefined;
-  let bestDistance = Number.POSITIVE_INFINITY;
+  // Everything worth taking, nearest to the realm's own border first. The whole list is built and
+  // then sliced, rather than the single best being tracked, because a realm with several fronts
+  // needs the runners-up — and the cost is one sort over the settlements that passed the filters.
+  const candidates: { city: CityState; distance: number }[] = [];
 
   for (const city of state.cities) {
     if (city.ownerIndex === mind.faction.index) continue;
@@ -1148,8 +1229,6 @@ function pickObjective(
     // water, which is the honest answer and the one thing that genuinely rules a target out.
     const fromHome = reachedIn(mind.home, city.tileIndex);
     if (!Number.isFinite(fromHome)) continue;
-    // Cities are scanned in index order, so a strict `<` leaves the lowest index holding a tie.
-    if (fromHome >= bestDistance) continue;
     if (!willAttack(state, city, mind)) continue;
 
     // Every army that could arrive is counted, because they are all about to be sent. Only the sea
@@ -1166,11 +1245,40 @@ function pickObjective(
       (mind.character.prefersSiege && judge(state, world, city, mind, force, false));
     if (!takeable) continue;
 
-    best = city;
-    bestDistance = fromHome;
+    candidates.push({ city, distance: fromHome });
   }
-  return best;
+
+  // Nearest first; the city index breaks a tie, so the choice is stable from month to month and a
+  // realm does not swap its objective for an equally distant one and march the other way.
+  candidates.sort((a, b) => a.distance - b.distance || a.city.cityIndex - b.city.cityIndex);
+
+  /**
+   * **Fronts are kept apart.** Taking the top `n` by distance would hand a realm three objectives
+   * that are three neighbouring villages in the same province — which is one front with extra
+   * steps, and worse than one front, because the armies split three ways to fight it.
+   *
+   * A candidate is only opened as a *new* front if it is well away from every front already
+   * chosen. Where nothing qualifies, the realm simply fights on fewer fronts than its size allows,
+   * which is the correct answer: it has only one border worth pushing on.
+   */
+  const chosen: CityState[] = [];
+  for (const { city } of candidates) {
+    if (chosen.length >= wanted) break;
+    const apart = chosen.every(
+      (other) => chebyshev(world, other.tileIndex, city.tileIndex) >= FRONTS_APART,
+    );
+    if (apart) chosen.push(city);
+  }
+  return chosen;
 }
+
+/**
+ * How far apart two objectives must be to count as separate wars, in tiles. **[GEN]**
+ *
+ * Eight — comfortably outside the 5 × 5 relief box, so two fronts can never be the same battle
+ * seen twice, and roughly a province apart at this map's scale.
+ */
+const FRONTS_APART = 8;
 
 /**
  * Whether this realm's character permits an attack on that one — the scruples, in one place.
@@ -1262,6 +1370,88 @@ function march(
  * with a realm's whole army parked on it is a city no neighbour will ever attack. Twelve realms
  * did that at once and the map set like concrete for eighty years.
  */
+/**
+ * Is there anything at all on this continent left to take?
+ *
+ * Cheap and deliberately loose — it asks only whether a hostile settlement exists that the realm
+ * could walk to and would be willing to attack, not whether it could win. A realm that still has
+ * somewhere to march has a land war; one that does not is finished on its landmass whatever the
+ * odds elsewhere, and its future is across water.
+ *
+ * The Independents count, because taking an independent city is exactly the kind of expansion a
+ * cornered realm should still be doing.
+ */
+function anyLandTarget(state: SimState, world: World, mind: Mind): boolean {
+  void world;
+  return state.cities.some(
+    (city) =>
+      city.ownerIndex !== mind.faction.index &&
+      Number.isFinite(reachedIn(mind.home, city.tileIndex)) &&
+      willAttack(state, city, mind),
+  );
+}
+
+/**
+ * How small a field army has to be before it goes looking for a bigger one to join. **[GEN]**
+ *
+ * Half of what the difficulty calls a full stack. Above that a stack is a usable fighting force and
+ * should be getting on with the war; below it, it is a detachment that will lose to the first
+ * village it meets, and the most valuable thing it can do is become part of something.
+ */
+const RALLY_BELOW_FRACTION = 2;
+
+/**
+ * How far a small army will walk to join a bigger one, in tiles. **[GEN]**
+ *
+ * Twelve. Far enough to cross a province and find the war, near enough that a stack does not spend
+ * a decade walking the length of an empire to merge with something that has since moved on — at
+ * 0.16.0's speeds, twelve tiles is two years on foot.
+ */
+const RALLY_RANGE = 12;
+
+/**
+ * Walk a too-small army into a bigger one — docs/DESIGN.md decision 135.
+ *
+ * Armies merge on contact already (`occupy`), so consolidation needs no new mechanic; what it
+ * needed was a *reason* for two stacks to be in the same place. Without one, a realm's armies were
+ * founded separately, marched at the objective separately along their own routes, and arrived
+ * separately — so they only ever merged by coincidence, and a realm of twenty cities fought its war
+ * as twenty detachments none of which could take a city.
+ *
+ * **Only the smaller moves, and ties break on the higher id.** That asymmetry is what makes this
+ * terminate: two armies can never be ordered onto each other, so a pair cannot walk through one
+ * another for ever, and a chain of rallies always flows toward one stack.
+ *
+ * Returns true if the army was given somewhere to be.
+ */
+function rally(state: SimState, world: World, army: ArmyState, mind: Mind): boolean {
+  const full = Math.min(MAX_ARMY_UNITS, mind.level.armyUnits);
+  const mine = stackSize(army.units);
+  if (mine >= Math.ceil(full / RALLY_BELOW_FRACTION)) return false;
+
+  let best: ArmyState | undefined;
+  let nearest = Number.POSITIVE_INFINITY;
+
+  for (const other of state.armies) {
+    if (other.ownerIndex !== mind.faction.index || other.id === army.id) continue;
+    if (other.role !== 'field') continue;
+
+    // Strictly bigger, or the same size with a lower id. Never both directions of a pair.
+    const theirs = stackSize(other.units);
+    if (theirs < mine || (theirs === mine && other.id > army.id)) continue;
+    // No point joining something that would overflow the tile.
+    if (theirs + mine > MAX_ARMY_UNITS) continue;
+
+    const distance = chebyshev(world, other.tileIndex, army.tileIndex);
+    if (distance > RALLY_RANGE || distance >= nearest) continue;
+    nearest = distance;
+    best = other;
+  }
+
+  if (!best) return false;
+  return orderMove(state, world, army.id, best.tileIndex).ok;
+}
+
 function regroup(state: SimState, world: World, army: ArmyState, mind: Mind): void {
   // `armyUnits` is what a realm considers a full stack — a target, not a ceiling. The only hard
   // limit is the game's own twenty-per-tile.

@@ -104,7 +104,7 @@
         "commerce": 75,
         "administration": 60,
         "military": 70,
-        "naval": 40,
+        "naval": 75,
         "expand": 100,
         "improve": 70
       },
@@ -136,7 +136,7 @@
         "commerce": 70,
         "administration": 60,
         "military": 75,
-        "naval": 35,
+        "naval": 70,
         "expand": 70,
         "improve": 80
       },
@@ -168,7 +168,7 @@
         "commerce": 75,
         "administration": 60,
         "military": 65,
-        "naval": 40,
+        "naval": 75,
         "expand": 85,
         "improve": 75
       },
@@ -200,7 +200,7 @@
         "commerce": 95,
         "administration": 70,
         "military": 45,
-        "naval": 50,
+        "naval": 85,
         "expand": 90,
         "improve": 90
       },
@@ -232,7 +232,7 @@
         "commerce": 75,
         "administration": 60,
         "military": 65,
-        "naval": 40,
+        "naval": 75,
         "expand": 85,
         "improve": 75
       },

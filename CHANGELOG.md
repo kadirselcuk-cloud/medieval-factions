@@ -13,6 +13,68 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.18.2] — 2026-08-08
+
+Three things a large realm was failing to do, all the same shape of bug: rules that were right for a
+realm of three settlements and were never scaled for one of thirty.
+
+Measured at 120 years before and after:
+
+| | Before | After |
+|---|---|---|
+| Field armies | 158, averaging **3.9 units** | ~55, averaging **9–12** |
+| Stacks of 4 or fewer | **78%** | **4–9%** |
+| Fleets on the whole map | **8** | **19–30** |
+| Independent cities surviving | 2 | **0–2** |
+| Realms holding more than one landmass | 0–1 | **2–3** |
+
+### Changed
+
+- **Founding a new army costs half a full stack**, not two units. A realm with twenty settlements
+  was founding twenty tiny armies — one per garrison that happened to have a spare pair — none of
+  which could take anything. The men are not lost by refusing: they stay in the garrison, and
+  `regroup` walks an understrength stack round to collect them.
+  - **The bar is per role.** A claimer is meant to be one unit and a raiding column three. The first
+    version of this held them to a field army's bar and left **8.6% of reachable ground permanently
+    bare**, because the claimers a realm needed could no longer be founded.
+- **A large realm fights several fronts** — one objective per six settlements, to a maximum of four,
+  and each army goes to whichever front is nearest it. Fronts must be 8 tiles apart or they are one
+  front with extra steps. A realm under six settlements gets exactly one objective, which is exactly
+  the old behaviour, so nothing about the early game moved.
+- **Naval ambition scales with the realm.** Hulls wanted and escorts wanted were flat — one escort
+  and eight hulls for a village and an empire alike. Both now scale, and a realm with no land war
+  left wants more of each still.
+- **Ships are built at every port, every month**, rather than at one base once a year. Shipbuilding
+  sweeps no map and needs no target, so there was never a reason for it to sit behind the annual
+  planning cadence — which capped every realm on the map at one hull a year however large it was.
+- **Escorts are built before transports.** A harbour launches when it holds a landing force, so
+  whatever is built last gets left behind: with transports first, the convoy sailed the moment it
+  had berths and the escort followed months later as a fleet of one. Now the escort waits at the
+  quay while the transports gather around it and they sail together.
+- **Naval build weights raised** in `data/ai.json` — 35–50 to 70–85 — so coastal settlements
+  actually put up Docks, Ports and Shipyards instead of treating them as the last thing worth
+  building.
+
+### Added
+
+- **Rally.** A field army below half a full stack marches to the nearest larger friendly field army
+  and merges with it. Armies have always merged on contact; what was missing was a reason for two of
+  them to be in the same place. Only the smaller moves, and ties break on the higher id, which is
+  what guarantees a pair can never walk through each other for ever.
+- **A realm that has run out of land targets goes to sea in earnest.** This is the Britons on their
+  island and the Moors in North Africa — realms that took everything their continent offered and
+  then quietly stopped playing for a century. They now want a bigger navy than a realm still busy
+  on land.
+- 6 tests: field-army concentration, fleets at sea, realms spanning more than one landmass, armies
+  genuinely spread across fronts, and the composition assertions retargeted to a mature campaign.
+
+### Fixed
+
+- The composition test asserted at 60 years, where Light Infantry is two thirds of every army —
+  which is the **tier gate**, not the recruiting roll: a Village can build Light Infantry and
+  nothing else, so a young realm has one option however it rolls. Measured at 120 years instead,
+  where a realm has the buildings to offer a choice and the top unit is 36–46% of nine.
+
 ## [0.18.1] — 2026-08-04
 
 The owner's revisions to the naval phase, and the AI work that made them mean something. Naval
