@@ -206,7 +206,7 @@ export function runAi(state: SimState, world: World): void {
     const landlocked = !anyLandTarget(state, world, mind);
 
     runNavy(state, world, faction.index, home, (city) => willAttack(state, city, mind), landlocked);
-    levy(state, mind);
+    levy(state, world, mind);
     campaign(state, world, mind);
   }
 }
@@ -240,6 +240,15 @@ function realmStrengths(state: SimState): number[] {
  * the war as little as it possibly can. It is stated once because two places depend on it: `muster`
  * raises exactly this many, and `order` hands anything larger back to the field force.
  */
+/**
+ * What a realm with only overseas enemies still spends on soldiers, per-mille. **[GEN]**
+ *
+ * Two thirds. The remaining third of its people goes into crews instead, which is what the ships
+ * were short of. Not zero: garrisons still matter, the boats still need stacks to carry, and a realm
+ * that stopped recruiting entirely would be helpless the first time somebody landed on it.
+ */
+const OVERSEAS_ARMY_PERMILLE = 660;
+
 const CLAIM_STACK_UNITS = 1;
 
 function chebyshev(world: World, a: number, b: number): number {
@@ -426,7 +435,7 @@ function yieldValue(output: { gold: number; wood: number; iron: number; stone: n
  * so an AI that levied freely would empty its settlements and never reach the population gate
  * for its next tier.
  */
-function levy(state: SimState, mind: Mind): void {
+function levy(state: SimState, world: World, mind: Mind): void {
   const held = state.cities.filter((city) => city.ownerIndex === mind.faction.index);
   if (held.length === 0) return;
 
@@ -441,8 +450,24 @@ function levy(state: SimState, mind: Mind): void {
   // ceiling on how many armies a realm may field: if it can pay for troops and spare the people,
   // it raises them. A realm of nine cities wants nine settlements' worth of army, and the limits
   // that remain are the honest ones — the treasury, the manpower ceiling and the levy floors.
-  const wanted =
-    held.length * mind.level.armyUnits + held.length * mind.character.garrisonKeep;
+  /**
+   * **A realm that can only fight overseas wants a smaller army and a bigger navy** —
+   * owner-specified in 0.18.5: "instead of building so much army, they should also focus on ships".
+   *
+   * The appetite is otherwise proportional to what the realm holds, which is right while there is a
+   * land war. Once every enemy is across water, an extra spearman in Castille is worth nothing and
+   * an extra transport is worth an army — and the two compete for the same people, since a crew
+   * counts against the manpower ceiling like any other levy (decision 127).
+   *
+   * A third off, not a halt. The realm still needs garrisons, still needs stacks to load onto the
+   * boats, and may yet be landed on itself.
+   */
+  const overseasOnly = mind.overseasTargets && !anyLandTarget(state, world, mind);
+  const appetite = overseasOnly ? OVERSEAS_ARMY_PERMILLE : 1000;
+  const wanted = Math.floor(
+    ((held.length * mind.level.armyUnits + held.length * mind.character.garrisonKeep) * appetite) /
+      1000,
+  );
   if (forceOf(state, mind.faction.index) >= wanted) return;
   if (mind.faction.monthlyIncome.gold <= 0) return;
 
@@ -979,16 +1004,27 @@ function order(
   // instead of standing in a field for a century.
   if (objective && march(state, world, army, objective, mind)) return;
 
-  // Nowhere to fight it can reach: take ground instead. Since 0.18.4 that includes a rival's open
-  // fields, so there is essentially always somewhere for an army to be.
+  /**
+   * **A boat outranks a field** — owner-specified in 0.18.5, and the order of these two matters far
+   * more than it looks.
+   *
+   * Both are things an army does when it has no war to fight, but they are not equal. Since 0.18.4
+   * a rival's open ground is claimable, and a large realm always has some, so this branch always
+   * succeeded and the one below it was never reached: measured at 1600, the realm holding all of
+   * mainland Europe had forty-odd stacks walking from tile to tile across Iberia — the "moving
+   * around aimlessly" the owner saw — while the only war left was across the water and its
+   * transports sat empty.
+   *
+   * Taking a field is worth a few gold a month. Getting on a ship is worth a continent. So when
+   * there is anything across the water worth having, the field force queues at the harbours, and
+   * tidying the borders is left to the claiming stacks whose actual job it is.
+   */
+  if (mind.overseasTargets && boardShip(state, world, army, mind)) return;
+
+  // Nowhere to fight it can reach and nowhere to sail: take ground instead. Since 0.18.4 that
+  // includes a rival's open fields, so there is essentially always somewhere for an army to be.
   const ground = pickClaim(state, world, army, mind, Number.POSITIVE_INFINITY);
   if (ground >= 0 && orderMove(state, world, army.id, ground).ok) return;
-
-  // **Nothing left on this continent: go and wait for a boat.** The end state of a realm that has
-  // won its landmass, and the reason 66 of 66 armies stood still at 1600 — every target, every
-  // raid and every acre was across water, and none of the branches above can cross it. Marching to
-  // a harbour is what turns an idle army into cargo: `loadUp` boards whatever is standing there.
-  if (mind.overseasTargets && boardShip(state, world, army, mind)) return;
 
   regroup(state, world, army, mind);
 }

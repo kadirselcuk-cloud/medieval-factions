@@ -1300,6 +1300,24 @@ can never be put ashore straight into a city: expeditions pick a **beach** on th
 and march inland from there, and the walls are stormed or invested by the same rules as any other
 attack.
 
+**But a landing can be forced** — since 0.18.5. Where *no* beach is free, the men aboard fight the
+army holding the shore **as if they had marched there**: the defender gets the full ground advantage
+of its tile, with no allowance either way for the water behind the attacker, because none was
+specified. Winning puts the survivors ashore and takes the tile; losing costs the men who fell and
+puts the rest back aboard, subject to the berths as ever. This is troops only — the rule above
+survives it, so a beach held by an army can be stormed and a city held by walls cannot.
+
+**A realm whose every enemy is across water builds a third fewer soldiers** and spends the people on
+crews instead. A crew and a spearman come from the same fifth of a realm (§5), and an extra spearman
+at home is worth nothing when the war is overseas. A third rather than all of it: garrisons still
+matter, the boats still need stacks to carry, and the realm may yet be landed on itself.
+
+**Getting on a ship outranks claiming a field.** Both are what an army does with no war to fight and
+they are not equal — a field is worth a few gold a month, a berth is worth a continent. Ordered the
+other way round, the ground branch always succeeded (a large realm always borders somebody) and the
+harbour branch was never reached: measured, the realm holding all of mainland Europe had forty
+stacks walking tile to tile across Iberia while its transports sat empty.
+
 ### Embarking and disembarking — owner-specified in 0.18.0
 
 **Board at a Dock, land on any coast.** The asymmetry is the rule, not an oversight:

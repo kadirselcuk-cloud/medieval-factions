@@ -1,6 +1,6 @@
 # Next
 
-Where the build is, and what to do next. Rewritten at the end of the 0.18.4 session.
+Where the build is, and what to do next. Rewritten at the end of the 0.18.5 session.
 
 **Delete or rewrite this file when its contents are done.** It is a handoff note, not a record —
 the records are [ROADMAP.md](ROADMAP.md), [OWED.md](OWED.md) and [CHANGELOG.md](../CHANGELOG.md).
@@ -9,7 +9,7 @@ the records are [ROADMAP.md](ROADMAP.md), [OWED.md](OWED.md) and [CHANGELOG.md](
 
 ## State of play
 
-**Version `0.18.4`**, on `main`. **277 tests pass**, typecheck clean, production build clean.
+**Version `0.18.5`**, on `main`. **280 tests pass**, typecheck clean, production build clean.
 Save format is **v9**. Migrations run from v1.
 
 **Naval shipped.** The last structural gap in the map is closed: ships, fleets, transports,
@@ -45,7 +45,10 @@ And the late game, which 0.18.4 was entirely about — same seed, before and aft
 |---|---|---|
 | 1500 | 49 of 52 armies idle, 1,213 battles | **9 of 47 idle, 1,529 battles** |
 | 1550 | **52 of 52 idle**, 1,336 | **14 of 60 idle**, 1,393 |
-| 1600 | **52 of 52 idle**, 1,363 | **23 of 54 idle**, 1,172 |
+| 1600 | **52 of 52 idle**, 1,363 | **11 of 67 idle**, 1,647 |
+
+And 0.18.5 removed the runaway with it: the map now finishes **[25,21,7,5,2]** rather than one realm
+of 46, with two great powers still fighting at full tilt two and a half centuries in.
 
 The map used to freeze at [46,7,5,2,0] and stay there for two hundred years. It now keeps changing
 hands, and on a second seed the heaviest fighting of the whole campaign happens after 1550.

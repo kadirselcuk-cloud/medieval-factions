@@ -25,7 +25,7 @@ import {
 } from './fleets';
 import { landmassOf, reachedIn, sailingDistanceFrom, UNREACHABLE } from './geography';
 import { orderMove } from './movement';
-import { findSeaPath, orderSail } from './sailing';
+import { findSeaPath, orderSail, stormBeach } from './sailing';
 import { MAX_ARMY_UNITS, type ArmyState, type CityState, type FleetState, type SimState } from './types';
 
 /**
@@ -59,11 +59,28 @@ import { MAX_ARMY_UNITS, type ArmyState, type CityState, type FleetState, type S
  * A realm with no land war left wants more of both — see `navalAppetite`. **[GEN]**
  */
 function escortsWanted(cities: number, landlocked: boolean): number {
-  return Math.min(6, 1 + Math.floor(cities / 6) + (landlocked ? 2 : 0));
+  return Math.min(14, 1 + Math.floor(cities / 4) + (landlocked ? 3 : 0));
 }
 
 function hullsWanted(cities: number, landlocked: boolean): number {
-  return Math.min(28, 6 + Math.floor(cities / 2) + (landlocked ? 6 : 0));
+  return Math.min(60, 8 + cities + (landlocked ? 10 : 0));
+}
+
+/**
+ * Whole armies a realm wants to be able to lift at once, and therefore the berths it builds for.
+ *
+ * **This was the cap on everything** — owner-specified in 0.18.5. `BERTHS_WANTED` was a flat twenty,
+ * one army's worth, for every realm on the map. Measured at 1600 the dominant realm held 45 cities,
+ * **17 million gold, 797,000 wood, and was using 2.4% of its manpower ceiling** — and had stopped
+ * building ships entirely, with not one shipyard queue busy anywhere in the realm, because it had
+ * 29 hulls against a ceiling of 28.
+ *
+ * A power like that should be able to put five armies to sea at once and does not notice the cost.
+ * Being unable to move more than one is what left forty stacks wandering around Iberia while the
+ * war it wanted was across the water.
+ */
+function convoysWanted(cities: number): number {
+  return Math.max(1, Math.min(5, 1 + Math.floor(cities / 10)));
 }
 
 /**
@@ -541,8 +558,10 @@ function navalAppetite(
     berths,
     wantsHulls,
     wantsEscorts,
-    wantsBerths: BERTHS_WANTED,
-    complete: hulls >= wantsHulls || (berths >= BERTHS_WANTED && escorts >= wantsEscorts),
+    wantsBerths: BERTHS_WANTED * convoysWanted(cities),
+    complete:
+      hulls >= wantsHulls ||
+      (berths >= BERTHS_WANTED * convoysWanted(cities) && escorts >= wantsEscorts),
   };
 }
 
@@ -905,7 +924,32 @@ function putAshore(state: SimState, world: World, fleet: FleetState, home: Int32
     .filter((tile) => reachedIn(home, tile) > HOME_SHORE)
     .sort((a, b) => a - b)[0];
 
-  if (beach !== undefined) disembark(state, world, fleet.id, beach);
+  if (beach !== undefined) {
+    disembark(state, world, fleet.id, beach);
+    return;
+  }
+
+  /**
+   * **No empty beach: fight for one** — owner-specified in 0.18.5.
+   *
+   * Only ever reached when `landingSites` came back with nothing worth using, which on a contested
+   * coast is common: an enemy army standing on the shore blocks a landing outright, so a convoy that
+   * crossed an ocean would circle offshore until its escorts deserted.
+   *
+   * Troops only. A settlement is still never a landing site (that rule predates this one and
+   * survives it), so this storms a beach held by an army, not a city held by walls.
+   */
+  const held = seaNeighbours(world, fleet.tileIndex)
+    .filter((tile) => !isWater(world, tile))
+    .filter((tile) => reachedIn(home, tile) > HOME_SHORE)
+    .filter((tile) => !state.cities.some((city) => city.tileIndex === tile))
+    .filter((tile) => {
+      const standing = state.armies.find((army) => army.tileIndex === tile);
+      return standing !== undefined && standing.ownerIndex !== fleet.ownerIndex;
+    })
+    .sort((a, b) => a - b)[0];
+
+  if (held !== undefined) stormBeach(state, world, fleet, held);
 }
 
 /**

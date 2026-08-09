@@ -1,7 +1,12 @@
 import { hasWarship, type UnitStack } from '../data/units';
 import { inBounds, tileIndex, type World } from '../data/world';
-import { stackSize } from './armies';
-import { fightBattle, recordBattle, type BattleContingent } from './battle';
+import { removeArmy, stackSize } from './armies';
+import {
+  defenderAdvantage,
+  fightBattle,
+  recordBattle,
+  type BattleContingent,
+} from './battle';
 import { calendarAt } from './calendar';
 import { pushEvent } from './events';
 import {
@@ -400,6 +405,93 @@ export function fightAtSea(
 
   // A battle changes what each realm has to pay wages for, whether or not anything changed hands.
   recomputeIncome(state, world);
+}
+
+/**
+ * Storm a defended beach straight off the boats — owner-specified in 0.18.5.
+ *
+ * "The ships carrying troops should be able to fight vs troops on the land if there is no landing
+ * zone empty, as if it is attacking the army from the ground."
+ *
+ * A **last resort, and only against troops.** An empty beach is always preferred and `putAshore`
+ * tries every one of them first; this is what happens when a coast is held shoulder to shoulder and
+ * the alternative is a loaded fleet circling for ever. Settlements are still excluded, which keeps
+ * the earlier rule intact: an army does not assault a city from the sea, it lands beside one and
+ * marches in.
+ *
+ * The men fight **as if they had marched there**. The defender gets the full ground advantage of the
+ * tile it is standing on, exactly as it would against an attack overland — no allowance either way
+ * for the water behind the attacker, because none was specified and inventing one would invent a
+ * rule.
+ *
+ * Winning puts the survivors ashore as an army and takes the tile. Losing is expensive in the way
+ * everything naval is expensive: the men who fell are gone, and what is left goes back aboard.
+ */
+export function stormBeach(
+  state: SimState,
+  world: World,
+  fleet: FleetState,
+  tile: number,
+): boolean {
+  if (stackSize(fleet.cargo) === 0) return false;
+  if (isWater(world, tile)) return false;
+  // Never a settlement — that rule predates this one and survives it.
+  if (state.cities.some((city) => city.tileIndex === tile)) return false;
+
+  const defender = state.armies.find((army) => army.tileIndex === tile);
+  if (!defender || defender.ownerIndex === fleet.ownerIndex) return false;
+
+  const advantage = defenderAdvantage(state, world, tile);
+  const { report, survivors } = fightBattle(state, world, {
+    tileIndex: tile,
+    cityIndex: -1,
+    attackerIndex: fleet.ownerIndex,
+    defenderIndex: defender.ownerIndex,
+    // The landing force has no army id — it is cargo until it is ashore.
+    attacker: [{ source: 'army', stack: { ...fleet.cargo }, armyId: -1 }],
+    defender: [
+      { source: 'army', stack: { ...defender.units }, advantage: advantage.total, armyId: defender.id },
+    ],
+  });
+  recordBattle(state, report);
+
+  const ashore = survivors[0].armies.find((a) => a.armyId === -1)?.units ?? {};
+  const held = survivors[1].armies.find((a) => a.armyId === defender.id)?.units ?? {};
+  const won = report.winner === 'attacker';
+
+  if (won) {
+    removeArmy(state, defender.id);
+    fleet.cargo = {};
+    if (stackSize(ashore) > 0) {
+      state.armies.push({
+        id: state.nextArmyId++,
+        ownerIndex: fleet.ownerIndex,
+        tileIndex: tile,
+        units: ashore,
+        path: [],
+        march: 0,
+        role: 'field',
+      });
+      // Ground is taken by standing on it, however you arrived.
+      state.tileOwner[tile] = fleet.ownerIndex;
+    }
+  } else {
+    // Thrown back into the sea. What is left is still cargo, and still subject to the berths.
+    fleet.cargo = ashore;
+    if (stackSize(held) === 0) removeArmy(state, defender.id);
+    else defender.units = held;
+    drownExcessCargo(state, fleet, 'in the landing');
+  }
+
+  pushEvent(state, {
+    kind: 'battle',
+    text: won ? 'A landing was forced against a defended shore' : 'A landing was thrown back into the sea',
+    tileIndex: tile,
+    factionIndex: fleet.ownerIndex,
+    battleId: report.id,
+  });
+  recomputeIncome(state, world);
+  return true;
 }
 
 /** Survivors back onto a fleet, drowning whatever the remaining Transports cannot carry. */

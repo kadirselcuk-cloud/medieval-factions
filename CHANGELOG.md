@@ -13,6 +13,54 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.18.5] — 2026-08-09
+
+Castille held all of mainland Europe, was stronger than everyone else combined, and could not do
+anything with it: the armies waited or wandered, only the raiders moved. The diagnosis was not
+subtle once measured — at 1600 it had **45 cities, 17 million gold, 797,000 wood, 2.4% of its
+manpower ceiling used, and not one shipyard queue busy anywhere in the realm.**
+
+Same seed, 0.18.4 and now:
+
+| Year | Before | After |
+|---|---|---|
+| 1500 | 9 of 47 idle, 1,529 battles, **[36,10,7,6,1]** | 16 of 66 idle, **1,681 battles**, **[25,21,7,5,2]** |
+| 1600 | 23 of 54 idle, 1,172 battles, **[46,7,5,1,1]** | **11 of 67 idle**, **1,647 battles**, **[25,21,7,5,2]** |
+
+The runaway is gone: two great powers of 25 and 21 cities instead of one of 46, still fighting at
+full tilt two and a half centuries in. Every shipyard in the world is busy.
+
+### Fixed
+
+- **The naval ceilings were the cap on everything.** `hullsWanted` topped out at 28 and
+  `BERTHS_WANTED` was a flat **twenty — one army's worth — for every realm on the map**, from a
+  fishing village to an empire of forty-five cities. A realm with berths for one army has one
+  invasion in it however rich it is, which is exactly why forty stacks were wandering around Iberia
+  while the war they wanted was across the water. Hulls now scale to 60 and berths to five whole
+  armies.
+- **A boat outranks a field.** 0.18.4 let armies claim a rival's open ground, and a large realm
+  always has some — so that branch always succeeded and the "go and wait for a boat" branch below it
+  was never reached. That is the aimless wandering the owner saw. Taking a field is worth a few gold
+  a month; getting on a ship is worth a continent, so the field force now queues at the harbours and
+  tidying borders is left to the claiming stacks whose job it is.
+
+### Added
+
+- **A landing can be forced.** Where no beach is free, the men aboard fight the army holding the
+  shore **as if they had marched there** — the defender gets the full ground advantage of its tile,
+  with no allowance either way for the water behind the attacker. Winning puts the survivors ashore
+  and takes the tile; losing costs the men and puts the rest back aboard.
+  - **Troops only.** A settlement is still never a landing site, so this storms a beach held by an
+    army and not a city held by walls — the earlier rule that armies do not assault cities off the
+    boats survives intact.
+- **A realm with only overseas enemies builds a third fewer soldiers**, and spends the people on
+  crews instead. A crew counts against the same manpower ceiling as a spearman, and an extra
+  spearman in Castille is worth nothing when every enemy is across water. A third off rather than a
+  halt: garrisons still matter, the boats still need stacks to carry, and the realm may yet be
+  landed on itself.
+- 3 tests: a forced landing carries the beach and takes the tile, a settlement is never stormed from
+  the sea, and an empty shore falls through to an ordinary landing.
+
 ## [0.18.4] — 2026-08-09
 
 **There is never a stalemate.** The owner reported armies freezing after 100–150 years, or the

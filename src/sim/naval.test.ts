@@ -41,6 +41,7 @@ import {
   findSeaPath,
   orderSail,
   seaBlockedBy,
+  stormBeach,
 } from './sailing';
 import { deserialise, migrate, serialise, SAVE_VERSION, type SaveFile } from './save';
 import { createInitialState } from './state';
@@ -796,5 +797,74 @@ describe('a landing finds a beach, never a city', () => {
     });
     // The men are still aboard — nothing was quietly thrown at the walls.
     expect(fleet.cargo).toEqual({ light_infantry: 2 });
+  });
+});
+
+/**
+ * Storming a defended beach — owner-specified in 0.18.5.
+ *
+ * "The ships carrying troops should be able to fight vs troops on the land if there is no landing
+ * zone empty, as if it is attacking the army from the ground." A last resort: an empty beach is
+ * always preferred, and a settlement is still never a landing site at all.
+ */
+describe('a landing can be forced', () => {
+  const rival = FRANKS === 0 ? 1 : 0;
+
+  /** A fleet with cargo, and the coast beside it. */
+  const loaded = () => {
+    const fleet = putToSea({ transport: 2 });
+    fleet.cargo = { light_infantry: 4 };
+    const beach = seaNeighbours(world, fleet.tileIndex).find(
+      (tile) => !isWater(world, tile) && !state.cities.some((c) => c.tileIndex === tile),
+    );
+    return { fleet, beach };
+  };
+
+  it('fights the army holding the shore rather than circling for ever', () => {
+    const { fleet, beach } = loaded();
+    if (beach === undefined) return;
+
+    state.armies.push({
+      id: state.nextArmyId++,
+      ownerIndex: rival,
+      tileIndex: beach,
+      units: { light_infantry: 1 },
+      path: [],
+      march: 0,
+      role: 'field',
+    });
+    // Blocked as a landing site, which is what makes this necessary.
+    expect(landingBlockedBy(state, world, fleet, beach)).toBe('hostile-army');
+
+    const battles = state.nextBattleId;
+    expect(stormBeach(state, world, fleet, beach)).toBe(true);
+    expect(state.nextBattleId).toBeGreaterThan(battles);
+
+    // Four Light Infantry against one, on open ground: the landing carries and takes the tile.
+    expect(armyAt(state, beach)?.ownerIndex).toBe(FRANKS);
+    expect(state.tileOwner[beach]).toBe(FRANKS);
+    expect(stackSize(fleet.cargo)).toBe(0);
+  });
+
+  it('never storms a settlement — that rule survives this one', () => {
+    const fleet = putToSea({ transport: 2 });
+    fleet.cargo = { light_infantry: 4 };
+
+    const city = seaNeighbours(world, fleet.tileIndex)
+      .map((tile) => state.cities.find((c) => c.tileIndex === tile))
+      .find((c) => c !== undefined);
+    if (!city) return;
+    city.ownerIndex = rival;
+
+    expect(stormBeach(state, world, fleet, city.tileIndex)).toBe(false);
+    expect(stackSize(fleet.cargo)).toBe(4);
+  });
+
+  it('does nothing where the shore is empty or friendly', () => {
+    const { fleet, beach } = loaded();
+    if (beach === undefined) return;
+    // No defender: this is an ordinary landing, and `disembark` handles it.
+    expect(stormBeach(state, world, fleet, beach)).toBe(false);
+    expect(stackSize(fleet.cargo)).toBe(4);
   });
 });
