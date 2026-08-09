@@ -279,12 +279,27 @@ export async function autosave(file: Omit<SaveFile, 'id'>): Promise<void> {
   const id = `${file.kind}-${file.tick}`;
   await writeSave({ ...file, id });
 
-  const existing = (await listSaves())
-    .filter((meta) => meta.kind === file.kind)
+  /**
+   * Rotation reads **keys only**, never save files.
+   *
+   * This used to call `listSaves`, which is `getAll` — it pulled every autosave in the database
+   * back out, **including its entire serialised state**, only to look at the two fields in the id
+   * and throw the rest away. Once a month that is merely wasteful; at the maximum-speed cheat it is
+   * eight full round trips a second through a hundred thousand tiles of state, and it was the
+   * multi-second stall the owner saw.
+   *
+   * The id carries everything rotation needs — it is `kind-tick` by construction, written three
+   * lines above — so the whole decision can be made from the key list.
+   */
+  const keys = await transact<IDBValidKey[]>('readonly', (store) => store.getAllKeys());
+  const mine = keys
+    .filter((key): key is string => typeof key === 'string' && key.startsWith(`${file.kind}-`))
+    .map((key) => ({ key, tick: Number(key.slice(file.kind.length + 1)) }))
+    .filter((entry) => Number.isFinite(entry.tick))
     .sort((a, b) => b.tick - a.tick);
 
-  for (const stale of existing.slice(keep)) {
-    await deleteSave(stale.id);
+  for (const stale of mine.slice(keep)) {
+    await deleteSave(stale.key);
   }
 }
 

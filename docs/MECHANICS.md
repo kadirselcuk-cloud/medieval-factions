@@ -704,6 +704,24 @@ There is **no morale system** — the 3× unit-count rout rule replaces it.
 
 ## 7. Saves
 
+### Autosaves are throttled by the wall clock — since 0.18.8
+
+An autosave is a full structural copy of the state plus six 2,450-element arrays, taken on the main
+thread before anything reaches IndexedDB. At 1x a month is two real minutes and that cost is
+invisible; under the maximum-speed cheat a month is an eighth of a second, so the same work ran
+**eight times a second** — and since rotation keeps only the five most recent, all but five of the
+twelve hundred autosaves in a century were written and immediately deleted.
+
+There is now a floor of **two real seconds** between autosaves. No speed a player can reach without
+the cheat comes close to it, so ordinary play is unchanged: the monthly slots still hold the five
+most recent months that were saved, and the yearly slots the three most recent years.
+
+**Rotation reads keys, not files.** It used to fetch every autosave in the database — each with its
+entire serialised state — in order to read the two fields encoded in its id. Since an id is
+`kind-tick` by construction, the whole decision is made from the key list, and rotation now touches
+no state at all. That was the multi-second stall behind the stutter the owner reported.
+
+
 - **IndexedDB**, multiple named slots.
 - Autosave on every month rollover, plus manual saves. Rotation depth **[OPEN]**, default 5.
 - **JSON export/import** so saves survive a cache wipe and can move to the mobile build.

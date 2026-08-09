@@ -13,6 +13,52 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.18.8] — 2026-08-09
+
+**A performance fix.** The owner reported the maximum-speed cheat stuttering — a few months, a
+freeze, a few more months, another freeze — where years used to pass smoothly. Two separate causes,
+both measured rather than guessed at.
+
+| | Before | After |
+|---|---|---|
+| A decade at 1450, 136 armies afloat | **6,786ms** | **2,025ms** |
+| A decade at 1400 | 6,216ms | **1,670ms** |
+| The opening decade | 2,439ms | **712ms** |
+| Autosaves written per century at max speed | ~1,200, of which 5 kept | **~75** |
+| Each autosave's rotation | read **every save file, with its full state** | reads keys only |
+
+### Fixed
+
+- **Three linear scans of the city list, per tile, inside the hottest loop in the AI.**
+  `sweepForGround` walks all 2,450 tiles once a month for nearly every army in the world, and the
+  0.18.4 enemy-ground rule put `state.cities.some`, `state.cities.find` and `willAttack` — which
+  scans the cities again — inside it. About half a million operations per army per month, and it ran
+  the sweep **twice**. The per-tile work is now a set lookup and an array index, and the two passes
+  are one: free ground and a rival's fields are tracked side by side.
+- **`frontierSettlements` ran a breadth-first sweep of the whole map on every call** — once per
+  border guard deciding where to stand, and again inside `nextRole` for every garrison considering a
+  muster. It measured 176ms of a 788ms `order` phase, the most expensive single thing the AI did per
+  army. The answer cannot change within a month, so the first caller pays and the rest read it.
+- **`blockedBy` scanned all sixty settlements on every tile of every march, every tick** — a quarter
+  of the entire simulation's cost. A settlement never moves (`CityState.tileIndex` is `readonly` and
+  nothing assigns it), so the tile-to-settlement map is built once per campaign and handed back live.
+- **Autosave rotation read every save file back out of IndexedDB, whole**, to look at two fields in
+  the id and throw the rest away. The id is `kind-tick` by construction, so rotation now works off
+  the key list and touches no state at all. This was the multi-second stall.
+- **Autosaves are throttled against the wall clock**, at most one every two real seconds. An
+  autosave is a full `structuredClone` of the state plus six 2,450-element arrays, on the main
+  thread. At 1× a month is two real minutes and the cost is invisible; at the cheat a month is an
+  eighth of a second, so the same work ran eight times a second — and rotation keeps only the last
+  five, so all but five of the twelve hundred autosaves in a century were written and immediately
+  deleted. Nothing a player can reach without the cheat comes close to the threshold.
+
+### Added
+
+- A performance guard on a **mature** campaign. The existing one runs a decade from a standing
+  start, where a realm has one army and the map is empty — exactly the case that never regresses.
+  Everything expensive in the AI scales with the number of armies, so the new one pays for a century
+  first and then times a decade with a hundred and thirty of them in the field.
+
 ## [0.18.7] — 2026-08-09
 
 Two owner rules: a convoy is four Transports, and a realm without a city for two years dissolves.

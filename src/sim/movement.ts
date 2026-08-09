@@ -1,6 +1,6 @@
 import { TERRAIN_PROFILE } from '../data/terrain';
 import { inBounds, TERRAINS, tileIndex, type Terrain, type World } from '../data/world';
-import { armyAt, armyById, armySpeed, occupy, stackSize } from './armies';
+import { armyAt, armyById, armySpeed, cityAt, occupy, stackSize } from './armies';
 import { calendarAt, TICKS_PER_MONTH, type Season } from './calendar';
 import { resolveEngagement } from './conquest';
 import { pushEvent } from './events';
@@ -136,7 +136,7 @@ export function blockedBy(
 ): BlockReason | null {
   if (terrainOf(world, index) === 'water') return 'water';
 
-  const city = state.cities.find((c) => c.tileIndex === index);
+  const city = cityAt(state, index);
   if (city && city.ownerIndex !== army.ownerIndex) return 'hostile-settlement';
 
   const standing = armyAt(state, index);

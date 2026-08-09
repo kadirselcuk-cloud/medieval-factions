@@ -30,6 +30,15 @@ const MAX_FRAME_MS = 250;
 const MAX_TICKS_PER_FRAME = 40;
 
 /**
+ * Shortest gap between two autosaves, in **real** milliseconds.
+ *
+ * Two seconds. At every speed the player can reach without the cheat a month takes longer than
+ * this, so it never fires; at the cheat it turns twelve hundred wasted writes a century into about
+ * seventy-five useful ones.
+ */
+const AUTOSAVE_MIN_MS = 2000;
+
+/**
  * Owns the clock and the simulation state, and nothing else. React subscribes; it never
  * holds simulation data itself.
  *
@@ -51,6 +60,8 @@ export class Game {
   private lastFrameTime = 0;
   private accumulator = 0;
   private lastAutosavedMonth = 0;
+  /** Wall clock, for throttling autosaves at absurd speeds. Never part of a save. */
+  private lastAutosaveAt = 0;
   private readonly listeners = new Set<() => void>();
 
   constructor(
@@ -233,6 +244,24 @@ export class Game {
     if (date.totalMonths === this.lastAutosavedMonth) return;
     this.lastAutosavedMonth = date.totalMonths;
     if (date.totalMonths === 0) return;
+
+    /**
+     * **Throttled against the wall clock, not the campaign clock.**
+     *
+     * An autosave is a full `structuredClone` of the state plus six 2,450-element arrays, and it
+     * happens on the main thread before anything is handed to IndexedDB. At 1× a month is two real
+     * minutes and that cost is invisible. At the maximum-speed cheat a month is an eighth of a
+     * second, so the same work runs eight times a second — and since rotation keeps only the last
+     * five, all but five of the twelve hundred autosaves in a century are written and immediately
+     * deleted.
+     *
+     * Skipping them costs the player nothing: the monthly slots still hold the five most recent
+     * months that were actually saved, and the yearly slots the three most recent years. What it
+     * buys is the stutter going away.
+     */
+    const now = Date.now();
+    if (now - this.lastAutosaveAt < AUTOSAVE_MIN_MS) return;
+    this.lastAutosaveAt = now;
 
     const base = this.meta();
     const write = async () => {

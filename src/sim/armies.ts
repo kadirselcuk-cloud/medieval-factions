@@ -40,6 +40,32 @@ export function armyAt(state: SimState, tileIndex: number): ArmyState | undefine
   return state.armies.find((army) => army.tileIndex === tileIndex);
 }
 
+/**
+ * The settlement on a tile, in constant time.
+ *
+ * **A settlement never moves.** `CityState.tileIndex` is `readonly` and nothing in the simulation
+ * assigns it, so the tile-to-settlement mapping is fixed for the whole campaign and can be built
+ * once. Ownership, tier, garrison and siege all change freely — this hands back the live object, so
+ * every caller still reads current truth.
+ *
+ * Worth the cache because `blockedBy` asks this **once per tile of every march, every tick**: with a
+ * hundred and thirty armies on the map that is a linear scan of sixty settlements several thousand
+ * times a second, and it measured as a quarter of the entire simulation's cost.
+ *
+ * Keyed on the array rather than the state so a deserialised save gets its own, and a projection
+ * running on a structural copy does not poison the live campaign's.
+ */
+const cityByTile = new WeakMap<readonly CityState[], Map<number, CityState>>();
+
+export function cityAt(state: SimState, tileIndex: number): CityState | undefined {
+  let index = cityByTile.get(state.cities);
+  if (!index) {
+    index = new Map(state.cities.map((city) => [city.tileIndex, city]));
+    cityByTile.set(state.cities, index);
+  }
+  return index.get(tileIndex);
+}
+
 export function armyById(state: SimState, id: number): ArmyState | undefined {
   return state.armies.find((army) => army.id === id);
 }

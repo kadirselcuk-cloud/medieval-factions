@@ -953,3 +953,32 @@ describe('a campaign never settles into a stalemate', () => {
     expect(held()).not.toBe(groundBefore);
   });
 });
+
+/**
+ * **The late game has to stay watchable**, not just the opening.
+ *
+ * The existing performance guard runs a decade from a standing start, where a realm has one army
+ * and the map is empty — which is exactly the case that never regresses. Everything expensive in
+ * this file scales with the number of armies, and a mature campaign has a hundred and thirty of
+ * them, so the guard that matters is the one that pays for a century first.
+ *
+ * It caught nothing when it was written because it did not exist. What it is here to catch is the
+ * shape of bug that produced the 0.18.8 regression: a linear scan of the cities or the armies
+ * dropped inside a loop that already walks all 2,450 tiles, which is invisible at ten armies and
+ * costs six seconds a decade at a hundred and thirty.
+ */
+describe('performance in a mature campaign', () => {
+  it('runs a decade of a century-old world in a couple of seconds', () => {
+    const state = campaign('king');
+    years(state, 100);
+
+    const started = Date.now();
+    years(state, 10);
+    const elapsed = Date.now() - started;
+
+    // Measured at roughly 1.7s with 136 armies and 27 fleets afloat. The budget is deliberately
+    // loose — this is a smoke alarm for an accidental quadratic, not a benchmark.
+    expect(elapsed).toBeLessThan(6000);
+    expect(state.armies.length).toBeGreaterThan(20);
+  });
+});

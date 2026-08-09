@@ -94,12 +94,32 @@ interface Mind {
    */
   harbours: readonly CityState[];
   overseasTargets: boolean;
+  /**
+   * Tiles a settlement stands on, and whose open ground this realm is willing to take.
+   *
+   * Both exist purely for speed, and the speed is not a nicety. `sweepForGround` walks all 2,450
+   * tiles once a month for nearly every army in the world; asking "is there a city here" and "would
+   * I attack this owner" inside that loop meant three scans of the city list per tile, which cost a
+   * decade at maximum speed six seconds instead of half of one. Computed once per realm per month.
+   */
+  cityTiles: ReadonlySet<number>;
+  /** Indexed by faction. True where this realm would take that realm's fields. */
+  takeableFrom: readonly boolean[];
+  /**
+   * The realm's own settlements, nearest an enemy first. Memoised — see `frontierSettlements`.
+   *
+   * Filled on first use rather than up front, because a realm with no border guards and no muster
+   * this month never asks, and asking costs a breadth-first sweep of the whole map.
+   */
+  frontier?: CityState[];
   /** Nothing on this continent left to attack. Decides whether a border guard still has a border. */
   noLandWar: boolean;
 }
 
 export function runAi(state: SimState, world: World): void {
   const strength = realmStrengths(state);
+  // Shared by every realm this month. `sweepForGround` asks about it 2,450 times per army.
+  const cityTiles = new Set(state.cities.map((city) => city.tileIndex));
 
   for (const faction of state.factions) {
     if (!faction.alive || !faction.ai) continue;
@@ -166,9 +186,27 @@ export function runAi(state: SimState, world: World): void {
       home,
       bare,
       harbours,
+      cityTiles,
+      takeableFrom: [],
       overseasTargets: false,
       noLandWar: false,
     };
+    /**
+     * Whose fields this realm would take, decided **once per realm** rather than once per tile.
+     *
+     * `willAttack` is asked about a settlement, so one is picked per owner to stand for the realm —
+     * its lowest-indexed city, which is stable. The scruples it applies (dogpiling, the bully floor)
+     * are properties of the *realm*, not of the individual settlement, so any of them answers the
+     * same. Filled after the Mind exists because `willAttack` needs one.
+     */
+    const takeable: boolean[] = state.factions.map(() => false);
+    for (const other of state.factions) {
+      if (other.index === faction.index) continue;
+      const theirs = state.cities.find((city) => city.ownerIndex === other.index);
+      takeable[other.index] = theirs !== undefined && willAttack(state, theirs, mind);
+    }
+    mind.takeableFrom = takeable;
+
     // Filled after the Mind exists because `willAttack` needs one. Anything worth taking that no
     // army of this realm can walk to — which is what makes a port worth marching to.
     mind.overseasTargets =
@@ -1058,7 +1096,24 @@ function order(
  * and posts no guards — which is correct, and is why an island realm does not tie up half its
  * army watching a coast.
  */
+/**
+ * The realm-s settlements, nearest an enemy first — **computed once a month, then remembered**.
+ *
+ * It costs a breadth-first sweep of all 2,450 tiles outward from every hostile settlement, and it
+ * was being paid **per army**: once for each border guard deciding where to stand, and again inside
+ * `nextRole` for every garrison considering a muster. Measured at 176ms of a 788ms `order` phase,
+ * the single most expensive thing the AI did per army.
+ *
+ * The answer cannot change within a month — cities do not move and nothing here reads an army — so
+ * the first caller pays for it and the rest read it.
+ */
 function frontierSettlements(state: SimState, world: World, mind: Mind): CityState[] {
+  if (mind.frontier) return mind.frontier;
+  mind.frontier = computeFrontier(state, world, mind);
+  return mind.frontier;
+}
+
+function computeFrontier(state: SimState, world: World, mind: Mind): CityState[] {
   const hostile = state.cities
     .filter((city) => city.ownerIndex !== mind.faction.index)
     .map((city) => city.tileIndex);
@@ -1145,39 +1200,46 @@ function pickClaim(
   }
 
   /**
-   * **A rival's open fields count too, once there is no free ground left** — owner-specified in
-   * 0.18.4, and one of the two things that unstuck the late game.
+   * **One pass, tracking two answers** — free ground and, failing that, a rival's open fields.
    *
-   * Taking a rival's tile used to be "an act of war that belongs to the objective, not to tidying
-   * up the border". That was right while there was free ground; it becomes a paralysis the moment
-   * there is not. Measured at 1500 with the map 100% claimed, **every one of 52 armies was idle** —
-   * claimers had nothing to claim, and a realm's border with its neighbour, which is the most
-   * valuable ground on the map, was invisible to the one job whose whole purpose is taking ground.
+   * The rival's-fields rule (owner-specified in 0.18.4) is what unstuck the late game: taking a
+   * rival's tile used to belong to the objective rather than to tidying the border, which was right
+   * while there was free ground and became paralysis the moment there was not. Measured at 1500 with
+   * the map 100% claimed, **every one of 52 armies was idle**. It is also income — a tile pays its
+   * owner monthly whether or not a city stands on it.
    *
-   * And it is **income**: a tile pays its owner every month whether or not a city sits on it, so a
-   * realm that takes cities and leaves the fields between them is leaving money on the table.
-   *
-   * Free ground still comes first — it is cheaper, nobody fights for it, and it does not open a
-   * front. A rival's ground is only considered when there is none, and only where the realm would
-   * attack that rival anyway, so the scruples that govern war govern this too.
+   * Free ground still wins where there is any: it is cheaper, nobody fights for it, and it opens no
+   * front. Both candidates are tracked in the same sweep rather than by running the sweep twice,
+   * because this is the hottest loop in the AI — see `sweepForGround`.
    */
-  const enemyGround = (index: number): boolean => {
-    const owner = state.tileOwner[index] ?? -1;
-    if (owner < 0 || owner === mind.faction.index) return false;
-    // Never the tile a settlement stands on. That is a siege, and it belongs to the objective.
-    if (state.cities.some((city) => city.tileIndex === index)) return false;
-    const theirCity = state.cities.find((city) => city.ownerIndex === owner);
-    return theirCity !== undefined && willAttack(state, theirCity, mind);
-  };
+  const free = { best: -1, fromCity: Number.POSITIVE_INFINITY, fromArmy: Number.POSITIVE_INFINITY };
+  const enemy = { best: -1, fromCity: Number.POSITIVE_INFINITY, fromArmy: Number.POSITIVE_INFINITY };
+  sweepForGround(state, world, army, mind, bound, spokenFor, free, enemy);
 
-  for (const wantFree of [true, false]) {
-    const found = sweepForGround(state, world, army, mind, bound, spokenFor, wantFree, enemyGround);
-    if (found >= 0) return found;
-  }
-  return -1;
+  return free.best >= 0 ? free.best : enemy.best;
 }
 
-/** One pass over the tile grid, for `pickClaim`. Split out so it can run twice with two rules. */
+/** The best candidate found so far in a ground sweep. Mutated in place — this loop is hot. */
+interface GroundPick {
+  best: number;
+  fromCity: number;
+  fromArmy: number;
+}
+
+/**
+ * One pass over the tile grid, filling in the best free tile and the best enemy tile at once.
+ *
+ * **This is the hottest loop in the simulation** and it has been the cause of one performance
+ * regression already, so the shape matters. It runs once a month for every army that has run out of
+ * better things to do — which since 0.18.4 is most of them, in a world of a hundred armies and
+ * thirteen realms — and it walks all 2,450 tiles each time.
+ *
+ * Everything that can be hoisted has been. The first version of the enemy-ground rule called
+ * `state.cities.some`, `state.cities.find` **and** `willAttack` (which scans the cities again)
+ * *inside* this loop: three scans of sixty settlements per tile, twice over, per army. That is about
+ * half a million operations per army per month, and it made a decade at maximum speed take six
+ * seconds where it had taken half of one. The per-tile work is now a set lookup and an array index.
+ */
 function sweepForGround(
   state: SimState,
   world: World,
@@ -1185,38 +1247,42 @@ function sweepForGround(
   mind: Mind,
   bound: number,
   spokenFor: ReadonlySet<number>,
-  wantFree: boolean,
-  enemyGround: (index: number) => boolean,
-): number {
-  let best = -1;
-  let bestFromCity = Number.POSITIVE_INFINITY;
-  let bestFromArmy = Number.POSITIVE_INFINITY;
+  free: GroundPick,
+  enemy: GroundPick,
+): void {
+  const mine = mind.faction.index;
+  const owners = state.tileOwner;
 
-  // A sweep of all 2,450 tiles rather than a box per settlement. It is one pass over a typed
-  // array, once a month per claiming stack, and the box was never a saving worth the ground it
-  // cost — the expensive checks are still last, and most tiles fail the first one.
-  for (let index = 0; index < state.tileOwner.length; index++) {
-    const free = (state.tileOwner[index] ?? -1) === -1;
-    if (wantFree ? !free : free || !enemyGround(index)) continue;
+  for (let index = 0; index < owners.length; index++) {
+    const owner = owners[index] ?? -1;
+    if (owner === mine) continue;
+
+    // Precomputed once per realm per month: whose ground this realm would take, and which tiles a
+    // settlement stands on. A siege belongs to the objective, not to tidying the border.
+    const pick = owner === -1 ? free : mind.takeableFrom[owner] && !mind.cityTiles.has(index) ? enemy : undefined;
+    if (!pick) continue;
+    // Free ground always wins, so once one is found the enemy branch cannot change the answer.
+    if (pick === enemy && free.best >= 0) continue;
     if (spokenFor.has(index)) continue;
 
     // Infinity is water or another landmass, and `Infinity > Infinity` is false — so unreachable
     // ground has to be excluded by name rather than by the bound, even an infinite one.
     const fromCity = reachedIn(mind.home, index);
     if (!Number.isFinite(fromCity) || fromCity > bound) continue;
+    if (fromCity > pick.fromCity) continue;
 
     const fromArmy = chebyshev(world, index, army.tileIndex);
-    if (fromCity > bestFromCity) continue;
-    if (fromCity === bestFromCity && fromArmy >= bestFromArmy) continue;
+    if (fromCity === pick.fromCity && fromArmy >= pick.fromArmy) continue;
 
+    // Left to last on purpose: both are linear scans, and only a candidate that has already beaten
+    // the best so far is worth paying for them.
     if (!sameLandmass(world, army.tileIndex, index)) continue;
     if (blockedBy(state, world, army, index, true) !== null) continue;
 
-    best = index;
-    bestFromCity = fromCity;
-    bestFromArmy = fromArmy;
+    pick.best = index;
+    pick.fromCity = fromCity;
+    pick.fromArmy = fromArmy;
   }
-  return best;
 }
 
 /**
