@@ -21,8 +21,9 @@ import type { CityState, SimState } from './types';
  * 6 → 7: the map remembers where the player has been. A v6 save never recorded it.
  * 7 → 8: march points are a hundred times finer, so half-tile speeds stay integers.
  * 8 → 9: fleets. A v8 campaign was fought entirely on land, because nothing could leave it.
+ * 9 → 10: realms count the months they have held no city, and dissolve after two years of it.
  */
-export const SAVE_VERSION = 9;
+export const SAVE_VERSION = 10;
 
 const DB_NAME = 'medieval-factions';
 const DB_VERSION = 1;
@@ -210,6 +211,13 @@ export function migrate(file: SaveFile): SaveFile {
   if (file.version < 9) {
     state.fleets = state.fleets ?? [];
     state.nextFleetId = state.nextFleetId ?? 1;
+  }
+
+  // v9 let a realm survive for ever on its last army, so nothing was counting. Every realm starts
+  // the clock at zero on load: one that has been landless for a century gets two more years, which
+  // is the generous reading and the only one that cannot retroactively kill somebody mid-campaign.
+  if (file.version < 10) {
+    for (const faction of state.factions) faction.cityless = faction.cityless ?? 0;
   }
 
   return { ...file, version: SAVE_VERSION, state };

@@ -66,7 +66,27 @@ export interface FactionState {
    * ground every realm expands into, not a rival with ambitions of their own.
    */
   ai: AiProfile | null;
+  /**
+   * Consecutive months the realm has held **no settlement at all** — owner-specified in 0.18.7.
+   *
+   * A realm used to survive indefinitely on its last army: it could hold nothing, build nothing and
+   * recruit nothing, and still count as alive and be counted among the living for two centuries.
+   * After `CITYLESS_MONTHS` without a city its armies disband and the realm is finished — an army
+   * with no country behind it stops being paid, and stops being an army.
+   *
+   * Reset to zero the moment it takes a settlement, so a realm driven to its last stack and then
+   * storming a village back is very much alive.
+   */
+  cityless: number;
 }
+
+/**
+ * How long a realm may hold no settlement before it dissolves. **Owner-specified: two years.**
+ *
+ * Long enough that losing a last city to a raid and retaking it is a comeback rather than a death
+ * sentence; short enough that a homeless army is not a realm.
+ */
+export const CITYLESS_MONTHS = 24;
 
 /** Work in progress in a settlement. Durations count down in whole months. */
 export type ConstructionOrder =
@@ -176,6 +196,19 @@ export interface ArmyState {
 
 /** docs/MECHANICS.md §10 — one fleet per sea tile, and the same twenty hulls an army gets. */
 export const MAX_FLEET_SHIPS = 20;
+
+/**
+ * Transports in one fleet — **owner-specified: four**, and the number is not arbitrary.
+ *
+ * Four Transports carry five units each, so a fleet's hold is exactly `MAX_ARMY_UNITS`. One fleet
+ * lifts one army and never more: the convoy and the thing it carries are the same size, which is
+ * what makes "a full fleet" and "a full army" the same sentence.
+ *
+ * The other sixteen berths in a fleet are for warships. A realm that wants to move five armies
+ * builds five convoys rather than one enormous one, which also means five separate things a rival's
+ * navy has to find and sink.
+ */
+export const MAX_FLEET_TRANSPORTS = 4;
 
 /**
  * A fleet at sea — docs/DESIGN.md decision 122.

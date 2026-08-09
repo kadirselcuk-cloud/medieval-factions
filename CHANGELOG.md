@@ -13,6 +13,43 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.18.7] — 2026-08-09
+
+Two owner rules: a convoy is four Transports, and a realm without a city for two years dissolves.
+
+### Changed
+
+- **Four Transports to a fleet, and no more.** Four carry five units each, so a fleet's hold is
+  exactly `MAX_ARMY_UNITS`: **one convoy lifts one army and never more**, and the convoy and the
+  thing it carries are the same size. The other sixteen berths are for warships, which are not
+  capped — that is what an escort is.
+  - Enforced everywhere a fleet can grow: `launch`, `mergeFleets`, and the merge-on-arrival check in
+    the sea pathfinder, so two half-loaded convoys cannot combine into one that carries two armies.
+  - A harbour with more Transports than that launches **one convoy's worth** and leaves the surplus
+    moored, to sail as a second. Without that the AI would have tried to launch ten at once, been
+    refused, and never emptied the port.
+  - A realm that wants to move five armies now builds five convoys — which is also five separate
+    things a rival's navy has to find and sink.
+- **A full hold sails.** Already the behaviour — a fleet whose berths are all used stops waiting —
+  but it now means something exact, because a full hold is twenty units rather than however many
+  Transports happened to gather.
+
+### Added
+
+- **A realm that has held no settlement for two years dissolves**, and its armies and fleets are
+  struck off with it. `updateLiveness` only finished a realm that had lost **both** its cities and
+  its armies, so one reduced to a single wandering stack stayed on the books indefinitely: holding
+  nothing, building nothing, recruiting nothing, and still counted among the living. Campaign probes
+  routinely showed realms sitting at zero cities two centuries in.
+  - The counter **resets the moment it holds a city again**, so a realm driven to its last army and
+    then storming a village back is a comeback rather than a corpse. Writing the test proved the
+    point by accident: the first version stripped Italy and left it an army, and the Italians took a
+    village back by month six.
+  - Save format **v10**. A v9 realm starts its clock at zero on load — the generous reading, and the
+    only one that cannot retroactively kill somebody mid-campaign.
+- 6 tests: the four-Transport cap on launching, reinforcing and merging; the hold being exactly one
+  army; and the two-year collapse with its reset.
+
 ## [0.18.6] — 2026-08-09
 
 Four things from watching a Turkish campaign: fleets in a permanent standoff, twenty units stranded

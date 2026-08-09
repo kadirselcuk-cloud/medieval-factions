@@ -15,7 +15,7 @@ import {
 } from './battle';
 import { pushEvent } from './events';
 import type { BattleSetup } from './battle';
-import type { ArmyState, BattleReport, CityState, SimState } from './types';
+import { CITYLESS_MONTHS, type ArmyState, type BattleReport, type CityState, type SimState } from './types';
 
 /**
  * Sieges, and what happens after the fighting — who holds the ground, which city changed hands,
@@ -399,6 +399,49 @@ function captureCity(state: SimState, world: World, city: CityState, newOwner: n
  * claimed by marching over it (docs/DESIGN.md decision 21), and a realm should not inherit a
  * province it has never seen.
  */
+/**
+ * A realm that has held no settlement for two years dissolves — owner-specified in 0.18.7.
+ *
+ * `updateLiveness` only finishes a realm that has lost **both** its cities and its armies, so a
+ * realm reduced to one wandering stack stayed on the books indefinitely: holding nothing, building
+ * nothing, recruiting nothing, and still counted among the living. Campaign probes routinely showed
+ * realms with a city count of zero two centuries in.
+ *
+ * An army with no country behind it stops being paid and stops being an army. After
+ * `CITYLESS_MONTHS` its stacks and its fleets are struck off together, and the realm goes with them.
+ *
+ * The counter resets the moment it takes a settlement, so a realm driven to its last army and then
+ * storming a village back is a comeback rather than a corpse. Called once a month, from the tick.
+ */
+export function collapseLandlessRealms(state: SimState, world: World): void {
+  for (const faction of state.factions) {
+    if (!faction.alive) continue;
+
+    if (state.cities.some((city) => city.ownerIndex === faction.index)) {
+      faction.cityless = 0;
+      continue;
+    }
+
+    faction.cityless += 1;
+    if (faction.cityless < CITYLESS_MONTHS) continue;
+
+    for (const army of state.armies.filter((a) => a.ownerIndex === faction.index)) {
+      removeArmy(state, army.id);
+    }
+    state.fleets = state.fleets.filter((fleet) => fleet.ownerIndex !== faction.index);
+
+    pushEvent(state, {
+      kind: 'conquest',
+      text: 'Landless for two years, a realm dissolved — its last soldiers went home',
+      tileIndex: 0,
+      factionIndex: faction.index,
+    });
+  }
+  // Struck off above, declared dead here, so there is one place a realm can die.
+  updateLiveness(state);
+  void world;
+}
+
 export function updateLiveness(state: SimState): void {
   for (const faction of state.factions) {
     if (!faction.alive) continue;

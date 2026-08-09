@@ -5,7 +5,7 @@ import { runAi } from './ai';
 import { removeArmy } from './armies';
 import { calendarAt, isMonthBoundary, TICKS_PER_MONTH } from './calendar';
 import { advanceConstruction } from './construction';
-import { advanceSieges } from './conquest';
+import { advanceSieges, collapseLandlessRealms } from './conquest';
 import { pushEvent } from './events';
 import { drownExcessCargo, removeFleet } from './fleets';
 import { advanceArmies } from './movement';
@@ -50,6 +50,9 @@ export function advance(state: SimState, world: World): void {
     // Last of the month, because a siege that ends this month resolves into a battle, and a
     // battle can take the settlement — after which nothing else about it is worth computing.
     advanceSieges(state, world);
+    // After the sieges, because a city taken this month is a city held: a realm that just lost its
+    // last one starts its two years now, and one that just stormed one back has its clock reset.
+    collapseLandlessRealms(state, world);
     // The rivals decide after everything else has settled, so they act on this month's true
     // world rather than on a half-updated one — and their orders play out over the next month.
     runAi(state, world);

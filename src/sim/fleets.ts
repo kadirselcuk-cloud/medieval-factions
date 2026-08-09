@@ -2,6 +2,7 @@ import {
   canEmbarkFrom,
   fleetCapacity,
   shipById,
+  transportsIn,
   unitById,
   type UnitStack,
 } from '../data/units';
@@ -12,6 +13,7 @@ import { terrainOf } from './movement';
 import {
   MAX_ARMY_UNITS,
   MAX_FLEET_SHIPS,
+  MAX_FLEET_TRANSPORTS,
   type ArmyState,
   type CityState,
   type FleetState,
@@ -48,7 +50,8 @@ export type FleetFailure =
   | 'no-berths'
   | 'no-cargo'
   | 'blocked'
-  | 'sea-occupied';
+  | 'sea-occupied'
+  | 'too-many-transports';
 
 export type FleetResult = { ok: true; fleetId: number } | { ok: false; reason: FleetFailure };
 
@@ -186,6 +189,11 @@ export function launch(
   const already = existing ? stackSize(existing.ships) : 0;
   if (already + added > MAX_FLEET_SHIPS) return fail('fleet-full');
 
+  // **Four Transports to a fleet** — owner-specified, and the reason the hold is exactly one army.
+  // The surplus stays moored; it becomes a second convoy when there is water to put it on.
+  const carriers = transportsIn(picks) + (existing ? transportsIn(existing.ships) : 0);
+  if (carriers > MAX_FLEET_TRANSPORTS) return fail('too-many-transports');
+
   const fleet: FleetState = existing ?? {
     id: state.nextFleetId++,
     ownerIndex: city.ownerIndex,
@@ -261,6 +269,9 @@ export function mergeFleets(state: SimState, intoId: number, fromId: number): Fl
   if (!into || !from) return fail('no-such-fleet');
   if (into.ownerIndex !== from.ownerIndex) return fail('not-owner');
   if (stackSize(into.ships) + stackSize(from.ships) > MAX_FLEET_SHIPS) return fail('fleet-full');
+  if (transportsIn(into.ships) + transportsIn(from.ships) > MAX_FLEET_TRANSPORTS) {
+    return fail('too-many-transports');
+  }
 
   for (const [id, count] of Object.entries(from.ships)) {
     into.ships[id] = (into.ships[id] ?? 0) + count;

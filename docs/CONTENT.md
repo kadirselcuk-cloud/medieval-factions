@@ -314,6 +314,9 @@ panel readable and keeps horses out of an argument about tonnage.
 stack crosses in one convoy rather than in instalments. That is the figure the number was chosen
 for.
 
+**A fleet may hold four Transports at most** (owner-specified in 0.18.7), so its capacity is 20 —
+exactly one army. Warships fill the remaining berths and are not capped.
+
 Only Transports carry anything. A fleet's capacity is `transports × 5`, and cargo above it is lost
 when it stops fitting (see MECHANICS §10). Where the berths fall short of the army, **the part that
 fits sails and the rest stays ashore** (decision 129) — the one place a stack can be divided.

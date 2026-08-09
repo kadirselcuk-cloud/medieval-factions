@@ -25,6 +25,16 @@ owner-authored truth. **[OPEN]** = unresolved, see [OPEN-QUESTIONS.md](OPEN-QUES
 
 Conquer every other faction. All factions permanently hostile; no diplomacy in v1.
 
+**A realm that has held no settlement for two years dissolves** — owner-specified in 0.18.7. Its
+armies and its fleets are struck off together and it is finished. A realm used to survive
+indefinitely on its last army: holding nothing, building nothing, recruiting nothing, and still
+counted among the living, which campaign probes showed happening for two centuries at a stretch. An
+army with no country behind it stops being paid and stops being an army.
+
+The clock **resets the moment it holds a city again**, so a realm driven to its last stack and then
+storming a village back is a comeback rather than a corpse. It applies to the player too: losing
+every city and failing to take one back inside two years is how a player loses.
+
 ---
 
 ## 3. Map & territory
@@ -1333,6 +1343,12 @@ A landed army claims the tile it steps onto, the same way a march claims ground 
 
 Cargo is **five land units per Transport** and only Transports carry — four hulls lift a whole
 twenty-unit army. Warships escort; they do not haul.
+
+**And four Transports is the limit for one fleet** — owner-specified in 0.18.7. A hold is therefore
+exactly `MAX_ARMY_UNITS`: one convoy lifts one army and never more, so the convoy and the thing it
+carries are the same size. The other sixteen berths of a fleet take warships, which are not capped —
+that is what an escort is. A realm that wants five armies at sea builds five convoys, which is also
+five separate things a rival navy has to find and sink.
 
 Where the berths fall short, **the part that fits sails and the rest stays ashore** as the army it
 was, keeping its id and its orders (decision 129). Heaviest formations board first: if only half an

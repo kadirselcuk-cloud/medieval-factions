@@ -260,3 +260,81 @@ function snapshot(state: SimState) {
     tileOwner: [...state.tileOwner],
   };
 }
+
+/**
+ * A realm with no city for two years dissolves — owner-specified in 0.18.7.
+ *
+ * `updateLiveness` only finishes a realm that has lost **both** its cities and its armies, so one
+ * reduced to a single wandering stack stayed on the books for ever: holding nothing, building
+ * nothing, recruiting nothing, and still counted among the living. Campaign probes routinely showed
+ * realms sitting at zero cities two centuries in.
+ */
+describe('a landless realm dissolves', () => {
+  const world = loadEurope1350();
+  const roster = loadFactions();
+
+  /**
+   * The **player's** realm is stripped, not a rival's.
+   *
+   * The first version of this test took Italy's one city away and left it an army — and the
+   * Italians promptly stormed a village back by month six, resetting the clock. That is the rule
+   * working exactly as intended and useless as a fixture. The player's realm has no AI, so it takes
+   * no action of its own and stays landless until the test says otherwise.
+   */
+  const victim = roster.findIndex((f) => f.id === 'franks');
+
+  /** A campaign with one realm stripped of its cities but left an army in the field. */
+  const orphaned = () => {
+    const state = createInitialState(world, roster, 'franks', 4242);
+    const neutral = roster.findIndex((f) => f.neutral);
+    for (const city of state.cities) {
+      if (city.ownerIndex === victim) city.ownerIndex = neutral;
+    }
+    // Funded on purpose. A realm with no cities has no income, and an unpaid army deserts at 10% a
+    // month — it would be gone well inside two years and this would be testing desertion instead.
+    state.factions[victim]!.stock.gold = 10_000_000 * MILLI;
+
+    // And parked on unclaimed ground, for the same reason: winter kills 10% a month of an army
+    // standing on a **rival's** territory, which finished this one off by month thirteen.
+    const refuge = state.cities[0]!.tileIndex + 1;
+    state.tileOwner[refuge] = -1;
+    state.armies.push({
+      id: state.nextArmyId++,
+      ownerIndex: victim,
+      tileIndex: refuge,
+      units: { light_infantry: 3 },
+      path: [],
+      march: 0,
+      role: 'field',
+    });
+    return state;
+  };
+
+  it('holds on for the first two years, then strikes the armies off', () => {
+    const state = orphaned();
+
+    // A year and a half in: still alive, still counting.
+    advanceBy(state, world, TICKS_PER_MONTH * 18);
+    expect(state.factions[victim]?.alive).toBe(true);
+    expect(state.factions[victim]?.cityless).toBeGreaterThan(0);
+    expect(state.armies.some((a) => a.ownerIndex === victim)).toBe(true);
+
+    // Past two years: the last soldiers go home and the realm goes with them.
+    advanceBy(state, world, TICKS_PER_MONTH * 10);
+    expect(state.armies.some((a) => a.ownerIndex === victim)).toBe(false);
+    expect(state.factions[victim]?.alive).toBe(false);
+  });
+
+  it('resets the clock the moment it holds a city again', () => {
+    const state = orphaned();
+    advanceBy(state, world, TICKS_PER_MONTH * 12);
+    expect(state.factions[victim]?.cityless).toBeGreaterThan(0);
+
+    // A comeback: it storms somewhere back.
+    state.cities[0]!.ownerIndex = victim;
+    advanceBy(state, world, TICKS_PER_MONTH);
+
+    expect(state.factions[victim]?.cityless).toBe(0);
+    expect(state.factions[victim]?.alive).toBe(true);
+  });
+});

@@ -222,6 +222,14 @@ export function fleetCapacity(ships: UnitStack): number {
   );
 }
 
+/** Hulls in this bag that carry anything. Capped per fleet — see `MAX_FLEET_TRANSPORTS`. */
+export function transportsIn(ships: UnitStack): number {
+  return Object.entries(ships).reduce(
+    (n, [id, count]) => n + ((shipById(id)?.carries ?? 0) > 0 ? count : 0),
+    0,
+  );
+}
+
 /**
  * True if this bag of ships can force an interception.
  *

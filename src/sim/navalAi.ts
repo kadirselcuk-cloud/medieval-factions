@@ -4,6 +4,7 @@ import {
   fleetCapacity,
   hasWarship,
   shipById,
+  transportsIn,
   type UnitStack,
 } from '../data/units';
 import type { World } from '../data/world';
@@ -15,6 +16,7 @@ import {
   disembark,
   embark,
   fitting,
+  fleetAt,
   fleetsOf,
   isCoastal,
   isWater,
@@ -26,7 +28,15 @@ import {
 import { landmassOf, reachedIn, sailingDistanceFrom, UNREACHABLE } from './geography';
 import { orderMove } from './movement';
 import { findSeaPath, orderSail, stormBeach } from './sailing';
-import { MAX_ARMY_UNITS, type ArmyState, type CityState, type FleetState, type SimState } from './types';
+import {
+  MAX_ARMY_UNITS,
+  MAX_FLEET_SHIPS,
+  MAX_FLEET_TRANSPORTS,
+  type ArmyState,
+  type CityState,
+  type FleetState,
+  type SimState,
+} from './types';
 
 /**
  * How a rival realm crosses water — docs/MECHANICS.md §10.
@@ -785,7 +795,54 @@ function putToSea(state: SimState, world: World, base: CityState, appetite: Nava
   const escortOnly = fleetCapacity(moored) === 0 && hasWarship(moored);
   if (!enough && !escortOnly && !appetite.complete) return;
 
-  launch(state, world, base, { ...moored });
+  launch(state, world, base, oneConvoy(state, world, base, moored));
+}
+
+/**
+ * As much of a harbour's moorings as one convoy may take — **at most four Transports**.
+ *
+ * A fleet's hold is four Transports and therefore exactly one army (`MAX_FLEET_TRANSPORTS`), so
+ * launching ten of them at once is not a bigger invasion, it is a `too-many-transports` refusal and
+ * a harbour that never empties. The surplus stays moored and sails as a second convoy — next month,
+ * or onto another of the eight water tiles around the port once this one has moved off.
+ *
+ * Warships are not capped: they fill the remaining sixteen berths of the fleet, which is what an
+ * escort is for. Transports are taken first so a convoy is never all escort and no hold, and both
+ * are walked in sorted id order so the same harbour always launches the same ships.
+ */
+function oneConvoy(
+  state: SimState,
+  world: World,
+  base: CityState,
+  moored: UnitStack,
+): UnitStack {
+  // A fleet already lying off this harbour is the one `launch` will reinforce, so its hulls count
+  // against both limits before a single new one is chosen.
+  const alongside = seaBeside(world, base.tileIndex)
+    .map((tile) => fleetAt(state, tile))
+    .find((fleet) => fleet !== undefined && fleet.ownerIndex === base.ownerIndex);
+
+  let carriers = alongside ? transportsIn(alongside.ships) : 0;
+  let hulls = alongside ? stackSize(alongside.ships) : 0;
+
+  const picks: UnitStack = {};
+  const isCarrier = (id: string) => (shipById(id)?.carries ?? 0) > 0;
+  const order = [...Object.keys(moored)].sort(
+    (a, b) => Number(isCarrier(b)) - Number(isCarrier(a)) || a.localeCompare(b),
+  );
+
+  for (const id of order) {
+    const room = isCarrier(id)
+      ? Math.min(MAX_FLEET_TRANSPORTS - carriers, MAX_FLEET_SHIPS - hulls)
+      : MAX_FLEET_SHIPS - hulls;
+    const take = Math.min(moored[id] ?? 0, Math.max(0, room));
+    if (take <= 0) continue;
+
+    picks[id] = take;
+    hulls += take;
+    if (isCarrier(id)) carriers += take;
+  }
+  return picks;
 }
 
 /**

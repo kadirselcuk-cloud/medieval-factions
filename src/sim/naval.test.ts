@@ -27,6 +27,7 @@ import {
   landingBlockedBy,
   landingSites,
   launch,
+  mergeFleets,
   seaNeighbours,
   seaBeside,
   stepLength,
@@ -49,8 +50,10 @@ import { advanceBy } from './tick';
 import {
   MAX_ARMY_UNITS,
   MAX_FLEET_SHIPS,
+  MAX_FLEET_TRANSPORTS,
   MILLI,
   type CityState,
+  type FleetState,
   type SimState,
 } from './types';
 
@@ -935,5 +938,66 @@ describe('fleets in contact do not stare at each other', () => {
     }
     // Stationary, mid-month: the throttle holds and the RNG is not burned a tick at a time.
     expect(state.nextBattleId).toBe(battles);
+  });
+});
+
+/**
+ * Four Transports to a fleet — owner-specified in 0.18.7.
+ *
+ * Four carry five units each, so a fleet's hold is exactly `MAX_ARMY_UNITS`: one convoy lifts one
+ * army and never more. The other sixteen berths are for warships.
+ */
+describe('a convoy is four transports and no more', () => {
+  it('makes a full hold exactly one army', () => {
+    expect(MAX_FLEET_TRANSPORTS * (shipById('transport')?.carries ?? 0)).toBe(MAX_ARMY_UNITS);
+  });
+
+  it('refuses to launch a fifth transport into the same fleet', () => {
+    port.fleet = { transport: 5 };
+    expect(launch(state, world, port, { transport: 5 })).toEqual({
+      ok: false,
+      reason: 'too-many-transports',
+    });
+
+    // Four is fine, and fills the hold.
+    expect(launch(state, world, port, { transport: 4 }).ok).toBe(true);
+    const fleet = state.fleets[0]!;
+    expect(berths(fleet).capacity).toBe(MAX_ARMY_UNITS);
+    // The fifth stays moored, to sail as a second convoy.
+    expect(port.fleet).toEqual({ transport: 1 });
+  });
+
+  it('refuses to reinforce a full hold, but takes escorts all day', () => {
+    putToSea({ transport: 4 });
+    port.fleet = { transport: 1, flagship: 2 };
+
+    expect(launch(state, world, port, { transport: 1 })).toEqual({
+      ok: false,
+      reason: 'too-many-transports',
+    });
+    expect(launch(state, world, port, { flagship: 2 }).ok).toBe(true);
+    expect(state.fleets).toHaveLength(1);
+    expect(state.fleets[0]?.ships).toEqual({ transport: 4, flagship: 2 });
+  });
+
+  it('will not merge two convoys into one that carries two armies', () => {
+    const first = putToSea({ transport: 3 });
+    const second: FleetState = {
+      id: state.nextFleetId++,
+      ownerIndex: FRANKS,
+      tileIndex: seaBeside(world, port.tileIndex).find((t) => t !== first.tileIndex) ?? -1,
+      ships: { transport: 3 },
+      cargo: {},
+      path: [],
+      sail: 0,
+    };
+    if (second.tileIndex < 0) return;
+    state.fleets.push(second);
+
+    expect(mergeFleets(state, first.id, second.id)).toEqual({
+      ok: false,
+      reason: 'too-many-transports',
+    });
+    expect(state.fleets).toHaveLength(2);
   });
 });

@@ -83,6 +83,7 @@ export function createInitialState(
     stock: { ...emptyLedger(), gold: faction.neutral ? 0 : STARTING_GOLD * MILLI },
     carry: emptyLedger(),
     monthlyIncome: emptyLedger(),
+    cityless: 0,
     // Neither the player's realm nor the Independents is played by anyone.
     ai:
       faction.neutral || index === playerFactionIndex

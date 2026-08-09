@@ -1,4 +1,4 @@
-import { hasWarship, type UnitStack } from '../data/units';
+import { hasWarship, transportsIn, type UnitStack } from '../data/units';
 import { inBounds, tileIndex, type World } from '../data/world';
 import { removeArmy, stackSize } from './armies';
 import {
@@ -21,7 +21,12 @@ import {
 } from './fleets';
 import { Heap, MARCH_PER_TILE, SEASON_MOVEMENT } from './movement';
 import { recomputeIncome } from './state';
-import { MAX_FLEET_SHIPS, type FleetState, type SimState } from './types';
+import {
+  MAX_FLEET_SHIPS,
+  MAX_FLEET_TRANSPORTS,
+  type FleetState,
+  type SimState,
+} from './types';
 
 /**
  * Sailing, blockade and battle at sea — docs/MECHANICS.md §10.
@@ -110,7 +115,11 @@ export function seaBlockedBy(
   const standing = fleetAt(state, index);
   if (standing && standing.id !== fleet.id) {
     if (standing.ownerIndex !== fleet.ownerIndex) return 'hostile-fleet';
-    const room = stackSize(standing.ships) + stackSize(fleet.ships) <= MAX_FLEET_SHIPS;
+    // Room means hulls **and** transports: four to a fleet, so two half-loaded convoys cannot
+    // merge into one that carries two armies.
+    const room =
+      stackSize(standing.ships) + stackSize(fleet.ships) <= MAX_FLEET_SHIPS &&
+      transportsIn(standing.ships) + transportsIn(fleet.ships) <= MAX_FLEET_TRANSPORTS;
     if (!isDestination || !room) return 'friendly-fleet';
   }
   return null;
