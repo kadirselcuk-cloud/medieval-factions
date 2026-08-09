@@ -1,6 +1,6 @@
 # Next
 
-Where the build is, and what to do next. Rewritten at the end of the 0.18.8 session.
+Where the build is, and what to do next. Rewritten at the end of the 0.18.9 session.
 
 **Delete or rewrite this file when its contents are done.** It is a handoff note, not a record —
 the records are [ROADMAP.md](ROADMAP.md), [OWED.md](OWED.md) and [CHANGELOG.md](../CHANGELOG.md).
@@ -9,7 +9,7 @@ the records are [ROADMAP.md](ROADMAP.md), [OWED.md](OWED.md) and [CHANGELOG.md](
 
 ## State of play
 
-**Version `0.18.8`**, on `main`. **289 tests pass**, typecheck clean, production build clean.
+**Version `0.18.9`**, on `main`. **291 tests pass**, typecheck clean, production build clean.
 Save format is **v10**. Migrations run from v1.
 
 **Naval shipped.** The last structural gap in the map is closed: ships, fleets, transports,
@@ -103,7 +103,42 @@ or generalised:
 
 ---
 
-## 2. The two balance questions carried over, both still awaiting play
+## 2. Owed: ship counts want a different formula, not a bigger number
+
+**The owner asked for more ships and I could not deliver it**, and the reason is worth writing down
+so the next attempt does not repeat mine.
+
+Every ceiling in `navalAi.ts` is a function of **cities held**. Raising them measurably destroyed
+overseas conquest on the standard test campaigns:
+
+| Attempt | Marooned cities taken (of 7) | Independents left |
+|---|---|---|
+| Current | 5–7 | 0–2 |
+| Hulls 300, escorts 24, convoys 12 | **0** | 7 |
+| The same, escorts and transports interleaved | 3 | 6 |
+| Modest raise (180 / 16 / 6) | 1 | 6 |
+
+Two real mechanisms, both fixed during the attempts and neither sufficient alone. Escorts are built
+**before** transports so that a convoy never launches naked, so raising the escort target starves
+the hold for decades — a large realm built two dozen warships before its first transport. And a
+realm that pours a third of its people into crews is a realm with a smaller army, so past a point
+the boats stop paying for themselves.
+
+**The fix is a different formula.** A realm should want hulls in proportion to **the armies it
+actually has spare** — stacks with no land war left to fight — rather than to the cities it holds. A
+realm with forty idle armies and a coastline should be building forty armies' worth of shipping; one
+with three armies all committed should be building almost none, however many cities it has. That is
+a real piece of work rather than a constant, and it wants its own session.
+
+Until then the ceilings stay at the values that measurably conquer.
+
+A second, smaller thing was learned and kept: **the AI's own loading stays port-centric** even
+though the boarding *rule* no longer requires a harbour. Widening the AI to match had fleets
+scooping up armies that were merely marching past a coastal tile on their way to a siege.
+
+---
+
+## 3. The two balance questions carried over, both still awaiting play
 
 ### ~~Why every realm ends up buying heavy cavalry~~ — answered in 0.18.1
 
@@ -129,7 +164,7 @@ on purpose.
 
 ---
 
-## 3. Cheap owner wins, available immediately
+## 4. Cheap owner wins, available immediately
 
 - **Assign personalities.** `data/factions.json` accepts an optional `personality` field
   (`ambitious` | `defensive` | `balanced` | `peaceful` | `honorable`). **Only the Golden Horde has
@@ -142,7 +177,7 @@ on purpose.
 
 ---
 
-## 4. What 0.19.0 wants
+## 5. What 0.19.0 wants
 
 Identity and polish, per the roadmap — and naval left it one extra job:
 
@@ -154,7 +189,7 @@ Identity and polish, per the roadmap — and naval left it one extra job:
 
 ---
 
-## 5. Smaller decisions still owed
+## 6. Smaller decisions still owed
 
 Economy gaps, all in [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md), blocking nothing but themselves:
 

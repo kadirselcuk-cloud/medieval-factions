@@ -201,7 +201,7 @@ describe('launching and docking', () => {
   });
 });
 
-describe('embarking and disembarking — board at a Dock, land on any coast', () => {
+describe('embarking and disembarking — wherever the ship can reach the shore', () => {
   it('loads an army standing in a harbour beside the fleet', () => {
     const fleet = putToSea({ transport: 2 });
     port.garrison = { light_infantry: 3 };
@@ -215,16 +215,56 @@ describe('embarking and disembarking — board at a Dock, land on any coast', ()
     expect(berths(fleet)).toEqual({ capacity: 10, used: 3 });
   });
 
-  it('refuses to load without a harbour, however many berths are free', () => {
+  /**
+   * **Rewritten in 0.18.9**, where the owner dropped the harbour requirement: an army boards
+   * wherever the ship can reach the shore. This used to assert the opposite.
+   */
+  it('loads without a harbour — a Dock is for building ships, not for boarding them', () => {
     port.buildings = port.buildings.filter((b) => b !== 'dock');
     port.buildings = [...port.buildings, 'fishery'];
     const fleet = putToSea({ transport: 2 });
     port.garrison = { light_infantry: 1 };
     const raised = mobilise(state, world, port, { light_infantry: 1 });
 
+    expect(embark(state, world, fleet.id, (raised as { armyId: number }).armyId).ok).toBe(true);
+    expect(fleet.cargo).toEqual({ light_infantry: 1 });
+  });
+
+  it('loads from open shore with no settlement at all', () => {
+    const fleet = putToSea({ transport: 2 });
+    // A bare coastal tile beside the fleet — no city, no buildings, nothing but beach.
+    const beach = seaNeighbours(world, fleet.tileIndex).find(
+      (tile) => !isWater(world, tile) && !state.cities.some((c) => c.tileIndex === tile),
+    );
+    if (beach === undefined) return;
+
+    state.armies.push({
+      id: state.nextArmyId++,
+      ownerIndex: FRANKS,
+      tileIndex: beach,
+      units: { light_infantry: 2 },
+      path: [],
+      march: 0,
+      role: 'field',
+    });
+    const armyId = state.nextArmyId - 1;
+
+    expect(embark(state, world, fleet.id, armyId).ok).toBe(true);
+    expect(fleet.cargo).toEqual({ light_infantry: 2 });
+  });
+
+  it('still refuses when the fleet is not touching the men', () => {
+    const fleet = putToSea({ transport: 2 });
+    port.garrison = { light_infantry: 1 };
+    const raised = mobilise(state, world, port, { light_infantry: 1 });
+    // Shove the fleet somewhere else on the map entirely.
+    const far = state.tileOwner.length - 1;
+    fleet.tileIndex = isWater(world, far) ? far : fleet.tileIndex;
+    if (fleet.tileIndex !== far) return;
+
     expect(embark(state, world, fleet.id, (raised as { armyId: number }).armyId)).toEqual({
       ok: false,
-      reason: 'no-harbour',
+      reason: 'not-alongside',
     });
   });
 

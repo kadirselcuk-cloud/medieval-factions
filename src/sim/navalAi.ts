@@ -690,6 +690,24 @@ function keepBusy(
         (army) => army.ownerIndex === factionIndex && army.tileIndex === city.tileIndex,
       ),
     );
+    /**
+     * **A pure warship with nothing to chase takes station off a rival-s coast** — owner-reported
+     * in 0.18.9: ten flagships parked in an enclosed sea and five more beside England, "not moving
+     * or attacking".
+     *
+     * Hunting only fires when an enemy fleet is already in range, so a navy whose rival keeps its
+     * ships in port had no work at all and fell through to going home. A rival-s coastal settlement
+     * is where its convoys must appear, so sitting on the water beside one is both the aggressive
+     * move and the useful one: anything that sails is intercepted the moment it does.
+     *
+     * **Pure warships only.** A fleet with berths is needed at home — measured, sending convoys off
+     * to blockade stranded the armies marching to meet them and cut overseas conquest by four
+     * fifths.
+     */
+    if (fleetCapacity(fleet.ships) === 0 && hasWarship(fleet.ships) && blockade(state, world, fleet)) {
+      continue;
+    }
+
     const target = nearestOf(world, fleet.tileIndex, waiting.length > 0 ? waiting : quays);
     if (!target) continue;
 
@@ -726,7 +744,7 @@ function hunt(state: SimState, world: World, fleet: FleetState): boolean {
  * Fifteen — five months' sailing. Far enough that a navy patrols a sea rather than a harbour mouth,
  * near enough that it does not cross the map to chase one transport and leave its own coast open.
  */
-const HUNTING_RANGE = 15;
+const HUNTING_RANGE = 30;
 
 function chebyshevTiles(world: World, a: number, b: number): number {
   return Math.max(
@@ -1115,3 +1133,38 @@ function setCourse(
   if (findSeaPath(state, world, fleet, target.water) === null) return;
   orderSail(state, world, fleet.id, target.water);
 }
+
+/**
+ * Take station off a rival's coast.
+ *
+ * The nearest hostile coastal settlements by straight line, tried in turn — `orderSail` decides
+ * whether the water actually connects, and returns false if it does not, which is how a fleet in an
+ * enclosed sea quietly declines and falls through to going home.
+ *
+ * Independents count. They hold coastal cities, they are everybody's expansion, and a fleet sitting
+ * off one is in the right place for the landing that follows.
+ */
+function blockade(state: SimState, world: World, fleet: FleetState): boolean {
+  const hostile = state.cities.filter(
+    (city) => city.ownerIndex !== fleet.ownerIndex && isCoastal(world, city.tileIndex),
+  );
+  if (hostile.length === 0) return false;
+
+  const nearest = [...hostile]
+    .sort(
+      (a, b) =>
+        chebyshevTiles(world, fleet.tileIndex, a.tileIndex) -
+          chebyshevTiles(world, fleet.tileIndex, b.tileIndex) || a.cityIndex - b.cityIndex,
+    )
+    .slice(0, BLOCKADE_TRIES);
+
+  for (const city of nearest) {
+    const berth = nearestWater(world, fleet.tileIndex, seaBeside(world, city.tileIndex));
+    if (berth === undefined || berth === fleet.tileIndex) continue;
+    if (orderSail(state, world, fleet.id, berth).ok) return true;
+  }
+  return false;
+}
+
+/** How many hostile ports a fleet will consider before giving up on a station. **[GEN]** */
+const BLOCKADE_TRIES = 6;

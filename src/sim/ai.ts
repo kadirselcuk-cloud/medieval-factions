@@ -1691,13 +1691,32 @@ function march(
  * cornered realm should still be doing.
  */
 function anyLandTarget(state: SimState, world: World, mind: Mind): boolean {
-  void world;
-  return state.cities.some(
-    (city) =>
-      city.ownerIndex !== mind.faction.index &&
-      Number.isFinite(reachedIn(mind.home, city.tileIndex)) &&
-      willAttack(state, city, mind),
+  const settled = new Set(
+    state.cities
+      .filter((city) => city.ownerIndex === mind.faction.index)
+      .map((city) => landmassOf(world, city.tileIndex)),
   );
+
+  return state.cities.some((city) => {
+    if (city.ownerIndex === mind.faction.index) return false;
+    if (!Number.isFinite(reachedIn(mind.home, city.tileIndex))) return false;
+    /**
+     * **A beachhead on our own coast is not a land war** — owner-reported in 0.18.9.
+     *
+     * `mind.home` is seeded from a realm's settlements **and from its armies on landmasses it has
+     * not settled** (decision 88's exception, added for expeditions). So an enemy stack that has
+     * landed makes its own home cities read as walkable from here — and one landed rival was enough
+     * to convince a realm that had conquered its whole continent that it still had a land war, which
+     * shut off its naval appetite and its expeditions. This is the "still do not attack anyone
+     * overseas after they conquer most of their mainland" the owner reported.
+     *
+     * A settlement only counts as a land target if it stands on a landmass this realm actually has a
+     * settlement on. Beating the beachhead itself is still ordinary business — it is an army on our
+     * ground, and the objective and raid rules deal with armies.
+     */
+    if (!settled.has(landmassOf(world, city.tileIndex))) return false;
+    return willAttack(state, city, mind);
+  });
 }
 
 /**

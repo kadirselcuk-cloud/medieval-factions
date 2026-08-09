@@ -1346,32 +1346,31 @@ other way round, the ground branch always succeeded (a large realm always border
 harbour branch was never reached: measured, the realm holding all of mainland Europe had forty
 stacks walking tile to tile across Iberia while its transports sat empty.
 
-### Embarking and disembarking — owner-specified in 0.18.0
+### Embarking and disembarking — wherever the ship reaches the shore
 
-**Board at a Dock, land on any coast.** The asymmetry is the rule, not an oversight:
+**Owner-specified in 0.18.0 and widened in 0.18.9.** Both ends of a crossing follow one rule now:
 
-- **Embarking** needs a settlement the realm owns with a Dock (or a Port or Shipyard above it),
-  and a fleet with a free berth on a sea tile beside it. Loading an army takes a harbour.
-- **Disembarking** needs only a land tile beside the fleet that no hostile army or settlement
-  holds. **The realm need not own it, and there need be nothing built on it.** An amphibious
-  landing is precisely the thing you do on a beach the enemy does not hold.
+- The fleet must be on one of the **eight tiles touching** the land tile.
+- Nobody hostile may be standing where the men would come off — a rival army blocks a landing, and
+  a rival settlement is never a landing site at all.
+
+That is the whole of it. **No harbour, no settlement, no ownership of the ground**, at either end.
+
+Boarding used to need a Dock the realm owned. It was a reasonable-sounding rule that cost far more
+than it bought: an army with nothing to do had to walk across a continent to one of a handful of
+ports before it could be shipped anywhere, the field force bunched onto three tiles, and a garrison
+could sit on an island beside a fleet with twenty free berths because its settlement had the wrong
+building. Landing was always permissive; making boarding match is simpler to hold in the head and
+simpler to play.
+
+**Docks keep their other jobs.** A settlement still needs one to *build* a ship, and the naval line
+is still what makes a coastal settlement worth having (CONTENT §2).
 
 A landed army claims the tile it steps onto, the same way a march claims ground by presence
 (DESIGN decision 21). That is how a realm gets its first acre on a new landmass.
 
-Cargo is **five land units per Transport** and only Transports carry — four hulls lift a whole
-twenty-unit army. Warships escort; they do not haul.
-
-**And four Transports is the limit for one fleet** — owner-specified in 0.18.7. A hold is therefore
-exactly `MAX_ARMY_UNITS`: one convoy lifts one army and never more, so the convoy and the thing it
-carries are the same size. The other sixteen berths of a fleet take warships, which are not capped —
-that is what an escort is. A realm that wants five armies at sea builds five convoys, which is also
-five separate things a rival navy has to find and sink.
-
-Where the berths fall short, **the part that fits sails and the rest stays ashore** as the army it
-was, keeping its id and its orders (decision 129). Heaviest formations board first: if only half an
-army crosses, it should be the half that can fight. This is the only place in the game where a
-stack can be divided, and it is deliberately confined to a quayside rather than being a field order.
+Cargo is **five land units per Transport** and at most **four Transports to a fleet**, so a hold is
+exactly one army. Only Transports carry; warships escort.
 
 ### Naval combat
 

@@ -7,6 +7,7 @@
       "religion": "none",
       "capital": null,
       "color": "#6e6a63",
+      "borderColor": "#3b3833",
       "playable": false,
       "neutral": true
     },
@@ -17,6 +18,7 @@
       "religion": "catholic",
       "capital": "Toledo",
       "color": "#d9a441",
+      "borderColor": "#7a4a0d",
       "playable": false,
       "neutral": false
     },
@@ -27,6 +29,7 @@
       "religion": "catholic",
       "capital": "London",
       "color": "#c0392b",
+      "borderColor": "#5e1109",
       "playable": false,
       "neutral": false
     },
@@ -37,6 +40,7 @@
       "religion": "catholic",
       "capital": "Paris",
       "color": "#3f6fd1",
+      "borderColor": "#16306e",
       "playable": true,
       "neutral": false
     },
@@ -47,6 +51,7 @@
       "religion": "catholic",
       "capital": "Vienna",
       "color": "#7a5c9e",
+      "borderColor": "#3a2456",
       "playable": false,
       "neutral": false
     },
@@ -57,6 +62,7 @@
       "religion": "catholic",
       "capital": "Milan",
       "color": "#4f9d69",
+      "borderColor": "#1d4a2c",
       "playable": false,
       "neutral": false
     },
@@ -67,6 +73,7 @@
       "religion": "catholic",
       "capital": "Buda",
       "color": "#2aa198",
+      "borderColor": "#0b4a45",
       "playable": false,
       "neutral": false
     },
@@ -77,6 +84,7 @@
       "religion": "orthodox",
       "capital": "Constantinople",
       "color": "#d95f8b",
+      "borderColor": "#6e1d3c",
       "playable": false,
       "neutral": false
     },
@@ -87,6 +95,7 @@
       "religion": "orthodox",
       "capital": "Sofia",
       "color": "#6b8f2f",
+      "borderColor": "#2f3f10",
       "playable": false,
       "neutral": false
     },
@@ -97,6 +106,7 @@
       "religion": "orthodox",
       "capital": "Moscow",
       "color": "#9ad3e0",
+      "borderColor": "#2e6b7a",
       "playable": true,
       "neutral": false
     },
@@ -107,7 +117,8 @@
       "religion": "muslim",
       "capital": "Caffa",
       "personality": "ambitious",
-      "color": "#e0812b",
+      "color": "#e8c547",
+      "borderColor": "#6b5200",
       "playable": false,
       "neutral": false
     },
@@ -118,6 +129,7 @@
       "religion": "muslim",
       "capital": "Bursa",
       "color": "#8b1f2f",
+      "borderColor": "#3d0710",
       "playable": true,
       "neutral": false
     },
@@ -127,7 +139,8 @@
       "adjective": "Mamluk",
       "religion": "muslim",
       "capital": "Jerusalem",
-      "color": "#a8763a",
+      "color": "#8a5cc4",
+      "borderColor": "#3a1d63",
       "playable": false,
       "neutral": false
     },
@@ -138,6 +151,7 @@
       "religion": "muslim",
       "capital": "Fez",
       "color": "#2f6f4f",
+      "borderColor": "#0e2f20",
       "playable": false,
       "neutral": false
     }

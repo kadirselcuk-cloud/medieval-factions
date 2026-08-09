@@ -137,7 +137,12 @@ function Campaign({
   }, [game, game.version, state]);
 
   const territory = useMemo<TerritoryView>(
-    () => ({ owner: state.tileOwner, colors: roster.map((f) => f.color) }),
+    () => ({
+      owner: state.tileOwner,
+      colors: roster.map((f) => f.color),
+      // Falls back to the fill, so a roster without border colours still draws.
+      borders: roster.map((f) => f.borderColor ?? f.color),
+    }),
     [state.tileOwner, roster],
   );
 

@@ -14,6 +14,20 @@ const factionSchema = z.object({
   /** Name of the city this faction starts in, matched against the map. Null for Independents. */
   capital: z.string().min(1).nullable(),
   color: z.string().regex(/^#[0-9a-f]{6}$/i),
+  /**
+   * The line a realm-s border is drawn in — owner-specified in 0.18.9.
+   *
+   * Two colours rather than one because a wash at a third opacity flattens everything warm into the
+   * same beige: Castille, the Golden Horde and the Mamluks were indistinguishable on the map. The
+   * fill says whose ground it is at a glance; the border, drawn solid and darker, is what separates
+   * two realms whose fills are neighbours on the wheel.
+   *
+   * Defaulted to the fill so a roster that has not been given one still renders.
+   */
+  borderColor: z
+    .string()
+    .regex(/^#[0-9a-f]{6}$/i)
+    .optional(),
   playable: z.boolean(),
   neutral: z.boolean(),
   /**

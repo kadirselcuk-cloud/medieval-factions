@@ -13,6 +13,78 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.18.9] — 2026-08-09
+
+Three owner reports. Two are fixed outright; the third is **partly** fixed, and the part that is not
+is written up honestly below because I could not land it without breaking conquest.
+
+### Changed
+
+- **An army boards and lands wherever the ship can reach the shore.** Boarding used to need a
+  harbour the realm owned — a settlement with a Dock or better. The only requirement left is the one
+  that was always physically true: **the ship has to be next to the men.** Any land tile touching the
+  fleet will do, settlement or open field, harbour or bare shingle. Landing already worked this way,
+  so both ends of a crossing now follow one rule.
+  - Docks keep their other jobs: still required to **build** a ship, still worth their fishery income.
+- **Every faction has two colours** — a fill for its ground and a darker line for its border. A wash
+  at a third opacity flattens every warm hue into the same beige, which is exactly why Castille, the
+  Golden Horde and the Mamluks were indistinguishable. The Golden Horde also moves to a clear yellow
+  and the Mamluks to violet, so the three are no longer neighbours on the wheel either.
+- **A warship hunts thirty tiles**, up from fifteen.
+
+### Fixed
+
+- **A beachhead on a realm's own coast counted as a land war**, which shut off its navy entirely.
+  `mind.home` is seeded from a realm's armies on landmasses it has *not* settled — the exception that
+  lets an expedition find objectives after it lands. The side effect: one enemy stack ashore made
+  every one of that enemy's home cities read as walkable, so a realm that had conquered its whole
+  continent concluded it still had land targets, dropped its naval appetite and stopped planning
+  expeditions. This is the root of "still do not attack anyone overseas after they conquer most of
+  their mainland". A settlement now only counts as a land target if it stands on a landmass this
+  realm actually holds a settlement on.
+- **A warship with nothing to chase now blockades** rather than going home and sitting. Hunting only
+  fires when an enemy fleet is already in range, so a navy whose rival kept its ships in port had no
+  work at all — ten flagships parked in an enclosed sea, five more beside England, "not moving or
+  attacking". A rival's coastal settlement is where its convoys must appear, so taking station off
+  one is both the aggressive move and the useful one.
+  - **Pure warship fleets only.** A fleet with berths is needed at home.
+
+### Not done, and why
+
+**Ship counts are unchanged.** The owner asked for more, and I could not deliver it without a
+measured regression, so the ceilings stay where 0.18.8 left them.
+
+What was tried, and what it cost, on the standard test campaigns:
+
+| Attempt | Marooned cities taken (of 7) | Independents left |
+|---|---|---|
+| 0.18.8 baseline | 5–7 | 0–2 |
+| Hulls to 300, escorts to 24, convoys to 12 | **0** | 7 |
+| The same, with escorts and transports interleaved | 3 | 6 |
+| Modest raise (180 / 16 / 6) | 1 | 6 |
+
+Two mechanisms were identified and both are real. Escorts are built before transports so that a
+convoy is never launched naked — raising the escort target meant a large realm built two dozen
+warships before its first transport and had no hold for decades. And the AI's own loading was
+widened to match the new boarding rule, which had it scooping up armies that were merely *marching
+past* a coastal tile on their way to a siege.
+
+Interleaving the build order and only taking armies that have stopped fixed both, and it still was
+not enough: a realm that pours a third of its people into crews is a realm with a smaller army, and
+past a point the boats stop paying for themselves. **The AI's own boarding therefore stays
+port-centric** even though the rule no longer requires it — the player gets the widened rule, and
+the AI keeps the behaviour that measurably conquers.
+
+Raising ship counts properly needs the thing underneath it fixed first: a realm should want hulls in
+proportion to the armies it actually has spare, not to the cities it holds. That is a real piece of
+work rather than a constant, and it is written up in [NEXT.md](docs/NEXT.md).
+
+### Added
+
+- 3 tests: boarding without a Dock, boarding from bare open shore with no settlement at all, and the
+  one guard that remains — a fleet not touching the men still refuses.
+
+
 ## [0.18.8] — 2026-08-09
 
 **A performance fix.** The owner reported the maximum-speed cheat stuttering — a few months, a

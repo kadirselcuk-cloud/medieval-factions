@@ -47,6 +47,13 @@ be conquered. Defender composition is owner-authored and listed in
 **Playable in v1:** Franks, Turks, Russians. The other 10 are AI-only; playability is a data
 flag so premium faction unlocks are a config change, not a code change.
 
+**Every faction carries two colours** — owner-specified in 0.18.9. `color` washes its ground at a
+third opacity; `borderColor` draws its border, solid and darker. One colour was not enough: at a
+third opacity every warm hue collapses to the same beige, and Castille, the Golden Horde and the
+Mamluks were indistinguishable on the map. The Horde moved to a clear yellow and the Mamluks to
+violet at the same time, so the three are no longer neighbours on the wheel either. Both are
+**[GEN]** placeholder art.
+
 Each faction has strengths and weaknesses, and **renames the shared roster** to fit its culture
 (e.g. Turks: *Sipahi* light cavalry, *Kapıkulu* heavy cavalry, *Janissary* elite). Per-faction
 names, bonuses and elite units are **[GEN]** — Claude drafts, owner revises.

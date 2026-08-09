@@ -27,8 +27,17 @@ export interface MapRendererOptions {
 export interface TerritoryView {
   /** Owning faction index per tile, or -1. */
   owner: Int8Array;
-  /** Colour per faction index. */
+  /** The wash over a realm-s ground, per faction index. */
   colors: readonly string[];
+  /**
+   * The line its border is drawn in, per faction index — owner-specified in 0.18.9.
+   *
+   * Separate from the fill because the fill is drawn at a third opacity, which flattens every warm
+   * hue into the same beige: Castille, the Golden Horde and the Mamluks were one colour on the map.
+   * The border is drawn solid, so a darker, more saturated line reads even where two realms have
+   * neighbouring fills.
+   */
+  borders: readonly string[];
 }
 
 /**
@@ -467,9 +476,11 @@ export class MapRenderer {
   }
 
   /**
-   * Owned tiles get a colour wash; edges between different owners get a hard line. The wash
-   * alone is too weak to read as a border at low zoom, and the line alone leaves the interior
-   * ambiguous — together they answer "what is mine" at a glance, which is the whole point.
+   * Owned tiles get a colour wash; edges between different owners get a hard line **in a second,
+   * darker colour**. The wash alone is too weak to read as a border at low zoom, and the line alone
+   * leaves the interior ambiguous — together they answer "what is mine" at a glance, which is the
+   * whole point. Two colours rather than one because a 34% wash turns every warm hue into the same
+   * beige, and three realms were indistinguishable.
    */
   private drawTerritory(
     x0: number,
@@ -505,7 +516,7 @@ export class MapRenderer {
         if (owner < 0 || !this.sees(y * world.width + x)) continue;
         const left = Math.floor(origin.x + (x - x0) * zoom);
         const top = Math.floor(origin.y + (y - y0) * zoom);
-        ctx.strokeStyle = territory.colors[owner] ?? '#fff';
+        ctx.strokeStyle = territory.borders[owner] ?? territory.colors[owner] ?? '#fff';
 
         const right = x + 1 < world.width ? (territory.owner[y * world.width + x + 1] ?? -1) : -1;
         const below = y + 1 < world.height ? (territory.owner[(y + 1) * world.width + x] ?? -1) : -1;

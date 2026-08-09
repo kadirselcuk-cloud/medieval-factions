@@ -1,5 +1,4 @@
 import {
-  canEmbarkFrom,
   fleetCapacity,
   shipById,
   transportsIn,
@@ -28,9 +27,10 @@ import {
  * `standDown`. What is genuinely new is the pair in the middle — **embarking and disembarking** —
  * because that is the only place in the game where one kind of entity turns into another.
  *
- * The rule those two implement is owner-specified (docs/DESIGN.md decision 124): **board at a Dock,
- * land on any coast.** Loading an army takes a harbour the realm owns; putting one ashore takes
- * nothing but a beach the enemy is not standing on.
+ * The rule those two implement is owner-specified: **board and land wherever the ship can reach the
+ * shore** (decision 124, widened in 0.18.9). Neither end needs a harbour, a settlement or ownership
+ * of the ground — only that the fleet is on one of the eight tiles touching it, and that nobody
+ * hostile is standing where the men would come off.
  *
  * Sailing and fighting are not here — they are `sailing.ts`. This file is orders, not motion.
  */
@@ -344,12 +344,24 @@ export function embark(
   if (!army) return fail('no-such-army');
   if (army.ownerIndex !== fleet.ownerIndex) return fail('not-owner');
 
-  const city = state.cities.find((c) => c.tileIndex === army.tileIndex);
-  if (!city || city.ownerIndex !== army.ownerIndex) return fail('no-settlement');
-  if (!canEmbarkFrom(city.buildings)) return fail('no-harbour');
-
-  // The fleet has to actually be alongside. Sailing to the harbour is the player's problem.
-  if (!seaNeighbours(world, city.tileIndex).includes(fleet.tileIndex)) {
+  /**
+   * **Anywhere the fleet can reach the shore** — owner-specified in 0.18.9, superseding the Dock.
+   *
+   * Boarding used to need a harbour the realm owned: a settlement with a Dock or better, with the
+   * fleet on one of the eight tiles around it. That rule cost more than it bought. It made every
+   * expedition a pilgrimage — an army with nothing to do had to walk across a continent to one of a
+   * handful of ports before it could be useful — and it was the reason twenty units sat in Cyprus,
+   * and the reason a realm's field force queued at three harbours while its coastline went unused.
+   *
+   * Now the only requirement is the one that was always physically real: **the ship has to be next
+   * to the men.** Any land tile touching the fleet will do, settlement or open field, harbour or
+   * bare shingle. Landing already worked this way (decision 124's permissive half), so the two ends
+   * of a crossing now follow the same rule, which is easier to hold in the head as well as to play.
+   *
+   * Docks keep their other jobs: they are still what a settlement needs to **build** a ship, and
+   * still worth their fishery income.
+   */
+  if (!seaNeighbours(world, army.tileIndex).includes(fleet.tileIndex)) {
     return fail('not-alongside');
   }
 
@@ -379,7 +391,8 @@ export function embark(
     if (position >= 0) state.armies.splice(position, 1);
   }
 
-  const name = world.cities[city.cityIndex]?.name ?? 'a settlement';
+  const here = state.cities.find((c) => c.tileIndex === army.tileIndex);
+  const name = here ? (world.cities[here.cityIndex]?.name ?? 'a settlement') : 'the shore';
   pushEvent(state, {
     kind: 'army',
     text: emptied

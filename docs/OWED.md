@@ -72,7 +72,7 @@ it is tagged **[GEN]** at its definition. None of it is owner-authored truth.
 
 | Value | Where | Status |
 |---|---|---|
-| Faction colours (14) | `data/factions.json` | placeholder art |
+| Faction colours — 14 fills **and 14 border colours** | `data/factions.json` | placeholder art. Two per faction since 0.18.9; the owner asked for the split, the hues are mine |
 | Skipping water when claiming a capital's 4 tiles | `src/sim/state.ts` | implemented |
 | Strategic speeds | `data/units.json` | **owner-specified in 0.16.0** — foot a tile every 2 months, horse a tile a month |
 | Army role quotas — `raidStacks`, `guardStacks`, `claimStacks`, `improvementsAtOnce` | `data/ai.json` | **live** — how many specialists each difficulty runs |
