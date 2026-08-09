@@ -94,6 +94,8 @@ interface Mind {
    */
   harbours: readonly CityState[];
   overseasTargets: boolean;
+  /** Nothing on this continent left to attack. Decides whether a border guard still has a border. */
+  noLandWar: boolean;
 }
 
 export function runAi(state: SimState, world: World): void {
@@ -165,6 +167,7 @@ export function runAi(state: SimState, world: World): void {
       bare,
       harbours,
       overseasTargets: false,
+      noLandWar: false,
     };
     // Filled after the Mind exists because `willAttack` needs one. Anything worth taking that no
     // army of this realm can walk to — which is what makes a port worth marching to.
@@ -204,6 +207,7 @@ export function runAi(state: SimState, world: World): void {
     // playing, because nothing they can march to is worth attacking. They should be pouring
     // everything into the sea instead, and `runNavy` gives them a bigger appetite for it.
     const landlocked = !anyLandTarget(state, world, mind);
+    mind.noLandWar = landlocked;
 
     runNavy(state, world, faction.index, home, (city) => willAttack(state, city, mind), landlocked);
     levy(state, world, mind);
@@ -904,6 +908,22 @@ function order(
   if (army.role === 'claim' && stackSize(army.units) > CLAIM_STACK_UNITS) army.role = 'field';
 
   if (relieve(state, world, army, mind)) return;
+
+  /**
+   * **A guard with no border to watch is released to the field** — owner-specified in 0.18.6.
+   *
+   * A border guard holds its settlement and goes nowhere; relieving a siege is the one thing that
+   * moves it, and that is handled above. But "border" assumes there is one. A realm that has taken
+   * its whole landmass has no frontier an army can walk across, so every guard it posted is watching
+   * an empty horizon for ever — and they are raised in numbers, one per frontier settlement per four
+   * settlements held. The owner watched twenty units sit in Cyprus beside a twenty-ship fleet with
+   * free berths: they were guards, and guards do not board.
+   *
+   * Handing them back to the field force makes them cargo like anything else. Nothing is left
+   * undefended by it: a settlement's derived defenders cannot leave the walls and were always the
+   * real garrison, and a guard stack was only ever the extra.
+   */
+  if (army.role === 'guard' && mind.noLandWar) army.role = 'field';
 
   // **A border guard holds its settlement and does not go anywhere else.** Relieving a siege is
   // the one thing that moves it, and that is handled above — a garrison that abandons its post

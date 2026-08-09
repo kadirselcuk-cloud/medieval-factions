@@ -1350,6 +1350,14 @@ Only a fleet with a **warship** can force the interception. Two transport convoy
 untouched — neither has anything to fight with, and a battle between them would be two merchantmen
 staring.
 
+**Fleets in contact fight once a month** — since 0.18.6, and note the word *once*. Something has to
+throttle this: two survivors of a 48-turn stalemate lying beside each other would otherwise grind
+each other down a hundred and twenty times a month and burn the RNG doing it. Requiring that one of
+them had **moved** was the first attempt, and it made a standoff permanent — measured in play, four
+Byzantine flagships and eight Turkish ones sat adjacent in open water and never engaged, because
+neither had anywhere it was going. The month is the honest throttle, and a blockade still catches
+anything that sails into it the moment it arrives.
+
 The battle itself is the **shipped auto-resolve, unchanged** — the same 50-tile field, the same
 activation order, the same damage formula and the same 3× rout rule. Ships have no `range`, so they
 close and fight in melee. The tile carries no defender's advantage: there is no ground at sea.

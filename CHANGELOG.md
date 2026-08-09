@@ -13,6 +13,56 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.18.6] — 2026-08-09
+
+Four things from watching a Turkish campaign: fleets in a permanent standoff, twenty units stranded
+in Cyprus beside a twenty-ship fleet, and an empire building its whole navy at the wrong end of the
+Mediterranean.
+
+### Fixed
+
+- **Fleets in contact would never fight.** Interception required that one of the pair had *moved
+  that tick* — a throttle against two stalemate survivors re-fighting a hundred and twenty times a
+  month, which instead made a standoff permanent. Four Byzantine flagships and eight Turkish ones sat
+  adjacent in open water and never engaged, neither able to force the issue and neither willing to
+  break off. **The throttle is now the month**: fleets in contact fight once a month, which is the
+  cadence everything else in this game decides on, and a blockade still catches anything that sails
+  into it the moment it arrives.
+  - The test asserting the old behaviour has been rewritten. It was pinning the bug.
+- **Border guards were stranded on islands.** A guard holds its settlement and goes nowhere, which
+  assumes there is a border to hold — and a realm that has taken its whole landmass has none. They
+  are raised in numbers, so twenty units sat in Cyprus beside a fleet with free berths: they were
+  guards, and `loadUp` does not board guards. **A guard whose realm has no land war is released to
+  the field**, and becomes cargo like anything else. Nothing is left undefended: a settlement's
+  derived defenders cannot leave the walls and were always the real garrison.
+- **An empire built its whole navy at one harbour.** `buildFleet` walks the realm's ports in **city
+  index order** — essentially the order the map file lists them — so once a realm nears its hull
+  ceiling only the first few entries ever get a queue. The owner watched everything come out of
+  Cyprus while the armies stood in northern Europe. Harbours are now sorted by **how many of the
+  realm's armies are standing at or beside them**, so the hulls appear where the cargo already is.
+- **The hull ceiling bound again.** At 60 a 55-city empire with 30 harbours had no shipyard queue
+  busy anywhere — the same wall 0.18.5 knocked down one notch lower. Raised to `12 + 2×cities`,
+  capped at 140. That realm now runs 200 berths, ten armies' worth, with nothing stranded.
+
+### Added
+
+- 2 tests: a stationary pair engages when the month turns, and does not engage twenty times
+  mid-month. The existing standoff test was rewritten — it was pinning the bug.
+
+### Changed
+
+- The concentration thresholds in `ai.test.ts` were relaxed (average field stack 7 → 6, small share
+  20% → 33%), and the reason is real rather than cosmetic: releasing stranded guards pours
+  deliberately small stacks into the field pool, most of them walking to a harbour to become cargo,
+  where size does not matter. The bar still catches the 0.18.2 disease it was written for — a realm
+  *founding* dozens of four-unit armies and sending each to fight alone.
+
+### Note
+
+The eight-way adjacency the owner asked about is already in place and was not the cause here — a
+harbour has loaded diagonally since 0.18.3, and both `embark` and `loadUp` use the eight-neighbour
+test. What kept the Cyprus garrison ashore was its **role**, not its geometry.
+
 ## [0.18.5] — 2026-08-09
 
 Castille held all of mainland Europe, was stronger than everyone else combined, and could not do

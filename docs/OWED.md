@@ -136,6 +136,7 @@ it is tagged **[GEN]** at its definition. None of it is owner-authored truth.
 | Hulls (60), escorts (14) and berths (5 armies) a realm wants | `src/sim/navalAi.ts` | **live** — `hullsWanted`, `escortsWanted`, `convoysWanted`. The dial for how naval the world feels |
 | A realm with only overseas enemies recruits at 66% | `src/sim/ai.ts` | **live** — `OVERSEAS_ARMY_PERMILLE`. Owner asked for fewer soldiers and more ships; the fraction is mine |
 | A forced landing gives the defender the full ground advantage and the attacker no penalty | `src/sim/sailing.ts` | **live** — owner specified the mechanic, not the modifiers |
+| Fleets in contact re-fight **monthly** rather than per tick | `src/sim/sailing.ts` | **live** — the owner asked that standoffs end; the cadence is mine |
 | One harbour of departure, nearest the target by sea | `src/sim/navalAi.ts` | **live** — spread across every port, hulls arrive two at a time and carry nothing |
 | A landed army is its own frontier, but only where its realm holds no settlement | `src/sim/ai.ts` | **live** — without it an expedition stands on its beach until the winter takes it |
 

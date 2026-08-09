@@ -63,7 +63,9 @@ function escortsWanted(cities: number, landlocked: boolean): number {
 }
 
 function hullsWanted(cities: number, landlocked: boolean): number {
-  return Math.min(60, 8 + cities + (landlocked ? 10 : 0));
+  // Raised again in 0.18.6: at 60 a 56-city empire with 31 harbours had **no shipyard queue busy
+  // anywhere**, which is the same wall 0.18.5 knocked down one notch lower.
+  return Math.min(140, 12 + cities * 2 + (landlocked ? 20 : 0));
 }
 
 /**
@@ -229,7 +231,7 @@ export function runNavy(
   // Shipbuilding sweeps nothing — it is a decision about one settlement's queue — so it belongs
   // here with the rest of the local work rather than behind the annual plan, which capped every
   // realm on the map at one hull a year however large it was.
-  buildFleet(state, factionIndex, ports, appetite);
+  buildFleet(state, world, factionIndex, ports, appetite);
   keepBusy(state, world, factionIndex, ports);
 
   /**
@@ -583,6 +585,7 @@ function navalAppetite(
  */
 function buildFleet(
   state: SimState,
+  world: World,
   factionIndex: number,
   ports: readonly CityState[],
   appetite: NavalAppetite,
@@ -593,7 +596,23 @@ function buildFleet(
   const wantTransport = appetite.berths < appetite.wantsBerths;
   if (!wantEscort && !wantTransport) return;
 
-  for (const base of ports) {
+  /**
+   * **Build where the troops are** — owner-specified in 0.18.6.
+   *
+   * `ports` arrives in city-index order, and once a realm is near its hull ceiling only the first
+   * few entries ever get a queue. City index is essentially the order the map file lists them in, so
+   * a realm would build its entire navy at whichever harbour happened to be listed first — the owner
+   * watched an empire produce everything at **Cyprus** while its armies stood in northern Europe.
+   *
+   * Sorting by how many of the realm's own armies are standing at or beside each harbour puts the
+   * hulls where the cargo already is. Ties fall back to city index, so the order is still fixed.
+   */
+  const busiest = [...ports].sort(
+    (a, b) => armiesNear(state, world, factionIndex, b) - armiesNear(state, world, factionIndex, a) ||
+      a.cityIndex - b.cityIndex,
+  );
+
+  for (const base of busiest) {
     // One hull at a time per harbour. A queue is a commitment of gold and men, and a realm that
     // stacked six of them at one port would starve every other queue it has.
     if (base.shipQueue.length > 0) continue;
@@ -732,6 +751,19 @@ function nearestWater(world: World, from: number, water: readonly number[]): num
     best = tile;
   }
   return best;
+}
+
+/** The realm's own armies standing on this harbour or on the ground touching it. */
+function armiesNear(
+  state: SimState,
+  world: World,
+  factionIndex: number,
+  city: CityState,
+): number {
+  const around = new Set([city.tileIndex, ...seaNeighbours(world, city.tileIndex)]);
+  return state.armies.filter(
+    (army) => army.ownerIndex === factionIndex && around.has(army.tileIndex),
+  ).length;
 }
 
 /**

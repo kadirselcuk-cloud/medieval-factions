@@ -7,7 +7,7 @@ import {
   recordBattle,
   type BattleContingent,
 } from './battle';
-import { calendarAt } from './calendar';
+import { calendarAt, isMonthBoundary } from './calendar';
 import { pushEvent } from './events';
 import {
   drownExcessCargo,
@@ -320,21 +320,27 @@ export function advanceFleets(state: SimState, world: World): void {
  * Only a fleet carrying a **warship** can force it. Two unescorted convoys pass untouched — neither
  * has anything to fight with, and a battle between them would be two merchantmen staring.
  *
- * **One of the two must have moved this tick.** An interception is a rule about catching something
- * that is going somewhere, and without this clause two fleets that fought to the 48-turn stalemate
- * and both survived would sit beside each other re-fighting a hundred and twenty times a month —
- * grinding each other down a tick at a time, filling the battle log and burning the RNG. Requiring
- * movement makes a standoff a standoff: neither can force the other, and either can end it by
- * ordering a course onto the enemy's tile, which is the *other* way a sea battle starts.
+ * **Either one moved this tick, or the month has turned.** Something has to throttle this: two
+ * fleets that fought to the 48-turn stalemate and both survived would otherwise sit beside each
+ * other re-fighting a hundred and twenty times a month, grinding each other down a tick at a time
+ * and burning the RNG.
  *
- * It costs the blockade nothing, because the thing a blockade catches is by definition sailing.
+ * Requiring *movement* was the first attempt and it was wrong — it made a standoff permanent.
+ * Measured in play: **four Byzantine flagships and eight Turkish ones sat adjacent in open water and
+ * never fought**, because neither had anywhere it was going. Neither realm could force the issue and
+ * neither would break off, for ever.
+ *
+ * A monthly engagement is the honest throttle. Fleets in contact fight once a month, which is the
+ * cadence everything else in this game decides on, and a blockade still catches anything that sails
+ * into it the moment it arrives.
  *
  * Order is fixed and the reason matters: pairs are visited in ascending id, and where both sides
  * carry warships the **lower id is the attacker**. A tie broken by anything less arbitrary — who is
  * stronger, who moved last — would be a rule about initiative that nobody has written.
  */
 function interceptAdjacent(state: SimState, world: World, moved: ReadonlySet<number>): void {
-  if (moved.size === 0) return;
+  const monthTurned = isMonthBoundary(state.tick);
+  if (moved.size === 0 && !monthTurned) return;
 
   for (const fleet of [...state.fleets].sort((a, b) => a.id - b.id)) {
     if (!state.fleets.includes(fleet)) continue;
@@ -343,7 +349,7 @@ function interceptAdjacent(state: SimState, world: World, moved: ReadonlySet<num
     for (const tile of seaNeighbours(world, fleet.tileIndex).sort((a, b) => a - b)) {
       const other = fleetAt(state, tile);
       if (!other || other.ownerIndex === fleet.ownerIndex) continue;
-      if (!moved.has(fleet.id) && !moved.has(other.id)) continue;
+      if (!monthTurned && !moved.has(fleet.id) && !moved.has(other.id)) continue;
       // Both escorted: the lower id is the attacker, so the pair is fought once, not twice.
       if (hasWarship(other.ships) && other.id < fleet.id) continue;
 

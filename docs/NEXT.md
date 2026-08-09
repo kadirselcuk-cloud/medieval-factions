@@ -1,6 +1,6 @@
 # Next
 
-Where the build is, and what to do next. Rewritten at the end of the 0.18.5 session.
+Where the build is, and what to do next. Rewritten at the end of the 0.18.6 session.
 
 **Delete or rewrite this file when its contents are done.** It is a handoff note, not a record —
 the records are [ROADMAP.md](ROADMAP.md), [OWED.md](OWED.md) and [CHANGELOG.md](../CHANGELOG.md).
@@ -9,7 +9,7 @@ the records are [ROADMAP.md](ROADMAP.md), [OWED.md](OWED.md) and [CHANGELOG.md](
 
 ## State of play
 
-**Version `0.18.5`**, on `main`. **280 tests pass**, typecheck clean, production build clean.
+**Version `0.18.6`**, on `main`. **284 tests pass**, typecheck clean, production build clean.
 Save format is **v9**. Migrations run from v1.
 
 **Naval shipped.** The last structural gap in the map is closed: ships, fleets, transports,

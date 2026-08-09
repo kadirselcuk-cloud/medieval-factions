@@ -451,23 +451,31 @@ describe('battle at sea', () => {
     expect(state.battles).toHaveLength(0);
   });
 
-  it('will not re-fight a standoff: an interception needs something to be moving', () => {
+  /**
+   * **Rewritten in 0.18.6.** This test used to assert the opposite — that a stationary pair never
+   * fights — which was the movement clause working as designed and was reported from play as a bug:
+   * four Byzantine flagships and eight Turkish ones sat adjacent in open water for ever. The
+   * throttle is now the month rather than movement.
+   */
+  it('re-fights a standoff once a month, and not once a tick', () => {
     const { ours, enemy } = opposingFleets({ flagship: 1 }, { flagship: 1 });
-    // Both lying to, already adjacent. Without the movement clause this pair would fight 120
-    // times a month, grinding each other down a tick at a time.
     enemy.tileIndex = seaNeighbours(world, ours.tileIndex).find(
       (tile) => isWater(world, tile) && tile !== ours.tileIndex,
     )!;
     enemy.path = [];
     enemy.sail = 0;
 
+    // Mid-month, both lying to: nothing happens, or the pair would grind each other down 120
+    // times a month and burn the RNG doing it.
+    state.tick = TICKS_PER_MONTH + 3;
     advanceFleets(state, world);
     advanceFleets(state, world);
-    advanceFleets(state, world);
-
     expect(state.battles).toHaveLength(0);
-    expect(state.fleets.find((f) => f.id === ours.id)).toBeDefined();
-    expect(state.fleets.find((f) => f.id === enemy.id)).toBeDefined();
+
+    // The month turns and they engage.
+    state.tick = TICKS_PER_MONTH * 2;
+    advanceFleets(state, world);
+    expect(state.battles.length).toBeGreaterThan(0);
   });
 
   it('drowns the army aboard when the transports carrying it go down', () => {
@@ -866,5 +874,66 @@ describe('a landing can be forced', () => {
     // No defender: this is an ordinary landing, and `disembark` handles it.
     expect(stormBeach(state, world, fleet, beach)).toBe(false);
     expect(stackSize(fleet.cargo)).toBe(4);
+  });
+});
+
+/**
+ * Two fleets in contact fight — owner-reported in 0.18.6.
+ *
+ * Interception used to require that one of the pair had **moved that tick**, to stop two survivors
+ * of a stalemate re-fighting a hundred and twenty times a month. It made a standoff permanent
+ * instead: the owner watched four Byzantine flagships and eight Turkish ones sit adjacent in open
+ * water and never fight, neither able to force the issue and neither willing to break off.
+ */
+describe('fleets in contact do not stare at each other', () => {
+  const rival = FRANKS === 0 ? 1 : 0;
+
+  /** Two hostile fleets, adjacent, both stationary. */
+  const standoff = () => {
+    const ours = putToSea({ flagship: 2 });
+    const beside = seaNeighbours(world, ours.tileIndex).find(
+      (tile) => isWater(world, tile) && !fleetAt(state, tile),
+    );
+    if (beside === undefined) return undefined;
+
+    state.fleets.push({
+      id: state.nextFleetId++,
+      ownerIndex: rival,
+      tileIndex: beside,
+      ships: { flagship: 1 },
+      cargo: {},
+      path: [],
+      sail: 0,
+    });
+    return ours;
+  };
+
+  it('fights when the month turns, though neither has moved', () => {
+    const ours = standoff();
+    if (!ours) return;
+
+    const battles = state.nextBattleId;
+    // Land on a month boundary with nothing under way: the old rule made this a no-op for ever.
+    state.tick = TICKS_PER_MONTH - 1;
+    advanceFleets(state, world);
+    state.tick = TICKS_PER_MONTH;
+    advanceFleets(state, world);
+
+    expect(state.nextBattleId).toBeGreaterThan(battles);
+  });
+
+  it('does not re-fight every tick inside the month', () => {
+    const ours = standoff();
+    if (!ours) return;
+
+    state.tick = TICKS_PER_MONTH + 1;
+    const battles = state.nextBattleId;
+    for (let i = 0; i < 20; i++) {
+      state.tick += 1;
+      if (state.tick % TICKS_PER_MONTH === 0) state.tick += 1;
+      advanceFleets(state, world);
+    }
+    // Stationary, mid-month: the throttle holds and the RNG is not burned a tick at a time.
+    expect(state.nextBattleId).toBe(battles);
   });
 });

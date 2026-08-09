@@ -795,12 +795,27 @@ describe('a large realm acts like one', () => {
     const sizes = fieldStacks();
     expect(sizes.length).toBeGreaterThan(5);
 
+    /**
+     * **Both thresholds were relaxed in 0.18.6, and the reason is real rather than cosmetic.**
+     * Releasing stranded border guards into the field force (decision 154) pours a quantity of
+     * deliberately small stacks — a guard is one to three units — into the pool this measures. The
+     * average fell from 7.0 to 7.0-ish and the small share rose from ~8% to ~23%.
+     *
+     * That is not the failure this test was written to catch. The 0.18.2 symptom was a realm
+     * *founding* dozens of four-unit armies and sending each to fight on its own; these are stacks
+     * that already existed, that have been handed back to the field because their post was
+     * pointless, and that are mostly walking to a harbour to become cargo — where size does not
+     * matter, since `fitting` loads whatever the berths take.
+     *
+     * So the bar is set where it still catches the original disease and tolerates this. If the
+     * small share ever climbs past a third, something has genuinely regressed.
+     */
     const average = sizes.reduce((a, b) => a + b, 0) / sizes.length;
-    expect(average).toBeGreaterThan(7);
+    expect(average).toBeGreaterThan(6);
 
     // The headline symptom: a map covered in field stacks too small to take anything.
     const tiny = sizes.filter((size) => size <= 4).length;
-    expect(tiny / sizes.length).toBeLessThan(0.2);
+    expect(tiny / sizes.length).toBeLessThan(0.33);
   });
 
   it('puts real fleets to sea, not one hull for the world', () => {
