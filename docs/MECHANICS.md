@@ -199,7 +199,7 @@ because there is no fraction of a person to carry.
 | Town Hall | +8 |
 | City Hall | +12 |
 | Palace | +20 |
-| Treasury | see the wealth bands below |
+| Prosperity | see the income bands below |
 
 **Housing and halls accumulate.** A city with Wooden Houses, Stone Houses and Villas standing
 has all three, so it gains 50 people a month from housing alone.
@@ -227,12 +227,18 @@ Flat growth is bounded by *time × rate*, and it brings three things with it:
 
 The same campaign now reaches **12,190 people and 108,000 gold** after a century of doing nothing.
 
-#### Only half the gold produced reaches the treasury — since 0.17.3
+#### Only a quarter of the gold produced reaches the treasury — halved again in 0.19.0
 
 **Every gold figure in the game's data is what the ground, the buildings and the people
-*generate*. A realm collects half of it.** Owner-authored, one multiplier
-(`GOLD_INCOME_PERMILLE`), applied to gross income before wages and before the difficulty
+*generate*. A realm collects a quarter of it.** Owner-authored, one multiplier
+(`GOLD_INCOME_PERMILLE` = 250), applied to gross income before wages and before the difficulty
 handicap. Wood, iron and stone are untouched.
+
+It was a half from 0.17.3 and the owner halved it again in 0.19.0 — "reduce all income by half from
+all sources", confirmed as the gold line alone. **It now bites twice rather than once**, because
+growth reads net income: a smaller purse is both less gold and fewer people, and a fixed wage bill is
+a larger share of a smaller income. Measured, that stretches a campaign by 60 to 100 years — see the
+table in [CHANGELOG.md](../CHANGELOG.md) under 0.19.0.
 
 It is a single constant rather than thirty halved numbers in the data files: it is a figure that
 will be retuned, and this way retuning it is one edit rather than thirty. It also leaves every
@@ -249,24 +255,42 @@ every rival's army identical.
 **Every 100 people yields 1 gold per month.** A 1,000-population village is worth 10 gold/month,
 and that 100,000-person capital is worth about 1,000.
 
-#### Wealth bands — treasury-wide, diminishing, and symmetric
+#### Income bands — what the realm *earns*, diminishing, and symmetric — since 0.19.0
 
-The bonus applies to **every city at once** and is calculated from the **faction treasury**, with
-each decade of wealth worth the same again rather than more.
+**Growth reads the realm's net monthly income, not the pile in its vault** (decision 164,
+owner-specified). Until 0.19.0 it read the treasury balance, and that rewarded exactly the wrong
+thing: a realm that banked its taxes and built nothing grew as fast as one running a real economy,
+while a realm that spent its fortune on an army it needed was punished with slower growth for having
+done so. Income is a measure of what a realm has *built*, and it cannot be sat on.
 
-**Debt costs exactly what wealth gains.** The same bands run in reverse.
+The figure is the realm's, applied to **every settlement at once**, and it is net — the tax, the
+difficulty handicap and this month's wages are all already off it.
 
-| Treasury | People / month |
-|---|---:|
-| 1,000,000 gold or more | +15 |
-| 100,000 – 999,999 | +10 |
-| 10,000 – 99,999 | +5 |
-| under 10,000 either way | 0 |
-| −10,000 – −99,999 | −5 |
-| −100,000 – −999,999 | −10 |
-| −1,000,000 or worse | −15 |
+**The bands are marginal, like tax brackets.** Each rate applies only to the slice of income inside
+its band. Read the other way the schedule runs backwards — 10 people at 1,000 net and 5 at 1,001 —
+so every realm near a boundary would want to earn less.
 
-A settlement never falls below **100 people** however deep the debt. **[GEN]**
+| Slice of net income | Rate on that slice | Cumulative, people / month |
+|---|---:|---:|
+| the first 1,000 | 1% | 10 |
+| 1,000 → 10,000 | 0.5% | 55 |
+| 10,000 → 100,000 | 0.1% | 145 |
+| above 100,000 | 0.01% | 235 at a million |
+
+Owner-authored: all four rates and all three thresholds. **[GEN]** in one respect only — that the
+schedule mirrors into the negative, carried over from the treasury rule it replaces.
+
+**That mirror is what makes an army self-limiting** now that there is no manpower ceiling. Wages come
+off net income, so every unit recruited slows the growth of every settlement, and a realm that
+recruits far past its means goes negative and shrinks. A settlement never falls below **100 people**
+however bad it gets.
+
+> **Worth knowing before retuning this.** Measured over a 250-year campaign, the largest net income
+> any realm reached was **998 gold a month** — inside the first band. The upper three bands are
+> designed but effectively never reached at the income scale the halved economy produces, so the
+> prosperity term contributes between 0 and 5 people a month for almost the whole game, against flat
+> building terms of 5 to 135. If growth should respond more to a strong economy, the first band's 1%
+> is the lever, not the ones above it.
 
 Roughly how long each population gate takes, measured on the real simulation:
 
@@ -274,8 +298,8 @@ Roughly how long each population gate takes, measured on the real simulation:
 |---|---:|---|---|
 | Village, nothing built | +5 | 1,000 → 2,000 | 16.7 years |
 | Village + Wooden Houses | +15 | 1,000 → 2,000 | **5.6 years** |
-| Town + housing + Town Hall, 20k banked | +46 | 2,000 → 5,000 | 5.5 years |
-| City + housing + City Hall, 100k banked | +91 | 5,000 → 10,000 | 4.6 years |
+| Town + housing + Town Hall | +41 | 2,000 → 5,000 | 6.1 years |
+| City + housing + City Hall | +81 | 5,000 → 10,000 | 5.1 years |
 
 #### Winter kills armies that stay in enemy country — since 0.17.1
 
@@ -326,47 +350,44 @@ Two floors protect a settlement:
 **Ships draw nobody.** Crew size was never specified for them, so inventing one would be
 inventing a rule — **[OPEN]**.
 
-#### The manpower ceiling — since 0.14.0
+#### ~~The manpower ceiling~~ — removed in 0.19.0
 
-**A realm may keep a fifth of its people under arms.** Owner-authored: 20%.
+**There is no ceiling on an army or a navy. The treasury decides** — owner-specified, decision 165:
+*"I don't want any navy or army limits, I want the limits to be decided by current condition of
+treasury."*
 
-That is the whole rule. What makes it behave is how the two halves are counted:
-
-```
-  people under arms  ≤  20% × (settlement populations + people under arms)
-```
-
-Soldiers are counted among the realm's people, because they still *are* its people — they are
-simply not at home. A recruit does not vanish when he is levied, he changes what he does with his
-day: he comes off a settlement's population and goes into the men under arms, and the total the
-fifth is taken of does not move. **Recruiting therefore never changes the ceiling.** It moves for
-exactly two reasons: people are born, and land changes hands.
-
-Counted as under arms: garrisons, field armies, **and units still in training** — the men were
-levied when the order went out, so leaving the queue out would let a realm order twenty units
-against one unit's worth of room. Not counted: a settlement's own derived defence, which is not
-recruited and cannot leave the walls.
-
-**Ships draw crew, since 0.18.0.** Moored hulls, hulls at sea, hulls still on the slipway and any
-army aboard all count. A Flagship is 200 men — two Light Infantry and change — so a realm cannot
-build a navy and an army out of the same fifth of its people. This is why a rival realm decides its
-ships **before** it decides its soldiers (decision 132); levying first left it permanently unable to
-lay down a hull.
+From 0.14.0 to 0.18.10 a realm could keep a fifth of its people under arms and not one man more.
+That rule and its constant are gone. What replaced it is not nothing, and it is not the treasury
+*balance* either — it is three costs that together bind harder than the wall did:
 
 | | |
-|---|---:|
-| Opening realm: one Village of 1,000, one Light Infantry granted | 1,100 people |
-| Ceiling | **220 men** |
-| Already under arms | 100 |
-| Room | **one more Light Infantry, and no more** |
+|---|---|
+| **People, permanently** | A unit still costs its whole `size` in population, from the settlement that raises it, and they never come back. A Village of 1,000 can raise ten Light Infantry and be a hamlet afterwards. This is the only refusal left in the recruit panel. |
+| **Wages, against growth** | Upkeep comes off net income, and net income is what every settlement grows from (§5). Every unit recruited therefore slows the growth of the *whole realm*, and an army far past its means makes net income negative and the realm shrinks. |
+| **Desertion** | Unpaid troops still walk home at 10% a month. The floor under the whole arrangement. |
 
-**This binds hard, and it is meant to.** A 1,000-person Village supports two Light Infantry; the
-third is eighty-odd months of growth away. Gold no longer decides the size of an army, so the
-question stops being *can I afford another unit* and becomes *is this the unit I want my people to
-be* — which is what makes an expensive, powerful unit worth buying at all.
+So the limit is a **cost that rises smoothly** rather than a wall that is hit, which is the shape
+the owner asked for. A rich realm can field an enormous army; it simply stops growing while it does.
 
-**Conquest is the only fast way to raise it.** That is the same pressure §5 already puts on growth
-and the same place the design puts victory: a realm grows by taking cities, not by waiting.
+Soldiers are still counted among the realm's people — they are simply not at home — so
+`armedSharePermille` is a meaningful reading, and it is the measurement that says whether the
+treasury is in fact limiting anything. Under the old rule every realm sat at 200 per-mille. Measured
+over a 250-year campaign now:
+
+| Year | Share of the realm under arms |
+|---|---|
+| 1350 | 9.0% |
+| 1450 | 6.6% |
+| 1500 | 2.9% |
+| 1600 | **1.3%** |
+
+**The treasury is by far the tighter master.** Realms use a fraction of the people the ceiling used
+to allow them, because they cannot pay for more.
+
+Counted as under arms: garrisons, field armies, **units still in training**, and — since 0.18.0 —
+moored hulls, hulls at sea, hulls on the slipway and any army aboard. Not counted: a settlement's own
+derived defence, which is not recruited and cannot leave the walls. A rival realm still decides its
+ships **before** its soldiers (decision 132), which now matters for the purse rather than the cap.
 
 A shrinking realm — starved under siege, or carved up — can end with more men standing than it may
 now keep. **Nothing is disbanded.** The ceiling gates recruitment; it does not conscript backwards.
@@ -477,7 +498,9 @@ faction actually banks.
 
 **Gold may go negative.** A realm can run into debt, and pays for it twice:
 
-- **Population shrinks**, through the symmetric wealth band above.
+- **Population shrinks**, through the symmetric income bands above — but only if the debt is being
+  driven by wages larger than income. A realm deep in the red with a working economy grows normally
+  since 0.19.0, because growth reads income and never the balance.
 - **Troops desert.** Every month a faction's treasury is in the red, each unit in every
   garrison has a **10% chance** of walking away. A notification says where and how many.
 
@@ -1013,6 +1036,37 @@ to march at** — the Britons on their island, the Moors in North Africa — wan
 because the sea is the only direction it has. Result: **19–30 fleets**, and two or three realms
 holding ground on more than one landmass.
 
+**A realm builds shipping for the armies it has spare** — decision 162, since 0.18.10, and the
+answer to a question that had been owed since 0.18.9. Scaling naval appetite to **cities held** could
+not be raised at all: every flat increase measurably destroyed overseas conquest, taking **0** of the
+7 marooned settlements where the shipped figures took 5–7. Two mechanisms, neither dodgeable by a
+constant — escorts are laid down before transports, so a bigger escort target starves the hold for
+decades; and a crew and a spearman come out of the same fifth of a realm's people (decision 127), so
+a realm that pours a third of its population into hulls fields a smaller army.
+
+Both of those are only costs to a realm that **still has a land war**. So demand comes from
+`spareLift`: the units standing in stacks with nothing to attack **on their own landmass**, counted
+in whole armies' worth. Asked per landmass rather than per realm, because an empire fighting hard in
+Anatolia while thirty stacks sit idle in a conquered Iberia has a land war by any realm-wide test,
+and those thirty stacks are exactly what the boats are for. Claiming stacks never count; border
+guards do, since a guard with no border is handed back to the field force (decision 154).
+
+The old city figure stays underneath as a **floor**, which is what makes the raise safe where the
+flat attempts were not: a realm still fighting on land gets precisely the navy it had, and the realms
+that get more are by definition the ones with people to spare. A realm will build shipping for at
+most **eight** armies at once (`MAX_CONVOYS`).
+
+Measured over three 250-year campaigns, at 1600:
+
+| Seed | Before | After |
+|---|---|---|
+| 4242 | 54 cities and 6 — two realms left | **35, 13, 7, 5 — four realms, still fighting** |
+| 777 | 54 and 6 | **46, 7, 4, 3** |
+| 12345 | 45, 7, 6, 1, 1 | **60 — the conquest completes** |
+
+**Independent cities reach zero by 1450 in every run, before and after**, which is the number that
+had to survive the change and did.
+
 ### There is never a stalemate — since 0.18.4
 
 The single hardest property in this file to keep true, because every rule that causes a stalemate is
@@ -1063,6 +1117,28 @@ raid is as stuck as any other stack, and shipping one to an undefended coast is 
 leaving it at home. This was a real bug rather than a design gap: measured at 1600, one realm had 11
 armies waiting on quays, 21 fleets, and **one of them loaded**.
 
+### The navy in 0.19.1 — four owner directives
+
+**A transport does not sail into a warship-s reach** (decision 166). A warship intercepts anything
+ending a tick within one tile of it and cargo drowns with the hull, so the eight tiles around an
+enemy warship are a certainty rather than a risk. A convoy routes **around** them where it can; where
+it cannot, a convoy carrying warships of its own may force the passage and an unescorted one waits in
+port. An enemy *convoy* menaces nothing, since two holds pass each other untouched.
+
+**Three warships to a convoy** (decision 167), riding in its own sixteen spare berths where they fit
+and sailing as a covering fleet where they do not. The escort is built **in step with the hold**, not
+ahead of it: shipbuilding measures the escort against the Transports already afloat, so the two come
+off the slipways together at three to four. Measuring it against the whole plan instead is exactly
+what destroyed overseas conquest in 0.18.9.
+
+**A war fleet hunts without a range limit** (decision 168). A laden enemy convoy outranks an empty
+warship as a quarry, and several candidates are tried in turn, because with no cap the nearest enemy
+by straight line is frequently in a sea this fleet cannot reach.
+
+**Landings and shipping scale with the realm** (decision 169): three beaches for a small realm and
+seven for an empire, and shipping for twelve armies at once rather than eight. Size alone still buys
+only five convoys; the rest is demand from idle armies.
+
 **Landings are spread across up to four beaches.** All the convoys used to sail for the single best
 one. Dealing them round the reachable coasts is harder to defend against and far more likely to find
 a beach nobody is watching; the first convoy still takes the chosen target, so a realm with one fleet
@@ -1092,11 +1168,15 @@ Measured over 120 years, the world's muster: **archer 24%, light infantry 23%, h
 light cavalry 10%, sword 8%, spear 4%, skirmisher 3%, shock 3%**. The counters the roster already
 had — `antiCavalry`, `rangedResist`, the charge — matter for the first time.
 
-Since 0.14.0 a rival is also held to the **manpower ceiling** (§5), through the same function the
-player's recruit panel calls: a realm at its limit trains nothing anywhere, however full its
-settlements or its treasury. It is now the first of three limits its unit-picking checks, and on a
-small realm it is usually the one that binds — which is the intended answer to a King-difficulty
-realm out-recruiting the player rather than out-thinking them.
+**Since 0.19.0 a rival is held by its purse rather than by a ceiling** (§5, decision 165). The
+manpower cap that used to be the first of three checks is gone; what remains are the settlement's own
+people and the wage test — a realm will not order a unit unless its net income covers **twice** that
+unit's upkeep, leaving room for one more beyond the one being bought.
+
+That is now the binding limit on nearly every realm, and it binds hard. At the halved income of
+0.19.0 a rival can afford nothing but Light Infantry for the first century and a half of a campaign,
+which is why the world's army is 80% one unit at 1470 and only 43% by 1530. It is the same rule the
+player plays by, which is the point, but it is the number to reach for if rival armies feel thin.
 
 ---
 
@@ -1321,7 +1401,7 @@ it, which is what it did before any rule existed at all.
 fifteen tiles if it carries a warship — transports never hunt, a convoy that sails at a warship is a
 convoy that drowns — otherwise it sails to whichever friendly harbour has an army standing in it,
 and failing both it makes for the nearest harbour rather than sitting in open water. A hull at anchor
-is upkeep and a crew counted against the manpower ceiling, for nothing.
+is upkeep and a crew drawn off a settlement, for nothing.
 
 **A landing is never an assault.** A settlement somebody else holds is not a landing site, so an army
 can never be put ashore straight into a city: expeditions pick a **beach** on the target's landmass
@@ -1414,10 +1494,12 @@ It applies to **every** way a Transport can go: sunk in battle, and deserted for
 
 Two consequences of ships finally having crews, both owner-decided in 0.18.0.
 
-**Crew counts against the manpower ceiling** (§5). A Flagship is 200 men — two Light Infantry and
-change — so a realm cannot build a navy and an army out of the same fifth of its people. Moored
-ships, ships at sea, ships **still being built**, and any army aboard all count, on the same
-reasoning that puts units in training under the ceiling: the men were taken when the order went out.
+**Crew is people** (§5). A Flagship is 200 men — two Light Infantry and change — so a realm still
+cannot build a navy and an army out of the same population, even though the ceiling that once said
+so outright is gone (decision 165). What binds now is the wage: 100 gold a month for a Flagship,
+against a realm that collects a quarter of what its land makes. Moored ships, ships at sea, ships
+**still being built**, and any army aboard all count as men under arms, on the same reasoning that
+counts units in training: the men were taken when the order went out.
 
 **Fleets desert in debt**, at the same 10% per ship per month armies suffer. A ship was capital and
 therefore exempt; a ship with a crew is a payroll. A bankrupt realm watches its navy walk off the

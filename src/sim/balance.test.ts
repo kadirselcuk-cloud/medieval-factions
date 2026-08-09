@@ -62,15 +62,34 @@ describe('income breakdown', () => {
 describe('growth breakdown', () => {
   it('sums to the figure the simulation actually uses', () => {
     const paris = state.cities.find((c) => c.ownerIndex === FRANKS)!;
-    state.factions[FRANKS]!.stock.gold = 100_000 * MILLI;
+    // **Income, not the balance, since 0.19.0** — a banked fortune contributes nothing now, so
+    // the term is set by what the realm earns each month (decision 164).
+    state.factions[FRANKS]!.monthlyIncome.gold = 100_000;
     paris.buildings.push('wooden_houses', 'town_hall');
     paris.tier = 2;
 
     const growth = growthBreakdown(state, paris);
-    expect(growth.base + growth.treasury + growth.tier + growth.buildings).toBe(growth.total);
+    expect(growth.base + growth.prosperity + growth.tier + growth.buildings).toBe(growth.total);
     expect(growth.total).toBe(cityGrowth(state, paris));
-    // 2 base + 6 for a Town + 10 houses + 8 hall + 10 for a hundred thousand banked.
-    expect(growth.total).toBe(36);
+    // 2 base + 6 for a Town + 10 houses + 8 hall + 145 for 100,000 a month in net income.
+    expect(growth.prosperity).toBe(145);
+    expect(growth.total).toBe(171);
+  });
+
+  it('reads what the realm earns rather than what it has saved', () => {
+    const paris = state.cities.find((c) => c.ownerIndex === FRANKS)!;
+    const franks = state.factions[FRANKS]!;
+
+    // A fortune in the vault and nothing coming in: the old rule paid 10 people a month for this,
+    // which is what made hoarding a strategy. It now pays nothing.
+    franks.stock.gold = 10_000_000 * MILLI;
+    franks.monthlyIncome.gold = 0;
+    expect(growthBreakdown(state, paris).prosperity).toBe(0);
+
+    // An empty vault and a working economy is the case that should be rewarded.
+    franks.stock.gold = 0;
+    franks.monthlyIncome.gold = 10_000;
+    expect(growthBreakdown(state, paris).prosperity).toBe(55);
   });
 
   it('replaces every term with a loss while the settlement is besieged', () => {

@@ -1,7 +1,7 @@
 import type { JSX } from 'react';
 import type { Faction } from '../data/factions';
 import { calendarAt, SEASON_LABEL } from '../sim/calendar';
-import { manpowerCap, manpowerUnderArms } from '../sim/manpower';
+import { armedSharePermille, manpowerUnderArms } from '../sim/manpower';
 import { RESOURCES, whole, type SimState } from '../sim/types';
 import { num, signed } from './format';
 import { ROSTER_ICON, ROSTER_LABEL, type RosterKind } from './RosterMenu';
@@ -40,8 +40,12 @@ export function TopBar({
   // traded, so it stays out of `Resource` and every cost table that type feeds. Both halves are
   // arithmetic over population and units — see sim/manpower.ts.
   const underArms = manpowerUnderArms(state, state.playerFactionIndex);
-  const cap = manpowerCap(state, state.playerFactionIndex);
-  const full = underArms >= cap;
+  // **No ceiling to show against since 0.19.0** (decision 165). The chip used to read "under arms
+  // of a cap"; there is no cap, so it reads what share of the realm is in the field instead — the
+  // number the old rule pinned at 20% and now lets float. The warning colour moves to the limit
+  // that actually bites: wages larger than income, which costs the realm people every month.
+  const share = armedSharePermille(state, state.playerFactionIndex);
+  const bleeding = (player?.monthlyIncome.gold ?? 0) < 0;
 
   return (
     <header className="bar bar--top">
@@ -77,13 +81,15 @@ export function TopBar({
 
         <span
           className="chip"
-          title={`Manpower — ${num(underArms)} of ${num(cap)} men under arms. A realm may keep a fifth of its people in the field.`}
+          title={`Manpower — ${num(underArms)} men under arms, ${(share / 10).toFixed(1)}% of the realm. There is no limit but the wage bill: pay is taken off net income, and net income is what your settlements grow from.`}
         >
           <span className="chip__symbol" aria-hidden="true">
             ⚔
           </span>
-          <span className={`chip__value${full ? ' chip__value--debt' : ''}`}>{num(underArms)}</span>
-          <span className="chip__rate">/ {num(cap)}</span>
+          <span className={`chip__value${bleeding ? ' chip__value--debt' : ''}`}>
+            {num(underArms)}
+          </span>
+          <span className="chip__rate">{(share / 10).toFixed(1)}%</span>
         </span>
       </div>
 

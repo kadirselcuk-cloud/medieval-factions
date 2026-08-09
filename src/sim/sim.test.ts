@@ -6,7 +6,7 @@ import { terrainAt } from '../data/world';
 import { loadEurope1350 } from '../data/maps';
 import { calendarAt, TICKS_PER_MONTH } from './calendar';
 import { createInitialState, STARTING_GOLD, STARTING_POPULATION, taxedGold } from './state';
-import { advanceBy, cityGrowth, wealthGrowth } from './tick';
+import { advanceBy, cityGrowth, prosperityGrowth } from './tick';
 import { MILLI, whole, type SimState } from './types';
 
 const world = loadEurope1350();
@@ -158,48 +158,76 @@ describe('economy', () => {
   });
 });
 
-describe('wealth growth bonus', () => {
-  it('pays a flat five, ten or fifteen people by decade of wealth', () => {
-    expect(wealthGrowth(10_000)).toBe(5);
-    expect(wealthGrowth(100_000)).toBe(10);
-    expect(wealthGrowth(1_000_000)).toBe(15);
+/**
+ * Growth from **net monthly income** — owner-specified in 0.19.0, decision 164.
+ *
+ * It replaced growth from the treasury *balance*, which rewarded hoarding: a realm that banked its
+ * taxes and built nothing grew as fast as one running a real economy. The bands are marginal, like
+ * tax brackets, and the owner authored all four rates and all three thresholds.
+ */
+describe('prosperity growth', () => {
+  it('pays the owner’s schedule at each threshold', () => {
+    expect(prosperityGrowth(1_000)).toBe(10); // 1% of the first 1,000
+    expect(prosperityGrowth(10_000)).toBe(55); // + 0.5% of the next 9,000
+    expect(prosperityGrowth(100_000)).toBe(145); // + 0.1% of the next 90,000
+    expect(prosperityGrowth(1_000_000)).toBe(235); // + 0.01% of the next 900,000
   });
 
-  it('pays nothing below the first threshold and never exceeds the cap', () => {
-    expect(wealthGrowth(0)).toBe(0);
-    expect(wealthGrowth(9_999)).toBe(0);
-    expect(wealthGrowth(250)).toBe(0);
-    expect(wealthGrowth(50_000_000)).toBe(15);
-  });
+  it('treats the bands as marginal, so it never goes backwards at a boundary', () => {
+    // The whole reason for reading them this way. Flat-rate-per-band would pay 10 people at 1,000
+    // and 5 at 1,001, and every realm near a threshold would want to earn less.
+    expect(prosperityGrowth(1_001)).toBeGreaterThanOrEqual(prosperityGrowth(1_000));
+    expect(prosperityGrowth(10_001)).toBeGreaterThanOrEqual(prosperityGrowth(10_000));
+    expect(prosperityGrowth(100_001)).toBeGreaterThanOrEqual(prosperityGrowth(100_000));
 
-  // Debt costs exactly what wealth gains.
-  it('mirrors itself into debt', () => {
-    for (const gold of [1_000, 9_999, 10_000, 55_000, 100_000, 1_000_000, 9_000_000]) {
-      // Stated as a sum rather than a negation, so a zero band cannot fail on -0 vs 0.
-      expect(wealthGrowth(-gold) + wealthGrowth(gold), `at ±${gold}`).toBe(0);
-    }
-    expect(wealthGrowth(-9_999)).toBe(0);
-    expect(wealthGrowth(-50_000_000)).toBe(-15);
-  });
-
-  it('never decreases as the treasury grows', () => {
     let previous = 0;
-    for (const gold of [0, 1_000, 5_000, 9_999, 10_000, 55_000, 99_999, 100_000, 500_000, 1_000_000]) {
-      const current = wealthGrowth(gold);
-      expect(current, `at ${gold} gold`).toBeGreaterThanOrEqual(previous);
+    for (const net of [0, 100, 999, 1_000, 5_000, 10_000, 60_000, 100_000, 500_000, 9_000_000]) {
+      const current = prosperityGrowth(net);
+      expect(current, `at ${net} net`).toBeGreaterThanOrEqual(previous);
       previous = current;
     }
   });
 
-  /** The whole reason for the change: flat growth is bounded by time, not by a rate. */
+  it('diminishes — ten times the income is never ten times the people', () => {
+    // The property that keeps the population/income feedback loop from compounding: each decade of
+    // income buys less than the one before it, so the marginal rate falls even as the total climbs.
+    for (const net of [1_000, 10_000, 100_000, 1_000_000]) {
+      expect(prosperityGrowth(net * 10), `at ${net} → ${net * 10}`).toBeLessThan(
+        10 * prosperityGrowth(net),
+      );
+    }
+  });
+
+  it('pays almost nothing to a realm just getting started', () => {
+    // The opening position is a few gold a month, and 1% of a few gold is nobody. Growth early on
+    // is the flat terms — base, tier and buildings — exactly as it was.
+    expect(prosperityGrowth(0)).toBe(0);
+    expect(prosperityGrowth(99)).toBe(0);
+    expect(prosperityGrowth(100)).toBe(1);
+  });
+
+  // Debt costs exactly what income gains — which is what makes the army self-limiting now that
+  // there is no manpower ceiling: wages come off net income, and negative net income shrinks towns.
+  it('mirrors itself into debt', () => {
+    for (const net of [100, 999, 1_000, 55_000, 100_000, 1_000_000, 9_000_000]) {
+      // Stated as a sum rather than a negation, so a zero band cannot fail on -0 vs 0.
+      expect(prosperityGrowth(-net) + prosperityGrowth(net), `at ±${net}`).toBe(0);
+    }
+    expect(prosperityGrowth(-1_000_000)).toBe(-235);
+  });
+
+  /**
+   * **The property 0.11.0 bought and this must not sell back.**
+   *
+   * Growth is no longer purely flat: income is derived from population, so population feeds itself
+   * and the model compounds in principle. What stops it being the old half-a-trillion runaway is
+   * the shape of the schedule — the rate falls by a factor of ten at each threshold, so the loop
+   * is roughly logarithmic rather than exponential. This is the test that says so.
+   */
   it('cannot run away, however long a campaign runs', () => {
     const state = newState();
     const city = state.cities.find((c) => c.ownerIndex === state.playerFactionIndex)!;
 
-    // Built out to the **maximum growth a settlement can ever reach** — top tier, every housing
-    // level and every hall, and a treasury in the highest wealth band. The ceiling rather than
-    // today's rate, because a century is long enough for the settlement to change hands and its
-    // new owner to keep building, and nothing either of them can do may raise it further.
     city.tier = 4;
     city.buildings.push(
       'wooden_houses',
@@ -210,13 +238,20 @@ describe('wealth growth bonus', () => {
       'city_hall',
       'palace',
     );
-    for (const faction of state.factions) faction.stock.gold = 10_000_000 * MILLI;
 
-    const ceiling = cityGrowth(state, city);
+    // What the settlement would reach on its **flat terms alone** — base, tier and buildings, with
+    // the income term contributing nothing. Measured before the century so the comparison is against
+    // a fixed line rather than a moving one.
+    state.factions[state.playerFactionIndex]!.monthlyIncome.gold = 0;
+    const flat = cityGrowth(state, city);
     advanceBy(state, world, TICKS_PER_MONTH * 12 * 100);
 
-    // A century at the best rate any settlement can reach, and not one person more.
-    expect(city.population).toBeLessThanOrEqual(STARTING_POPULATION + ceiling * 12 * 100);
+    // A century of the best-built settlement in the game, against a century of pure flat growth.
+    // The income term is allowed to add to it — that is what it is for — but it must stay the
+    // **smaller** part, which is what says the feedback loop is logarithmic and not exponential.
+    // The old compounding model reached 531 trillion from a worse starting point than this.
+    expect(city.population).toBeGreaterThan(STARTING_POPULATION);
+    expect(city.population).toBeLessThan(2 * (STARTING_POPULATION + flat * 12 * 100));
   });
 });
 

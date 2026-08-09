@@ -12,7 +12,7 @@ import {
 } from '../data/units';
 import { armyAt, mobilise, stackSize } from './armies';
 import { TICKS_PER_MONTH } from './calendar';
-import { cancelProduction, queueShip, totalUpkeep } from './construction';
+import { availableManpower, cancelProduction, queueShip, totalUpkeep } from './construction';
 import {
   berths,
   disembark,
@@ -32,8 +32,18 @@ import {
   seaBeside,
   stepLength,
 } from './fleets';
-import { sailingDistanceFrom, UNREACHABLE } from './geography';
-import { canRaise, manpowerCap, manpowerUnderArms } from './manpower';
+import { sailingDistanceFrom, UNREACHABLE, walkingDistanceFrom } from './geography';
+import {
+  convoysWanted,
+  ESCORTS_PER_CONVOY,
+  escortsWanted,
+  hullsWanted,
+  MAX_CONVOYS,
+  maxBeaches,
+  menacedWater,
+  spareLift,
+} from './navalAi';
+import { manpowerUnderArms } from './manpower';
 import { MARCH_PER_TILE } from './movement';
 import {
   advanceFleets,
@@ -588,23 +598,29 @@ describe('crews are men', () => {
     expect(port.shipQueue).toHaveLength(1);
   });
 
-  it('refuses a hull the realm has no room under its ceiling to crew', () => {
-    port.population = 20_000;
+  it('refuses a hull only when the port itself has run out of people', () => {
+    // **Rewritten in 0.19.0.** This used to assert that a realm at its manpower ceiling could not
+    // crew another hull. There is no ceiling (decision 165), so the assertion is now the one that
+    // survived it: a harbour can lay down keels until its own population hits the floor, and the
+    // refusal that stops it is local.
+    port.population = 1_000;
     fund();
 
-    // Filled a hull at a time rather than by arithmetic, because the ceiling is a share of *all*
-    // the realm's people and soldiers count among them — so each Flagship raises the cap as well
-    // as spending it, and the closed form for "how many is too many" is not worth writing down.
-    while (canRaise(state, FRANKS, 40) && (port.fleet.flagship ?? 0) < 1000) {
-      port.fleet.flagship = (port.fleet.flagship ?? 0) + 1;
+    // A Transport is 40 crew and the floor is 100, so nine hulls empty the town and the tenth
+    // cannot be manned. Nothing about the rest of the realm enters into it.
+    for (let i = 0; i < 22; i++) {
+      const result = queueShip(state, port, 'transport');
+      if (!result.ok) {
+        expect(result).toEqual({ ok: false, reason: 'too-few-people' });
+        break;
+      }
     }
 
-    expect(canRaise(state, FRANKS, 40)).toBe(false);
+    expect(availableManpower(port)).toBeLessThan(40);
     expect(queueShip(state, port, 'transport')).toEqual({
       ok: false,
-      reason: 'no-manpower',
+      reason: 'too-few-people',
     });
-    expect(manpowerUnderArms(state, FRANKS)).toBeGreaterThan(manpowerCap(state, FRANKS) - 40);
   });
 
   it('gives the crew back when a hull on the slipway is cancelled', () => {
@@ -1039,5 +1055,234 @@ describe('a convoy is four transports and no more', () => {
       reason: 'too-many-transports',
     });
     expect(state.fleets).toHaveLength(2);
+  });
+});
+
+/**
+ * How big a navy a realm wants — **shipping is built for the armies that have nowhere to walk**.
+ *
+ * The formula used to be a function of cities held alone, and 0.18.9 measured that shape as
+ * unable to deliver the ships the owner asked for: every raise of the flat ceilings destroyed
+ * overseas conquest, taking 0 of the 7 marooned settlements against the shipped build's 5-7.
+ * Demand now comes from spare troops, with the old city figure kept underneath as a floor.
+ */
+describe('naval appetite scales with idle armies, not cities held', () => {
+  /** The Franks, and everything they could walk to. */
+  const franksHome = (s: SimState) =>
+    walkingDistanceFrom(
+      world,
+      s.cities.filter((c) => c.ownerIndex === FRANKS).map((c) => c.tileIndex),
+    );
+
+  it('counts nothing as spare while there is a war on the army-s own landmass', () => {
+    const s = createInitialState(world, roster, 'franks', 4242, 'knight');
+    const capital = s.cities.find((c) => c.ownerIndex === FRANKS);
+    expect(capital).toBeDefined();
+    mobilise(s, world, capital!, { ...capital!.garrison });
+
+    // The Franks open in mainland Europe surrounded by settlements they would attack, so the
+    // landmass they are standing on is contested and none of their men are waiting for a boat.
+    expect(spareLift(s, world, FRANKS, franksHome(s), () => true)).toBe(0);
+  });
+
+  it('counts every stack as spare once there is nothing on the landmass worth attacking', () => {
+    const s = createInitialState(world, roster, 'franks', 4242, 'knight');
+    const capital = s.cities.find((c) => c.ownerIndex === FRANKS);
+    capital!.garrison = { light_infantry: MAX_ARMY_UNITS };
+    mobilise(s, world, capital!, { light_infantry: MAX_ARMY_UNITS });
+
+    // A whole army's worth of men with no war to march to is one convoy's worth of shipping.
+    expect(spareLift(s, world, FRANKS, franksHome(s), () => false)).toBe(1);
+  });
+
+  it('leaves a realm still fighting on land with exactly the shipping it had before', () => {
+    // The old formula, for every realm size the map can produce. A realm with no spare troops must
+    // want precisely this many **convoys**, or 0.18.10 was a balance change rather than a
+    // redirection. The escort that rides with them is a separate question, and the owner raised it
+    // in 0.19.1 — see the escort tests below.
+    for (const cities of [1, 4, 10, 22, 45, 56]) {
+      expect(convoysWanted(cities, 0)).toBe(Math.max(1, Math.min(5, 1 + Math.floor(cities / 10))));
+    }
+  });
+
+  it('gives a realm with idle armies more shipping than its cities would buy', () => {
+    // Britain: seven cities, so the city formula allows one convoy. Ten armies with nowhere to
+    // march is ten armies' worth of demand, and the ceiling is what stops it.
+    expect(convoysWanted(7, 0)).toBe(1);
+    expect(convoysWanted(7, 4)).toBe(4);
+    expect(convoysWanted(7, 10)).toBe(10);
+    // And the ceiling still binds above that.
+    expect(convoysWanted(7, MAX_CONVOYS + 20)).toBe(MAX_CONVOYS);
+  });
+
+  it('never lets the hull ceiling sit below the plan it is capping', () => {
+    for (const cities of [1, 4, 7, 10, 22, 45, 56]) {
+      for (const lift of [0, 1, 4, 8, 40]) {
+        for (const landlocked of [false, true]) {
+          const convoys = convoysWanted(cities, lift);
+          const escorts = escortsWanted(cities, landlocked, convoys);
+          // Berths for every convoy, plus the escorts, must fit inside the ceiling — otherwise a
+          // realm stops building at the ceiling and never assembles what it decided it wanted.
+          expect(hullsWanted(cities, landlocked, convoys, escorts)).toBeGreaterThanOrEqual(
+            MAX_FLEET_TRANSPORTS * convoys + escorts,
+          );
+        }
+      }
+    }
+  });
+
+  it('keeps the escort target bounded, however large the realm', () => {
+    // The bound moved from 14 to 40 in 0.19.1 with the owner's three-per-convoy brief. What stops
+    // a big target starving the hold is no longer this cap — it is that `buildFleet` measures the
+    // escort against the Transports already afloat. The cap is only there so a navy is finite.
+    for (const cities of [1, 22, 56]) {
+      for (const lift of [0, 8, 40]) {
+        expect(escortsWanted(cities, true, convoysWanted(cities, lift))).toBeLessThanOrEqual(40);
+      }
+    }
+  });
+});
+
+/**
+ * **A convoy keeps out of a warship's reach** — owner-specified in 0.19.1, decision 166.
+ *
+ * A warship intercepts anything ending a tick within one tile of it and cargo drowns with the hull,
+ * so the eight tiles around an enemy warship are not a risk to a loaded transport, they are a
+ * certainty. Routing became a question of avoiding them rather than of distance.
+ */
+describe('transports do not sail into enemy warships', () => {
+  it('counts the tile a hostile warship stands on and every tile around it as menaced', () => {
+    const enemy = roster.findIndex((f, i) => i !== FRANKS && !f.neutral);
+    const water = seaBeside(world, port.tileIndex)[0]!;
+    state.fleets.push({
+      id: state.nextFleetId++,
+      ownerIndex: enemy,
+      tileIndex: water,
+      ships: { light_ship: 1 },
+      cargo: {},
+      path: [],
+      sail: 0,
+    });
+
+    const menaced = menacedWater(state, world, FRANKS);
+    expect(menaced.has(water)).toBe(true);
+    for (const tile of seaNeighbours(world, water)) expect(menaced.has(tile)).toBe(true);
+  });
+
+  it('ignores an enemy convoy, which can catch nothing', () => {
+    const enemy = roster.findIndex((f, i) => i !== FRANKS && !f.neutral);
+    const water = seaBeside(world, port.tileIndex)[0]!;
+    state.fleets.push({
+      id: state.nextFleetId++,
+      ownerIndex: enemy,
+      tileIndex: water,
+      ships: { transport: 3 },
+      cargo: {},
+      path: [],
+      sail: 0,
+    });
+
+    // Two transport convoys pass each other untouched (decision 125), so routing around one would
+    // be superstition rather than seamanship.
+    expect(menacedWater(state, world, FRANKS).size).toBe(0);
+  });
+
+  it('never treats our own warships as a hazard', () => {
+    putToSea({ light_ship: 1 });
+    expect(menacedWater(state, world, FRANKS).size).toBe(0);
+  });
+
+  it('routes around menaced water when a way round exists', () => {
+    const fleet = putToSea({ transport: 2 });
+    const open = [...Array(world.width * world.height).keys()].filter(
+      (t) => isWater(world, t) && t !== fleet.tileIndex,
+    );
+    const destination = open.find(
+      (t) => findSeaPath(state, world, fleet, t) !== null && stepsBetween(fleet, t) > 4,
+    );
+    if (destination === undefined) return;
+
+    const direct = findSeaPath(state, world, fleet, destination)!;
+    // Menace the first step of the direct route. A detour must therefore differ from it.
+    const menaced = new Set<number>([direct[0]!]);
+    const around = findSeaPath(state, world, fleet, destination, fleet.tileIndex, menaced);
+
+    if (around !== null) {
+      expect(around[0]).not.toBe(direct[0]);
+      expect(around).not.toContain(direct[0]);
+    }
+  });
+
+  it('always allows the destination itself, however menaced it is', () => {
+    const fleet = putToSea({ transport: 2 });
+    const destination = seaNeighbours(world, fleet.tileIndex).find((t) => isWater(world, t));
+    if (destination === undefined) return;
+
+    // The beach an army has to land on may be exactly the one being watched. What the rule avoids
+    // is being caught in transit, not arriving somewhere dangerous.
+    const path = findSeaPath(state, world, fleet, destination, fleet.tileIndex, new Set([destination]));
+    expect(path).toEqual([destination]);
+  });
+
+  /** Straight-line tiles, only used to pick a destination far enough away to have a choice of route. */
+  function stepsBetween(fleet: FleetState, tile: number): number {
+    return Math.max(
+      Math.abs((fleet.tileIndex % world.width) - (tile % world.width)),
+      Math.abs(
+        Math.floor(fleet.tileIndex / world.width) - Math.floor(tile / world.width),
+      ),
+    );
+  }
+});
+
+/**
+ * **Large amounts of warships, without starving the hold** — owner-specified in 0.19.1.
+ *
+ * Raising the escort target is the exact thing that destroyed overseas conquest in 0.18.9. What makes
+ * three per convoy safe is that `buildFleet` measures the escort against the Transports already
+ * afloat rather than the ones eventually wanted.
+ */
+describe('convoys are escorted in strength', () => {
+  it('wants three warships for every convoy it means to run', () => {
+    expect(escortsWanted(1, false, 1)).toBeGreaterThanOrEqual(ESCORTS_PER_CONVOY);
+    expect(escortsWanted(1, false, 4)).toBe(4 * ESCORTS_PER_CONVOY);
+    expect(escortsWanted(1, false, 10)).toBe(10 * ESCORTS_PER_CONVOY);
+  });
+
+  it('keeps a patrol squadron even for a realm running one convoy', () => {
+    // A large realm with a single convoy still wants warships — they are the ones that go hunting.
+    expect(escortsWanted(40, false, 1)).toBeGreaterThan(ESCORTS_PER_CONVOY);
+  });
+
+  it('caps, so an escort target cannot run away with a whole navy', () => {
+    expect(escortsWanted(60, true, MAX_CONVOYS)).toBeLessThanOrEqual(40);
+  });
+
+  it('leaves room in a convoy for the escort to ride with the cargo', () => {
+    // Four Transports and sixteen berths spare, so three escorts fit alongside the army rather
+    // than having to sail as a separate fleet.
+    expect(MAX_FLEET_SHIPS - MAX_FLEET_TRANSPORTS).toBeGreaterThanOrEqual(ESCORTS_PER_CONVOY);
+  });
+});
+
+/** **More landings for a larger realm** — owner-specified in 0.19.1. */
+describe('a large realm lands in more places', () => {
+  it('scales the number of beaches with the realm, within bounds', () => {
+    expect(maxBeaches(1)).toBe(3);
+    expect(maxBeaches(12)).toBe(3);
+    expect(maxBeaches(30)).toBe(5);
+    expect(maxBeaches(60)).toBe(7);
+    // Never fewer than the flat three it replaced, never more than seven.
+    for (const cities of [0, 5, 25, 55, 200]) {
+      expect(maxBeaches(cities)).toBeGreaterThanOrEqual(3);
+      expect(maxBeaches(cities)).toBeLessThanOrEqual(7);
+    }
+  });
+
+  it('lifts more armies at once than it did', () => {
+    // Only a realm with idle armies reaches it; size alone still stops at five.
+    expect(MAX_CONVOYS).toBeGreaterThan(8);
+    expect(convoysWanted(60, 0)).toBe(5);
+    expect(convoysWanted(60, 40)).toBe(MAX_CONVOYS);
   });
 });

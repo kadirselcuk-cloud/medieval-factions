@@ -87,7 +87,7 @@ import {
   type BuildFailure,
 } from "../sim/construction";
 import type { Game } from "../sim/game";
-import { freeManpower, manpowerCap, manpowerUnderArms } from "../sim/manpower";
+import { armedSharePermille, manpowerUnderArms } from "../sim/manpower";
 import { cityGrowth } from "../sim/tick";
 import {
   MAX_ARMY_UNITS,
@@ -750,14 +750,16 @@ function Garrison({
 
   // Two separate limits, and a unit needs both. This settlement must have the people to give, and
   // the realm must have room under its manpower ceiling to keep them — see sim/manpower.ts.
-  const realmRoom = freeManpower(state, city.ownerIndex);
+  // **One manpower question since 0.19.0, not two** (decision 165). The realm-wide ceiling is gone,
+  // so a settlement with the people to give can always raise the unit. What it costs the realm is
+  // the wage, and the wage is read on the treasury line rather than refused here.
   const underArms = manpowerUnderArms(state, city.ownerIndex);
-  const cap = manpowerCap(state, city.ownerIndex);
+  const share = armedSharePermille(state, city.ownerIndex);
+  const netIncome = state.factions[city.ownerIndex]?.monthlyIncome.gold ?? 0;
 
   const tiles: BuildTile[] = loadUnits().map((unit) => {
     const affordable = canAfford(state, city.ownerIndex, unit.cost);
     const enoughPeople = manpower >= unit.size;
-    const realmCanKeep = realmRoom >= unit.size;
     const unlocked = recruitable.has(unit.id);
     const missing = unit.requires
       .filter((id) => !city.buildings.includes(id))
@@ -767,9 +769,7 @@ function Garrison({
       id: unit.id,
       name: unit.name,
       state:
-        unlocked && affordable && enoughPeople && realmCanKeep
-          ? "available"
-          : "blocked",
+        unlocked && affordable && enoughPeople ? "available" : "blocked",
       blurb: artFor(unit.id).blurb,
       facts: [
         { label: "Class", value: labelOf(unit.class) },
@@ -813,9 +813,7 @@ function Garrison({
               ? "Not enough in the treasury."
               : !enoughPeople
                 ? `Not enough people. ${num(unit.size)} men must come from somewhere, and only ${num(manpower)} can be spared here.`
-                : realmCanKeep
-                  ? undefined
-                  : `The realm is at its limit — ${num(underArms)} of ${num(cap)} men already under arms. Disband something, or take more land.`,
+                : undefined,
       action: `Recruit ${unit.name}`,
       onAction: () => game.command((s) => queueUnit(s, city, unit.id)),
     };
@@ -926,8 +924,10 @@ function Garrison({
           <>
             Every unit is men, and the men come out of this settlement — {num(manpower)} can be
             spared here. They do not come back, so an army is a permanent choice against growth.
-            The realm has {num(underArms)} of {num(cap)} under arms, and room for {num(realmRoom)}{" "}
-            more.
+            The realm has {num(underArms)} under arms, {(share / 10).toFixed(1)}% of its people.
+            There is no ceiling on that: what limits an army is its wages, which come off the{" "}
+            {netIncome < 0 ? "negative " : ""}net income of {num(netIncome)} a month that every
+            settlement you hold grows from.
           </>
         }
       />

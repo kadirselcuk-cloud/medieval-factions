@@ -7,7 +7,7 @@ import { TICKS_PER_MONTH } from './calendar';
 import { improvementAt } from './construction';
 import { deserialise, serialise } from './save';
 import { taxedGold } from './state';
-import { advanceBy, BASE_GROWTH, cityGrowth, GROWTH_PER_TIER, wealthGrowth } from './tick';
+import { advanceBy, BASE_GROWTH, cityGrowth, GROWTH_PER_TIER, prosperityGrowth } from './tick';
 import { whole, type CityState, type SimState } from './types';
 
 /**
@@ -114,17 +114,36 @@ export function incomeBreakdown(
     result.stone += full.stone;
   }
 
-  // **Every gold term above is gross — what the land produces — and only half of it is
-  // collected.** Taxing each term rather than the sum keeps the panel's arithmetic addable: a
-  // reader who sums the rows must get the net, and flooring once at the end would leave the
-  // columns off by a coin or two against the simulation. Upkeep is a wage, not a yield, so it is
-  // paid in full out of what the tax leaves.
-  result.population = taxedGold(result.population);
-  result.commerce = taxedGold(result.commerce);
-  result.fishing = taxedGold(result.fishing);
-  result.land = taxedGold(result.land);
-  result.improvements = taxedGold(result.improvements);
+  /**
+   * **Every gold term above is gross — what the land produces — and only a quarter of it reaches
+   * the treasury** (`GOLD_INCOME_PERMILLE`, halved again in 0.19.0).
+   *
+   * The panel owes the reader two things that pull against each other: the rows must **add up to
+   * the net**, and the net must be **the same figure the simulation uses**. Taxing each row
+   * separately gives the first and loses the second, because five floors throw away more than one
+   * does — `⌊a/4⌋ + ⌊b/4⌋ ≤ ⌊(a+b)/4⌋`. At the old half rate the gap was usually zero and the
+   * discrepancy went unnoticed; at a quarter it is a coin or two every month, and 0.19.0's own
+   * test caught the panel quietly disagreeing with the simulation about a realm's income.
+   *
+   * So the tax is taken **once, on the total**, exactly as `recomputeIncome` takes it, and the few
+   * coins the per-row flooring loses are handed back to the largest row. Both properties hold: the
+   * columns sum to the net, and the net is right.
+   */
+  const grossTerms = ['population', 'commerce', 'fishing', 'land', 'improvements'] as const;
+  const grossTotal = grossTerms.reduce((sum, term) => sum + result[term], 0);
+  for (const term of grossTerms) result[term] = taxedGold(result[term]);
 
+  const rounding =
+    taxedGold(grossTotal) - grossTerms.reduce((sum, term) => sum + result[term], 0);
+  if (rounding !== 0) {
+    // Ties on the earlier term, so the same breakdown always lands the remainder in the same row.
+    const largest = grossTerms.reduce((best, term) =>
+      result[term] > result[best] ? term : best,
+    );
+    result[largest] += rounding;
+  }
+
+  // Upkeep is a wage, not a yield, so it is paid in full out of what the tax leaves.
   result.net =
     result.population + result.commerce + result.fishing + result.land + result.improvements + result.upkeep;
   return result;
@@ -133,9 +152,16 @@ export function incomeBreakdown(
 // ------------------------------------------------------------------- growth
 
 export interface GrowthBreakdown {
-  /** All in tenths of a percent per month. */
+  /** All in whole people per month. */
   base: number;
-  treasury: number;
+  /**
+   * What the realm's **net monthly income** contributes — `prosperityGrowth`, since 0.19.0.
+   *
+   * Named `prosperity` rather than `treasury` because it is no longer the treasury: it reads what
+   * the realm earns each month, not the pile it has saved (decision 164). The distinction is the
+   * whole point of the change and the field name should not hide it.
+   */
+  prosperity: number;
   tier: number;
   buildings: number;
   /** People added next month — the sum of the terms above. */
@@ -152,19 +178,26 @@ export interface GrowthBreakdown {
  */
 export function growthBreakdown(state: SimState, city: CityState): GrowthBreakdown {
   const owner = state.factions[city.ownerIndex];
-  const treasury = owner ? wealthGrowth(whole(owner.stock.gold)) : 0;
+  const prosperity = owner ? prosperityGrowth(owner.monthlyIncome.gold) : 0;
   const buildings = summariseBuildings(city.buildings).growthPeople;
   const tier = GROWTH_PER_TIER * city.tier;
 
   if (city.siege) {
-    return { base: 0, treasury: 0, tier: 0, buildings: 0, total: cityGrowth(state, city), besieged: true };
+    return {
+      base: 0,
+      prosperity: 0,
+      tier: 0,
+      buildings: 0,
+      total: cityGrowth(state, city),
+      besieged: true,
+    };
   }
   return {
     base: BASE_GROWTH,
-    treasury,
+    prosperity,
     tier,
     buildings,
-    total: BASE_GROWTH + treasury + tier + buildings,
+    total: BASE_GROWTH + prosperity + tier + buildings,
     besieged: false,
   };
 }

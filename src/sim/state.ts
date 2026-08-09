@@ -259,7 +259,7 @@ export function recomputeIncome(state: SimState, world: World): void {
 }
 
 /**
- * What a realm actually collects of the gold its land produces — **half**, owner-authored.
+ * What a realm actually collects of the gold its land produces — **a quarter**, owner-authored.
  *
  * Every gold figure in the game's data is what the ground, the buildings and the people
  * *generate*; this is the share that reaches the treasury. Applied in one place, to gross income,
@@ -273,8 +273,13 @@ export function recomputeIncome(state: SimState, world: World): void {
  *
  * Wood, iron and stone are untouched. The problem it exists to solve is gold: a realm that clears
  * a hundred a month can field heavy cavalry indefinitely, and every realm was reaching that.
+ *
+ * **Halved again in 0.19.0** — owner-specified, "reduce all income by half from all sources", and
+ * confirmed as the gold line alone. It bites twice now rather than once, because population growth
+ * reads *net* income since the same version (`prosperityGrowth`): a smaller purse is both less gold
+ * and fewer people, and a fixed wage bill is a larger share of it. That compounding is the point.
  */
-export const GOLD_INCOME_PERMILLE = 500;
+export const GOLD_INCOME_PERMILLE = 250;
 
 /** Gross gold in, collected gold out. Integer, floored — see `GOLD_INCOME_PERMILLE`. */
 export function taxedGold(gross: number): number {

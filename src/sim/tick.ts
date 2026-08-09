@@ -223,7 +223,10 @@ export function cityGrowth(state: SimState, city: CityState): number {
     BASE_GROWTH +
     GROWTH_PER_TIER * city.tier +
     summariseBuildings(city.buildings).growthPeople +
-    wealthGrowth(Math.floor(owner.stock.gold / MILLI))
+    // **Net income, not the treasury** — owner-specified in 0.19.0. `monthlyIncome.gold` already
+    // has the tax, the difficulty handicap and this month's wages taken off it, so it is exactly
+    // the "net income per month, faction-wide" the rule asks for and needs no arithmetic here.
+    prosperityGrowth(owner.monthlyIncome.gold)
   );
 }
 
@@ -276,23 +279,67 @@ function accrueIncome(state: SimState): void {
 }
 
 /**
- * Treasury contribution to population growth, in **people per month** (docs/MECHANICS.md §5).
+ * What a realm's **monthly net income** adds to every settlement it holds, in people per month.
+ * Owner-specified in 0.19.0; docs/MECHANICS.md §5.
  *
- * Diminishing by design: each decade of wealth is worth the same again rather than compounding
- * away, so a fortune helps a settlement fill without deciding the game on its own. Capped.
+ * **It replaced the treasury outright.** Growth used to read `stock.gold` — the pile a realm was
+ * sitting on — which rewarded hoarding: a realm that conquered nothing and built nothing but banked
+ * its taxes grew as fast as one running a real economy, and a realm that spent its fortune on an
+ * army it needed was punished with slower growth for having done so. Income is a measure of what
+ * the realm has *built*, and it cannot be sat on.
  *
- * **Symmetric.** Debt costs exactly what wealth gains — a realm 10,000 gold in the red loses
- * five people a month from every settlement it holds, and one a million in the red loses fifteen.
+ * **The bands are marginal, like tax brackets** — each rate applies only to the slice of income
+ * inside its band, not to the whole figure. Read the other way, the schedule runs backwards: at
+ * 1,000 net a realm would gain 10 people and at 1,001 only 5, so every realm near a boundary would
+ * want to *earn less*. Marginal is the only reading that is monotonic.
+ *
+ * | Net income | Rate on that slice | Cumulative |
+ * |---|---|---|
+ * | first 1,000 | 1% | 10 |
+ * | to 10,000 | 0.5% | 55 |
+ * | to 100,000 | 0.1% | 145 |
+ * | above | 0.01% | 235 at a million |
+ *
+ * **Symmetric, and that is what makes the army self-limiting.** Since 0.19.0 there is no manpower
+ * ceiling; the treasury is the only limit on how many men a realm keeps (decision 165). Wages come
+ * off net income, so every unit recruited slows the growth of every settlement the realm holds, and
+ * a realm that recruits past its means goes negative and *shrinks*. That feedback is the limit —
+ * there is no wall to hit, only a cost that rises until it is not worth paying.
+ *
+ * The owner specified the four rates and the three thresholds; that debt mirrors them is Claude's,
+ * carried over from the treasury rule it replaces. **[GEN]** in that one respect only.
+ *
+ * Arithmetic is in **basis points** (hundredths of a percent) and floored once at the end, so the
+ * whole thing is integer — no float ever reaches simulation state, and the bands do not each lose
+ * a fraction of a person to rounding.
  */
-export function wealthGrowth(goldWhole: number): number {
-  const sign = goldWhole < 0 ? -1 : 1;
-  const size = Math.abs(goldWhole);
+export function prosperityGrowth(netGoldPerMonth: number): number {
+  const sign = netGoldPerMonth < 0 ? -1 : 1;
+  const size = Math.abs(netGoldPerMonth);
 
-  if (size < 10_000) return 0;
-  if (size < 100_000) return sign * 5;
-  if (size < 1_000_000) return sign * 10;
-  return sign * 15;
+  let points = 0;
+  let taken = 0;
+  for (const [ceiling, rate] of PROSPERITY_BANDS) {
+    if (size <= taken) break;
+    const slice = Math.min(size, ceiling) - taken;
+    points += slice * rate;
+    taken += slice;
+  }
+  return sign * Math.floor(points / 10_000);
 }
+
+/**
+ * The bands, as `[ceiling, basis points]` — owner-authored rates and thresholds.
+ *
+ * A basis point is a hundredth of a percent, so 100 = 1%. The last band's ceiling is effectively
+ * unbounded: the schedule keeps paying 0.01% however rich a realm becomes.
+ */
+const PROSPERITY_BANDS: readonly (readonly [number, number])[] = [
+  [1_000, 100],
+  [10_000, 50],
+  [100_000, 10],
+  [Number.MAX_SAFE_INTEGER, 1],
+];
 
 /**
  * Monthly population growth (docs/MECHANICS.md §5).

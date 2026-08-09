@@ -13,6 +13,193 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.19.1] — 2026-08-10
+
+Four owner directives about how the AI uses its navy. All four shipped; the escort one carried the
+trap that defeated 0.18.9, and the way past it was the build *order*, not the number.
+
+### Changed
+
+- **A transport does not sail into a warship's reach.** A warship intercepts anything ending a tick
+  within one tile of it and cargo drowns with the hull, so the eight tiles around an enemy warship
+  are not a risk to a convoy but a certainty. Sea routing now takes an avoid-set and convoys route
+  **around** them. Where there is no way round, a convoy with warships of its own may force the
+  passage; an unescorted one waits in port. Waiting costs upkeep, sailing costs the army.
+  - An enemy *convoy* menaces nothing — two holds pass each other untouched — so routing around one
+    would be superstition.
+  - Empty Transports on their way to a quay take the safe road too. They are not carrying an army
+    yet, but they are the thing that will.
+- **Convoys sail in strength: three warships apiece, up from one.** A convoy's fleet has sixteen
+  berths spare beside its four Transports, so the escort rides with the cargo where it fits and
+  sails as a covering fleet where it does not.
+  - **This is the change that destroyed overseas conquest when 0.18.9 tried it** — escorts are laid
+    down before transports, so a big escort target meant a realm built two dozen warships before the
+    first hull that could carry anything, and took 0 of 7 marooned settlements. The fix is not the
+    target but the order: shipbuilding now measures the escort against the Transports **already
+    afloat**, so warships and hold come off the slipways together at three to four. The full escort
+    plan is only completed once there is no more hold to build — and those last hulls are the war
+    fleet.
+- **A war fleet hunts without a range limit.** It was thirty tiles, to keep a navy patrolling its own
+  sea. A warship sitting off its own coast is not defending it, because nothing is coming. A laden
+  enemy convoy now outranks an empty warship as a quarry, and eight candidates are tried in turn —
+  with no cap, the nearest enemy by straight line is often in a sea this fleet cannot reach at all.
+- **Naval dominance scales with the realm.** Landings go from a flat four beaches to three for a
+  small realm and **seven** for an empire; a realm will build shipping for **twelve** armies at once
+  rather than eight. Size alone still buys only five convoys, so a realm still fighting on land is
+  untouched — the rest is demand from idle armies.
+
+### Measured
+
+Two 240-year campaigns, against 0.19.0:
+
+| | Seed 77 | Seed 12345 |
+|---|---|---|
+| All seven marooned settlements taken by | 1590 → **1550** | 1510 → 1530 |
+| At 1510 | 3 of 7 → **5 of 7** | 5 of 7 → 5 of 7 |
+| Convoys with an escort, late campaign | 4 of 14 → **16 of 27** | 1 of 5 → **5 of 7** at 1450 |
+
+**Escort coverage roughly doubled**, which is the headline and what the owner asked for. Overseas
+conquest is 40 years faster on one seed and 20 slower on the other — net neutral, and well clear of
+the collapse the same escort raise caused in 0.18.9.
+
+### Fixed
+
+- **Two AI tests were asserting single-month snapshots of quantities that swing.** The share of
+  fleets under way was measured moving between 0.00 and 0.67 within five years, and the share of
+  field stacks at four units or fewer between 0.19 and 0.49 within a decade — both bars sat inside
+  their own metric's noise, and both failed on a naval change that has nothing to do with how armies
+  are sized. They now sample over three years and five years respectively, on a serialised copy so
+  the campaign the rest of the block reads is not advanced out from under it.
+
+## [0.19.0] — 2026-08-10
+
+**The economy redesigned, owner-specified.** Three linked changes: income halved, growth moved from
+the treasury to net income, and the ceiling on army size removed in favour of what a realm can pay
+for. Together they turn army size from a wall a realm hits into a cost that rises until it is not
+worth paying.
+
+No save-format change — growth, income and manpower are all derived, none of them stored.
+
+### Changed
+
+- **A realm collects a quarter of the gold its land produces**, down from a half.
+  `GOLD_INCOME_PERMILLE` 500 → 250. Wood, iron and stone are untaxed as before.
+- **Population grows from net monthly income, not from the size of the treasury.** The old rule read
+  the pile a realm was sitting on, which rewarded hoarding: a realm that banked its taxes and built
+  nothing grew as fast as one running a real economy, and a realm that spent its fortune on an army
+  it needed was punished with slower growth for having done so.
+  - The bands are **marginal, like tax brackets** — 1% of the first 1,000, 0.5% to 10,000, 0.1% to
+    100,000, 0.01% above that. A realm gains 10 people a month per settlement at 1,000 net income,
+    55 at 10,000, 145 at 100,000 and 235 at a million.
+  - Read as a flat rate per band the schedule would run *backwards* at every boundary — 10 people at
+    1,000 net and 5 at 1,001 — so marginal is the only monotonic reading of it.
+  - **Symmetric.** Wages larger than income shrink a settlement by the same schedule.
+- **There is no ceiling on an army or a navy any more.** `MANPOWER_SHARE_PERMILLE` and the
+  fifth-of-your-people rule are deleted. What limits an army now is what it costs: a unit still takes
+  its whole size in people from the settlement that raises it, wages come off the net income every
+  settlement grows from, and unpaid troops still desert. Measured, that binds harder than the wall
+  did — realms settle at **1.3% of their people under arms by 1600**, against the 20% the ceiling
+  pinned them to.
+- **The top bar reads the share of the realm under arms** rather than a total against a cap, and
+  turns red on negative net income rather than on a full ceiling.
+
+### Fixed
+
+- **The balance panel's net income disagreed with the simulation's.** It taxed each row separately
+  and the simulation taxes the total, and five floors throw away more than one does. At the old half
+  rate the gap was usually zero; at a quarter it is a coin or two every month. The tax is now taken
+  once on the total and the rounding handed to the largest row, so the columns still sum to the net
+  **and** the net is right.
+
+### Measured
+
+Halving income does not stop the rivals doing anything. It makes them take **60 to 100 years longer**
+to do it, because everything an AI does costs gold. Every horizon in the AI tests moved; not one
+assertion was relaxed.
+
+| What | Was true by | Now true by |
+|---|---|---|
+| Three rivals hold more than their capital | 1362 | 1366 |
+| More than five battles fought | 1362 | 1364 |
+| Every walkable acre claimed | ~1470 | 1530 |
+| No single unit type more than half the world's army | ~1470 | 1530 |
+| Most marooned settlements taken by sea | ~1470 | 1550 |
+
+Over 250 years the campaign still resolves: the map consolidates to 44 cities and 10 and 5 and 1,
+population reaches 3.9 million, and 86 armies are in the field.
+
+**Three consequences worth the owner's attention, written up in NEXT.md §1:** the naval game now
+begins a century later than it did; the cheapest unit is 80% of the world's army until about 1530,
+because a poor realm can only afford Light Infantry; and the upper three growth bands are never
+reached in practice — the largest net income measured in a 250-year campaign was 998 a month, which
+is inside the first band.
+
+## [0.18.10] — 2026-08-09
+
+The debt 0.18.9 wrote down and could not pay: **the owner asked for more ships, and the formula was
+the wrong shape to give them.** This is the different shape.
+
+### Changed
+
+- **A realm builds shipping for the armies it has spare, not for the cities it owns.** Every naval
+  ceiling was a function of settlements held, and 0.18.9 measured that shape as unraisable — hulls
+  300 and escorts 24 took **0** of the 7 marooned settlements where the shipped figures took 5–7.
+  Two mechanisms, neither of which a constant can dodge: escorts are laid down before transports, so
+  a bigger escort target starves the hold for decades, and a crew and a spearman come out of the same
+  fifth of a realm's people, so a realm that fills its hulls fields a smaller army.
+  - Both are only costs to a realm that **still has a land war**. A realm with forty stacks walking
+    in circles round Iberia because everything left is across the water is not short of soldiers — it
+    is short of shipping, and every man it puts in a crew is a man who was doing nothing.
+  - So demand is now `spareLift`: the units in stacks with nothing to attack **on their own
+    landmass**, in whole armies' worth. Per landmass, not per realm — an empire fighting in Anatolia
+    while thirty stacks idle in a conquered Iberia has a land war by any realm-wide test, and those
+    thirty stacks are what the boats are for.
+  - The old city figure stays underneath as a **floor**. A realm still fighting on land gets
+    precisely the navy it had; only a realm with men standing idle is given more. That is what makes
+    this safe to raise where the flat attempts were not.
+  - A realm builds shipping for at most **eight** armies at once. Six was measured too: on two of the
+    three test seeds it changes nothing, because no realm on them ever has six armies' worth spare.
+- **The hull ceiling can no longer sit below the plan it is capping.** A realm that wanted five
+  convoys and eight escorts needed 28 hulls to have them and could stop building at 24 — the same
+  wall 0.18.5 and 0.18.6 knocked down, one level up.
+
+### Measured
+
+Three 250-year campaigns, 1350 to 1600. **Independent cities reach zero by 1450 in every run, before
+and after** — the number that had to survive this change and did.
+
+| Seed | Before, at 1600 | After |
+|---|---|---|
+| 4242 | 54 cities and 6 — two realms left | **35, 13, 7, 5 — four realms, still fighting** |
+| 777 | 54 and 6 | **46, 7, 4, 3** |
+| 12345 | 45, 7, 6, 1, 1 | **60 — the conquest completes** |
+
+Two of the three seeds end **less** concentrated than they did, not more, which was not the aim and
+is the more interesting result: shipping the idle armies out of a conquered heartland gives the rest
+of the map something to fight back against. The third completes its conquest instead of stalling.
+
+Shipping now tracks idle troops rather than inflating everywhere — transports at 1600 went 29 → 8 on
+a seed that stayed contested, and 28 → 60 on the seed where one realm ran out of land war.
+
+### Fixed
+
+- **The no-stalemate guard could pass a frozen map and fail a live one.** It compared the city
+  distribution at two instants thirty years apart. On the seed it runs, the map has narrowed to two
+  realms by 1530, one of which takes a city in 1536 and loses it again in 1554 — identical endpoints
+  across a window holding **2,483 battles and two changes of ownership**. It now samples every year,
+  which is strictly the more sensitive assertion: a map that genuinely stops produces one value
+  however long it is run.
+
+### Documentation
+
+- **The escort-choice refinement carried since 0.18.1 is closed as a no-op**, with the arithmetic.
+  `buildFleet` picks its escort by raw strength, and NEXT.md proposed scoring cost per point of
+  strength instead. The ship table makes that the same choice: the Flagship is the best buy per
+  crewman (6,400 against a Light Ship's 1,200), **per gold** (1,280 against 360) and per build-month
+  (71,111 against 9,000). Bigger hulls are strictly better on every ratio, so no scoring rule
+  prefers a Light Ship. If the owner wants variety in rival navies it is the **data table** that has
+  to change, not the AI.
+
 ## [0.18.9] — 2026-08-09
 
 Three owner reports. Two are fixed outright; the third is **partly** fixed, and the part that is not

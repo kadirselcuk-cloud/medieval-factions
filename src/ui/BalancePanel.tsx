@@ -195,7 +195,7 @@ export function BalancePanel({
                           title={
                             growth.besieged
                               ? 'Under siege — it starves, and nothing it has built counts'
-                              : `base ${growth.base} · treasury ${growth.treasury} · tier ${growth.tier} · buildings ${growth.buildings}`
+                              : `base ${growth.base} · prosperity ${growth.prosperity} · tier ${growth.tier} · buildings ${growth.buildings}`
                           }
                         >
                           {signed(growth.total)}
@@ -219,7 +219,7 @@ export function BalancePanel({
             <p className="panel__note">
               Growth is broken down in each cell's tooltip. "Next tier" assumes the current rate
               holds, so it is a ceiling on the wait rather than a forecast — the rate itself
-              climbs as the treasury does.
+              climbs with the realm's net monthly income, and falls as wages eat it.
             </p>
           </Section>
 

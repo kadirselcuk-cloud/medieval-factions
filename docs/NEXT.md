@@ -1,6 +1,6 @@
 # Next
 
-Where the build is, and what to do next. Rewritten at the end of the 0.18.9 session.
+Where the build is, and what to do next. Rewritten at the end of the 0.19.0 session.
 
 **Delete or rewrite this file when its contents are done.** It is a handoff note, not a record —
 the records are [ROADMAP.md](ROADMAP.md), [OWED.md](OWED.md) and [CHANGELOG.md](../CHANGELOG.md).
@@ -9,8 +9,42 @@ the records are [ROADMAP.md](ROADMAP.md), [OWED.md](OWED.md) and [CHANGELOG.md](
 
 ## State of play
 
-**Version `0.18.9`**, on `main`. **291 tests pass**, typecheck clean, production build clean.
-Save format is **v10**. Migrations run from v1.
+**Version `0.19.1`**, on `main`. **312 tests pass**, typecheck clean, production build clean.
+Save format is **v10** and unchanged — growth, income and manpower are all derived, none stored.
+
+**The economy was redesigned in 0.19.0**, owner-specified: income halved again, growth moved from
+the treasury balance to net monthly income on a four-band marginal schedule, and the manpower ceiling
+deleted in favour of what a realm can pay for. Decisions 163–165, MECHANICS §5.
+
+> ### Read this before tuning anything
+>
+> The three changes compose, and the composition is larger than any one of them. **Halving income
+> stretches a campaign by 60 to 100 years** — every AI test horizon in the suite had to move, and not
+> one assertion was relaxed to do it. Three consequences are worth a decision from the owner:
+>
+> 1. **The naval game now starts a century later.** On the naval test seed the first fleet puts to
+>    sea in 1450 and the first marooned settlement falls in **1510**, against roughly 1410 before.
+>    All seven fall by 1570. The structural work from 0.18.0–0.18.10 is intact; it is simply priced
+>    out until a realm is large and developed.
+> 2. **The cheapest unit is 80% of the world's army until about 1530.** Not the roll of three
+>    (decision 130) — `buildableHere` refuses any unit a realm cannot cover two wages for, and at a
+>    quarter income that is Light Infantry and nothing else for the first century and a half. This is
+>    the 0.18.1 monoculture returning from the opposite direction.
+> 3. **The upper three growth bands are never reached.** The largest net income measured over 250
+>    years was **998 gold a month**, which is inside the first band. The prosperity term therefore
+>    contributes 0–5 people a month for essentially the whole game, against flat building terms of
+>    5–135. The schedule works; the game does not produce incomes large enough to exercise it.
+>
+> **0.19.1 clawed some of (1) back.** The owner-s naval brief — convoys that route round enemy
+> warships, three escorts apiece, war fleets that hunt without a range limit, and landings that scale
+> with the realm — pulled all seven marooned settlements forward from 1590 to 1550 on one seed and
+> roughly doubled the share of convoys that sail escorted. The naval game still starts late; it now
+> finishes faster once it does.
+>
+> None of these is a bug and none needs fixing to ship. They are the shape the halved economy has,
+> and the levers are `GOLD_INCOME_PERMILLE` in [state.ts](../src/sim/state.ts), the first band's 1%
+> in [tick.ts](../src/sim/tick.ts), and the `purse >= unit.upkeep * 2` test in
+> [ai.ts](../src/sim/ai.ts).
 
 **Naval shipped.** The last structural gap in the map is closed: ships, fleets, transports,
 embarkation, blockade, battle at sea, and rival realms that mount amphibious expeditions of their
@@ -49,6 +83,12 @@ And the late game, which 0.18.4 was entirely about — same seed, before and aft
 
 And 0.18.5 removed the runaway with it: the map now finishes **[25,21,7,5,2]** rather than one realm
 of 46, with two great powers still fighting at full tilt two and a half centuries in.
+
+> **Corrected in 0.18.10.** That figure did not survive 0.18.6–0.18.9. Measured fresh on three seeds
+> before this session touched anything, two of them finished 1600 at **[54,6]** and the third at
+> [45,7,6,1,1] — the runaway was back, and nothing between 0.18.5 and 0.18.9 had re-measured it.
+> 0.18.10 pulls two of the three back to four living realms; see §2. **Re-measure this figure rather
+> than trusting it**: it has now been quietly wrong once.
 
 The map used to freeze at [46,7,5,2,0] and stay there for two hundred years. It now keeps changing
 hands, and on a second seed the heaviest fighting of the whole campaign happens after 1550.
@@ -100,40 +140,43 @@ or generalised:
   the army takes its soldiers, and realms now want far more hulls than they did.
 - **Do fleets die usefully?** Interception, cargo drowning and blockade are implemented and tested,
   but no campaign measurement has been taken of how often a convoy is actually caught.
+- **Armies queued for boats look identical to armies doing nothing.** New in 0.18.10, and the one
+  thing found while measuring it that is not obviously fine. On seed 12345 the winning realm runs
+  **54 of 57 armies "idle" from 1540 to 1552** — they are standing on quays waiting for shipping,
+  which is decision 147 working, and the map is demonstrably alive around them (165 battles every
+  two years, cities changing hands). But it is indistinguishable from a freeze without instrumenting
+  it, and the owner watching the map would see stacks that do not move for a decade. Worth deciding
+  whether a waiting army should be visibly *waiting* — a marker, or simply fewer of them summoned.
 
 ---
 
-## 2. Owed: ship counts want a different formula, not a bigger number
+## 2. ~~Owed: ship counts want a different formula~~ — paid in 0.18.10
 
-**The owner asked for more ships and I could not deliver it**, and the reason is worth writing down
-so the next attempt does not repeat mine.
+**Done.** Naval appetite is no longer a function of cities held. Demand comes from `spareLift` in
+[navalAi.ts](../src/sim/navalAi.ts): the units in stacks with nothing to attack **on their own
+landmass**, counted in whole armies' worth. The old city figure survives underneath as a floor, so a
+realm still fighting on land gets precisely the navy it had and only a realm with idle men gets more
+— which is what made the raise safe where every flat attempt had destroyed overseas conquest.
 
-Every ceiling in `navalAi.ts` is a function of **cities held**. Raising them measurably destroyed
-overseas conquest on the standard test campaigns:
+Measured over three 250-year campaigns. **Independents reach zero by 1450 in every run, before and
+after**, so the thing that had to survive did.
 
-| Attempt | Marooned cities taken (of 7) | Independents left |
+| Seed | Before, at 1600 | After |
 |---|---|---|
-| Current | 5–7 | 0–2 |
-| Hulls 300, escorts 24, convoys 12 | **0** | 7 |
-| The same, escorts and transports interleaved | 3 | 6 |
-| Modest raise (180 / 16 / 6) | 1 | 6 |
+| 4242 | 54 cities and 6 — two realms left | **35, 13, 7, 5 — four realms, still fighting** |
+| 777 | 54 and 6 | **46, 7, 4, 3** |
+| 12345 | 45, 7, 6, 1, 1 | **60 — the conquest completes** |
 
-Two real mechanisms, both fixed during the attempts and neither sufficient alone. Escorts are built
-**before** transports so that a convoy never launches naked, so raising the escort target starves
-the hold for decades — a large realm built two dozen warships before its first transport. And a
-realm that pours a third of its people into crews is a realm with a smaller army, so past a point
-the boats stop paying for themselves.
+Two of three seeds end **less** concentrated than before, which was not the aim: shipping the idle
+armies out of a conquered heartland gives the rest of the map something to push back against.
 
-**The fix is a different formula.** A realm should want hulls in proportion to **the armies it
-actually has spare** — stacks with no land war left to fight — rather than to the cities it holds. A
-realm with forty idle armies and a coastline should be building forty armies' worth of shipping; one
-with three armies all committed should be building almost none, however many cities it has. That is
-a real piece of work rather than a constant, and it wants its own session.
+**The dial is `MAX_CONVOYS`** — eight armies' worth of shipping, at most. Six was measured and
+changes nothing on two of the three seeds, because no realm on them ever has six armies' worth
+spare; on the third it stalls the winner at 57 cities of 60 with sixty idle armies. Eight was kept
+because a realm that has won should be allowed to finish.
 
-Until then the ceilings stay at the values that measurably conquer.
-
-A second, smaller thing was learned and kept: **the AI's own loading stays port-centric** even
-though the boarding *rule* no longer requires a harbour. Widening the AI to match had fleets
+A second, smaller thing was learned in 0.18.9 and is kept: **the AI's own loading stays port-centric**
+even though the boarding *rule* no longer requires a harbour. Widening the AI to match had fleets
 scooping up armies that were merely marching past a coastal tile on their way to a siege.
 
 ---
@@ -146,21 +189,30 @@ The owner replaced the pure argmax with a roll of three (decision 130), and the 
 — see the composition figures in §1. **Cost still never enters the scoring**, so the "strongest"
 third is still the old argmax; what changed is that it only fires a third of the time.
 
-The naval sibling is untouched: `buildFleet` in [navalAi.ts](../src/sim/navalAi.ts) still picks its
-escort by raw strength, so a realm that can afford a Flagship never buys a Light Ship. Scoring
-**cost per point of strength** would still be worth doing, and would now be a refinement rather than
-a rescue.
+The naval sibling was **checked in 0.18.10 and closed as a no-op.** `buildFleet` picks its escort by
+raw strength, and scoring cost per point of strength instead gives the same answer every time,
+because the ship table is monotonic:
 
-### The manpower share
+| Hull | Strength per crewman | per gold+wood | per build-month |
+|---|---|---|---|
+| Light Ship | 1,200 | 360 | 9,000 |
+| Heavy Ship | 3,000 | 800 | 30,000 |
+| Flagship | **6,400** | **1,280** | **71,111** |
 
-`MANPOWER_SHARE_PERMILLE` in [src/sim/manpower.ts](../src/sim/manpower.ts), 200 = 20%. Still the
-only lever. **It now has crews under it**, which is a genuine change to what 20% means — this is
-the first version where the number is worth re-judging rather than merely judging.
+A Flagship is the best buy on every ratio there is, so no scoring rule prefers a Light Ship. **If
+rival navies should have variety in them, the data table has to change, not the AI** — the cheap
+hulls need to be cheap *per man*, and today they are not.
 
-One rule still deliberately not invented, logged in [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md): a realm
-carved down below its own ceiling **disbands nobody**. The ceiling gates recruitment only. A v8
-save loaded into 0.18.0 may open over its ceiling for exactly this reason, and that is left alone
-on purpose.
+### ~~The manpower share~~ — removed in 0.19.0
+
+Gone, with the question under it. There is no ceiling and nothing to retune; the treasury decides,
+and measured over 250 years realms settle at **1.3% of their people under arms** where the old rule
+pinned them at 20%. The open question about a realm carved down below its own ceiling is moot — there
+is no ceiling to fall below.
+
+What replaced it as the lever is the wage test in [ai.ts](../src/sim/ai.ts): a realm will not order a
+unit unless its net income covers twice that unit's upkeep. That single line is now the main control
+on how large and how varied rival armies get.
 
 ---
 
@@ -173,11 +225,14 @@ on purpose.
   speed (3) are owner-specified. Laid out in [CONTENT.md](CONTENT.md) §4.
 - **Retune [data/ai.json](../data/ai.json).** Every number in it is Claude's, laid out in
   [MECHANICS.md](MECHANICS.md) §8.
-- **Retune the gold rate or the manpower share**, per §2.
+- **Retune the gold rate**, `GOLD_INCOME_PERMILLE` in [state.ts](../src/sim/state.ts) — now 250. The
+  single biggest lever in the game after 0.19.0; see the warning at the top of this file.
+- **Retune the first growth band**, the 1% in `PROSPERITY_BANDS` in [tick.ts](../src/sim/tick.ts).
+  The only band a campaign ever reaches.
 
 ---
 
-## 5. What 0.19.0 wants
+## 5. What 0.20.0 wants
 
 Identity and polish, per the roadmap — and naval left it one extra job:
 

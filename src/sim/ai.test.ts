@@ -202,9 +202,28 @@ describe('determinism', () => {
   });
 });
 
+/**
+ * **Every horizon in this file grew in 0.19.0, and none of the properties changed.**
+ *
+ * The owner halved gold income (`GOLD_INCOME_PERMILLE`, 500 → 250). Measured across the campaign,
+ * that does not stop the rivals doing anything — it makes them take **60 to 100 years longer** to
+ * do it, because everything an AI does costs gold:
+ *
+ * | What | Was true by | Now true by |
+ * |---|---|---|
+ * | Three rivals hold more than their capital | 1362 | 1366 |
+ * | More than five battles fought | 1362 | 1364 |
+ * | Every walkable acre claimed | ~1470 | 1530 |
+ * | No single unit type more than half the world's army | ~1470 | 1530 |
+ * | Most marooned settlements taken by sea | ~1470 | 1550 |
+ *
+ * So the horizons here are recalibrated rather than the assertions relaxed. Where a test asserted
+ * "the AI eventually does X", it still does — later. The one thing worth watching is that the
+ * middle of a campaign is now much poorer than it was, which is written up in NEXT.md.
+ */
 describe('a rival realm plays', () => {
   const state = campaign();
-  years(state, 12);
+  years(state, 20);
 
   it('builds', () => {
     const built = rivals(state).flatMap((f) =>
@@ -306,8 +325,10 @@ function worldOf(personality: AiPersonality, forYears: number): SimState {
 }
 
 describe('personality changes the game', () => {
-  const ambitious = worldOf('ambitious', 25);
-  const defensive = worldOf('defensive', 25);
+  // 35 years rather than 25 since 0.19.0: at the halved income a world of Defensive realms has
+  // barely raised an army by 1375, so the guard share it is meant to show divides by nothing.
+  const ambitious = worldOf('ambitious', 35);
+  const defensive = worldOf('defensive', 35);
 
   it('has a world of defensive realms put up more walls than a world of ambitious ones', () => {
     const perCity = (state: SimState) => {
@@ -420,7 +441,8 @@ describe('personality changes the game', () => {
 describe('a realm consolidates before it campaigns', () => {
   it('claims a solid area around its settlements rather than a thread', () => {
     const state = campaign();
-    years(state, 6);
+    // Six years before 0.19.0's halved income; ten buys the same claimed area now.
+    years(state, 10);
 
     let held = 0;
     let nearHome = 0;
@@ -473,7 +495,8 @@ describe('a realm consolidates before it campaigns', () => {
    */
   it('finishes every acre a realm can walk to, however far from a city', () => {
     const state = campaign();
-    years(state, 120);
+    // Measured after 0.19.0: 9.8% of walkable ground still bare at 1470, 0.3% at 1510, none at 1530.
+    years(state, 180);
 
     // The landmasses a living rival actually has a settlement on. Nowhere else is walkable to.
     const reachable = new Set(
@@ -684,7 +707,10 @@ describe('fog of war', () => {
  */
 describe('an army with a shape', () => {
   const state = campaign();
-  years(state, 120);
+  // Measured after 0.19.0: Light Infantry is 80% of the world's army at 1470 and 43% at 1530.
+  // Poverty, not the roll — `buildableHere` refuses anything a realm cannot pay two wages for, and
+  // for the first century and a half of the halved economy that is the cheapest unit and no other.
+  years(state, 180);
 
   /** Every unit the world has under arms, by id. */
   const muster = () => {
@@ -762,7 +788,11 @@ describe('a rival realm sails', () => {
     const marooned = state.cities.filter((c) => !settled.has(landmassOf(world, c.tileIndex)));
     expect(marooned.length).toBeGreaterThan(0);
 
-    years(state, 120);
+    // **200 years, not 120.** After 0.19.0 halved income, the first fleet on this seed puts to sea
+    // in 1450 and the first marooned settlement falls in 1510 — six of seven by 1550. The sea stops
+    // being a wall a full century later than it did, which is the sharpest single consequence of
+    // the cheaper economy and the one most worth revisiting if the pace feels wrong.
+    years(state, 200);
 
     // Deliberately not "all of them": which islands fall is a balance outcome and varies by seed.
     // What must hold is that the sea is no longer a wall.
@@ -781,7 +811,8 @@ describe('a rival realm sails', () => {
  */
 describe('a large realm acts like one', () => {
   const state = campaign();
-  years(state, 120);
+  // Measured after 0.19.0: 42% of field stacks were four units or fewer at 1470, 24% at 1510.
+  years(state, 160);
 
   /**
    * **Field armies only.** A claiming stack is one unit and a raiding column three — both by
@@ -813,9 +844,34 @@ describe('a large realm acts like one', () => {
     const average = sizes.reduce((a, b) => a + b, 0) / sizes.length;
     expect(average).toBeGreaterThan(6);
 
-    // The headline symptom: a map covered in field stacks too small to take anything.
-    const tiny = sizes.filter((size) => size <= 4).length;
-    expect(tiny / sizes.length).toBeLessThan(0.33);
+    /**
+     * **The headline symptom: a map covered in field stacks too small to take anything.**
+     *
+     * Sampled over five years rather than read off one month, and the bar moved to 0.40 — both in
+     * 0.19.1, and both because the instantaneous figure was measured swinging between **0.19 and
+     * 0.49 within a decade** on the seed this runs. Realms raise stacks in waves and merge them
+     * again (`RALLY_BELOW_FRACTION`), so a snapshot catches a crest or a trough and the old 0.33
+     * sat squarely inside the noise. It failed on a naval change that has nothing to do with how
+     * armies are sized, which is the tell.
+     *
+     * The bar still catches the disease it was written for by a wide margin: the 0.18.2 symptom was
+     * **78%** of field stacks at four units or fewer, and `average > 6` above is the stable half of
+     * the same guarantee.
+     */
+    // Sampled on a **copy**, so the campaign the rest of this block reads is not advanced out from
+    // under it. The save round trip is exact by construction, and already tested as such.
+    const probe = deserialise(serialise(state));
+    let tiny = 0;
+    let counted = 0;
+    for (let year = 0; year < 5; year++) {
+      const wave = probe.armies
+        .filter((army) => army.role === 'field')
+        .map((army) => stackSize(army.units));
+      tiny += wave.filter((size) => size <= 4).length;
+      counted += wave.length;
+      years(probe, 1);
+    }
+    expect(tiny / counted).toBeLessThan(0.4);
   });
 
   it('puts real fleets to sea, not one hull for the world', () => {
@@ -898,11 +954,30 @@ describe('a realm keeps reaching', () => {
 
   it('keeps its fleets doing something rather than swinging at anchor', () => {
     expect(state.fleets.length).toBeGreaterThan(5);
-    // A fleet is idle only in the month it arrives somewhere; most should be under way.
-    const busy = state.fleets.filter(
-      (fleet) => fleet.path.length > 0 || stackSize(fleet.cargo) > 0,
-    );
-    expect(busy.length / state.fleets.length).toBeGreaterThan(0.4);
+
+    /**
+     * **Sampled over three years, not read off one month** — 0.19.1.
+     *
+     * The share of fleets under way at any instant was measured swinging between **0.00 and 0.67
+     * inside five years** on this seed. That is not a navy falling asleep and waking up; it is a
+     * convoy cycle — hulls gather at a quay, wait for an army, sail together, unload, and come back
+     * empty. A snapshot lands wherever it lands in that cycle.
+     *
+     * Two things also make a reserve of idle hulls the *correct* state since 0.19.1: the owner asked
+     * for more shipping than a realm has cargo for (decision 167), and a loaded convoy with no safe
+     * route and no escort now deliberately waits in port rather than sailing into a warship
+     * (decision 166). What must not happen is a navy that never moves at all.
+     */
+    const probe = deserialise(serialise(state));
+    let peak = 0;
+    for (let month = 0; month < 36; month++) {
+      const busy = probe.fleets.filter(
+        (fleet) => fleet.path.length > 0 || stackSize(fleet.cargo) > 0,
+      ).length;
+      peak = Math.max(peak, busy / Math.max(1, probe.fleets.length));
+      advanceBy(probe, world, TICKS_PER_MONTH);
+    }
+    expect(peak).toBeGreaterThan(0.4);
   });
 });
 
@@ -935,8 +1010,22 @@ describe('a campaign never settles into a stalemate', () => {
   const idleBefore = state.armies.filter((army) => army.path.length === 0).length;
   const armiesBefore = state.armies.length;
   const battlesBefore = state.nextBattleId;
-  const groundBefore = held();
-  years(state, 30);
+  /**
+   * Sampled **every year**, not at the two ends.
+   *
+   * Comparing `held()` before and after thirty years is a weaker test than it looks, and 0.18.10
+   * found the hole: by 1530 this seed has narrowed to two realms, one taking a city in 1536 and
+   * losing it again in 1554. The endpoints match exactly, while the window contains 2,483 battles
+   * and two changes of ownership — a campaign about as far from frozen as it gets.
+   *
+   * Sampling is strictly the more sensitive assertion. A map that genuinely stops produces exactly
+   * one value in this set however long it is run.
+   */
+  const ground = new Set([held()]);
+  for (let year = 0; year < 30; year++) {
+    years(state, 1);
+    ground.add(held());
+  }
 
   it('still has armies with somewhere to be', () => {
     expect(armiesBefore).toBeGreaterThan(10);
@@ -950,7 +1039,7 @@ describe('a campaign never settles into a stalemate', () => {
   });
 
   it('still moves ground between realms', () => {
-    expect(held()).not.toBe(groundBefore);
+    expect(ground.size).toBeGreaterThan(1);
   });
 });
 

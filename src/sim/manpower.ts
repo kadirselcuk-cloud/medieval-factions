@@ -2,40 +2,30 @@ import { unitById } from '../data/units';
 import type { SimState } from './types';
 
 /**
- * Manpower — how many men a realm can keep under arms at once.
+ * Manpower — how many men a realm has under arms.
  *
- * Gold buys a unit; **people are what it is made of**, and a realm only has so many. Before this
- * the only brake on an army was the treasury and a settlement's own floor, so a rich realm could
- * field thirty stacks of the cheapest thing it could train and win by weight of numbers. The cap
- * replaces that with a different question — not "can I afford another unit" but "is this the unit
- * I want my people to be" — which is what makes an expensive, powerful unit worth buying.
+ * **There is no longer a ceiling on it** — owner-specified in 0.19.0 (docs/DESIGN.md decision 165):
+ * "I don't want any navy or army limits, I want the limits to be decided by current condition of
+ * treasury." From 0.14.0 to 0.18.10 a realm could keep a fifth of its people under arms and not one
+ * man more, and `MANPOWER_SHARE_PERMILLE` was that fifth. Both are gone.
  *
- * The rule, owner-authored (docs/MECHANICS.md §5): **a realm may keep a fifth of its people under
- * arms.** All of its people, soldiers included. A recruit does not vanish from the realm when he
- * is levied, he changes what he does with his day: he comes off a settlement's population and goes
- * into `underArms`, and the total the fifth is taken of does not move.
+ * What replaced it is not nothing, and it is not the treasury *balance* either. Three costs remain,
+ * and together they bind harder than the wall did:
  *
- * That is the whole reason this is comprehensible. The cap is a property of **how many people the
- * realm has**, so it moves for exactly two reasons — people are born, and land changes hands — and
- * never as a side effect of recruiting. Conquest is the only fast way to raise it, which is
- * precisely the pressure the game is meant to apply.
+ * - **A unit still costs its whole `size` in people**, taken from the settlement that raises it and
+ *   never given back (`availableManpower` in construction.ts). That is the local limit, and it is
+ *   the honest one: a Village of 1,000 can raise ten Light Infantry and be a hamlet afterwards.
+ * - **Wages come off net income**, and since 0.19.0 net income is what population growth is
+ *   measured from (`prosperityGrowth`). Every unit recruited therefore slows the growth of *every*
+ *   settlement the realm holds. Recruit far enough past your means and the realm shrinks.
+ * - **Unpaid troops desert**, at 10% a month, which is the floor under the whole arrangement.
+ *
+ * So the limit is a cost that rises smoothly rather than a wall that is hit, which is the shape the
+ * owner asked for. A rich realm can field an enormous army; it simply stops growing while it does.
  *
  * Nothing here is stored. Population is in the save and units are in the save; manpower is
- * arithmetic over the two, so there is no third number that can fall out of step with them and
- * nothing to migrate when the share is retuned.
+ * arithmetic over the two, so there is no third number that can fall out of step with them.
  */
-
-/**
- * The share of a realm's people it may keep under arms, in per-mille. **Owner-authored: 20%.**
- *
- * Per-mille rather than a fraction because the whole simulation is integers — see types.ts.
- *
- * Worth knowing before this is retuned: a unit is 40–100 men and a starting Village is 1,000
- * people, so 20% supports **two Light Infantry and no more** until the realm takes its first city.
- * The owner has seen that figure and chosen to judge it by playing. It is one constant in one
- * file, and no code depends on its value.
- */
-export const MANPOWER_SHARE_PERMILLE = 200;
 
 /**
  * Men currently under arms.
@@ -96,36 +86,16 @@ export function realmPeople(state: SimState, factionIndex: number): number {
 }
 
 /**
- * The most men this realm may have under arms, given the people it has **now**.
+ * What share of its people the realm currently has under arms, in per-mille.
  *
- * Recomputed rather than remembered, so a city taken raises it the same month and a city lost
- * lowers it the same month.
+ * Nothing in the simulation reads this — it is no longer a limit and gates nothing. It survives
+ * because it is the single most useful number for judging whether the treasury is in fact limiting
+ * anything: the old rule held every realm at 200, and where this settles now is the measurement
+ * that says whether removing the ceiling changed how large armies get. Read by the top bar and the
+ * balance panel.
  */
-export function manpowerCap(state: SimState, factionIndex: number): number {
-  return Math.floor((realmPeople(state, factionIndex) * MANPOWER_SHARE_PERMILLE) / 1000);
-}
-
-/**
- * Men the realm could still raise — men, not units.
- *
- * Plain subtraction, and it can be plain precisely because recruiting does not move the cap.
- *
- * It can read **negative in principle** and is clamped at zero: losing half a realm to conquest,
- * or starving under siege, drops the cap below the men already standing. Nothing is disbanded when
- * that happens — the cap gates recruitment, it does not conscript backwards, and a rule that
- * dissolved an army the month a city fell would be a rule nobody has written down. Logged in
- * docs/OPEN-QUESTIONS.md.
- */
-export function freeManpower(state: SimState, factionIndex: number): number {
-  return Math.max(0, manpowerCap(state, factionIndex) - manpowerUnderArms(state, factionIndex));
-}
-
-/**
- * Whether the realm can put another unit of this many men in the field.
- *
- * The one gate every caller goes through — the player's recruit panel, the AI, and `queueUnit`
- * itself — so there is no path that can quietly exceed the cap.
- */
-export function canRaise(state: SimState, factionIndex: number, men: number): boolean {
-  return men <= freeManpower(state, factionIndex);
+export function armedSharePermille(state: SimState, factionIndex: number): number {
+  const people = realmPeople(state, factionIndex);
+  if (people === 0) return 0;
+  return Math.floor((manpowerUnderArms(state, factionIndex) * 1000) / people);
 }

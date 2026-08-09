@@ -138,6 +138,19 @@ export function findSeaPath(
   fleet: FleetState,
   destination: number,
   from: number = fleet.tileIndex,
+  /**
+   * Water this fleet would rather not cross — **since 0.19.1**, and it is how a convoy keeps out
+   * of a warship's reach (docs/DESIGN.md decision 166).
+   *
+   * Treated as impassable rather than merely expensive, because interception is not a risk but a
+   * certainty: a warship catches anything that ends a tick within one tile of it, and cargo is lost
+   * with the ship. There is no route worth taking that saves an hour and drowns an army.
+   *
+   * The **destination is always allowed** even if it is in the set. A landing beach beside a hostile
+   * squadron is still where the army has to go; what this avoids is being caught in transit.
+   * Callers that want the destination avoided too should not ask for it.
+   */
+  avoid?: ReadonlySet<number>,
 ): number[] | null {
   if (destination === from) return [];
   const stop = seaBlockedBy(state, world, fleet, destination, true);
@@ -185,6 +198,9 @@ export function findSeaPath(
       const blocked = seaBlockedBy(state, world, fleet, next, next === destination);
       if (blocked !== null && !(next === destination && blocked === 'hostile-fleet')) continue;
 
+      // Menaced water, if the caller named any. The goal is exempt — see `avoid`.
+      if (avoid !== undefined && next !== destination && avoid.has(next)) continue;
+
       const candidate = (best[current] ?? Number.POSITIVE_INFINITY) + seaStepCost(world, current, next);
       if (candidate >= (best[next] ?? Number.POSITIVE_INFINITY)) continue;
 
@@ -216,12 +232,14 @@ export function orderSail(
   world: World,
   fleetId: number,
   destination: number,
+  /** Water to route around if it can be done at all — see `findSeaPath`. */
+  avoid?: ReadonlySet<number>,
 ): SailResult {
   const fleet = fleetById(state, fleetId);
   if (!fleet) return { ok: false, reason: 'no-such-fleet' };
 
   const from = fleet.path[fleet.path.length - 1] ?? fleet.tileIndex;
-  const leg = findSeaPath(state, world, fleet, destination, from);
+  const leg = findSeaPath(state, world, fleet, destination, from, avoid);
   if (leg === null) return { ok: false, reason: 'no-route' };
 
   if (fleet.path.length === 0) {

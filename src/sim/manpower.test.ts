@@ -2,25 +2,19 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { loadFactions } from '../data/factions';
 import { loadEurope1350 } from '../data/maps';
 import { unitById } from '../data/units';
-import { queueUnit, cancelProduction } from './construction';
-import {
-  canRaise,
-  freeManpower,
-  manpowerCap,
-  manpowerUnderArms,
-  MANPOWER_SHARE_PERMILLE,
-  realmPeople,
-} from './manpower';
+import { availableManpower, queueUnit, cancelProduction, queueShip } from './construction';
+import { armedSharePermille, manpowerUnderArms, realmPeople } from './manpower';
 import { createInitialState } from './state';
-import { MILLI, type CityState, type SimState } from './types';
+import { MILLI, MIN_POPULATION, type CityState, type SimState } from './types';
 
 /**
- * The manpower ceiling — docs/MECHANICS.md §5.
+ * Manpower — docs/MECHANICS.md §5.
  *
- * The rule is one line: a realm may keep a fifth of its people under arms. What these tests are
- * really pinning down is the thing that makes the rule behave — that a recruit **moves** between
- * the two halves of the total rather than leaving it, so the cap does not move when a unit is
- * raised. Get that wrong and the realm quietly settles at a sixth instead of a fifth.
+ * **There is no ceiling on it since 0.19.0** (decision 165). From 0.14.0 a realm could keep a fifth
+ * of its people under arms and not one man more; the owner removed that in favour of the treasury
+ * deciding. So the thing these tests pin down has changed: it is no longer that the cap holds, it is
+ * that **nothing but the settlement's own population refuses a unit**, and that the men still move
+ * between the two halves of the realm's total rather than leaving it.
  */
 
 const world = loadEurope1350();
@@ -47,80 +41,104 @@ describe('manpower', () => {
     expect(paris.population).toBe(1000);
     expect(manpowerUnderArms(state, FRANKS)).toBe(LIGHT_INFANTRY);
     expect(realmPeople(state, FRANKS)).toBe(1000 + LIGHT_INFANTRY);
-    expect(manpowerCap(state, FRANKS)).toBe(220); // 20% of 1,100
   });
 
-  it('does not move the cap when a unit is raised', () => {
-    const before = manpowerCap(state, FRANKS);
+  it('moves men from the fields to the field, leaving the realm the same size', () => {
+    const before = realmPeople(state, FRANKS);
     expect(queueUnit(state, paris, 'light_infantry')).toEqual({ ok: true });
 
     // The men came off the population and went under arms. The realm has exactly as many people
-    // as it did a moment ago, so the fifth it may keep in the field is unchanged — this is the
-    // whole reason the rule reads as 20% rather than as some smaller number nobody chose.
+    // as it did a moment ago — which is what makes `armedSharePermille` a meaningful reading.
     expect(paris.population).toBe(1000 - LIGHT_INFANTRY);
     expect(manpowerUnderArms(state, FRANKS)).toBe(2 * LIGHT_INFANTRY);
-    expect(realmPeople(state, FRANKS)).toBe(1100);
-    expect(manpowerCap(state, FRANKS)).toBe(before);
+    expect(realmPeople(state, FRANKS)).toBe(before);
   });
 
-  it('counts men still in training, so a queue cannot outrun the cap', () => {
+  it('counts men still in training, because they were levied when the order went out', () => {
     queueUnit(state, paris, 'light_infantry');
-    // Ordered, not yet trained — but levied, and therefore already under arms.
     expect(paris.recruitQueue).toHaveLength(1);
     expect(paris.garrison['light_infantry']).toBe(1);
     expect(manpowerUnderArms(state, FRANKS)).toBe(2 * LIGHT_INFANTRY);
   });
 
-  it('refuses the unit that would take the realm over its ceiling', () => {
-    // Room for one more at the opening, and no more than one: 220 allowed, 100 standing.
-    expect(freeManpower(state, FRANKS)).toBe(120);
-    expect(queueUnit(state, paris, 'light_infantry')).toEqual({ ok: true });
-
-    expect(freeManpower(state, FRANKS)).toBe(20);
-    expect(canRaise(state, FRANKS, LIGHT_INFANTRY)).toBe(false);
-    expect(queueUnit(state, paris, 'light_infantry')).toEqual({
-      ok: false,
-      reason: 'no-manpower',
-    });
-  });
-
-  it('gives the room back when an order is cancelled', () => {
-    const before = freeManpower(state, FRANKS);
+  it('gives the men back when an order is cancelled', () => {
     queueUnit(state, paris, 'light_infantry');
     cancelProduction(state, paris, 'recruit', 0);
 
     // Men called up but never marched go back to their fields, exactly as their gold goes back
     // to the treasury.
-    expect(freeManpower(state, FRANKS)).toBe(before);
     expect(manpowerUnderArms(state, FRANKS)).toBe(LIGHT_INFANTRY);
+    expect(paris.population).toBe(1000);
   });
+});
 
-  it('raises the ceiling with conquest, which is the only fast way to raise it', () => {
-    const before = manpowerCap(state, FRANKS);
-    const prize = state.cities.find((c) => c.ownerIndex !== FRANKS)!;
-    prize.population = 4000;
-    prize.ownerIndex = FRANKS;
-
-    expect(manpowerCap(state, FRANKS)).toBe(before + 800); // 20% of 4,000
-    expect(canRaise(state, FRANKS, LIGHT_INFANTRY)).toBe(true);
-  });
-
-  it('clamps to zero rather than going negative when a realm shrinks', () => {
-    // Losing land can leave more men standing than the realm may now keep. Nothing is disbanded
-    // — the ceiling gates recruitment, it does not conscript backwards. See OPEN-QUESTIONS.
-    paris.population = 100;
-    expect(manpowerUnderArms(state, FRANKS)).toBeGreaterThan(manpowerCap(state, FRANKS));
-    expect(freeManpower(state, FRANKS)).toBe(0);
-    expect(canRaise(state, FRANKS, 1)).toBe(false);
-  });
-
-  it('is the share the constant says it is', () => {
-    // Guards the one number, and the arithmetic around it, against a silent retune.
+/**
+ * **The ceiling is gone** — owner-specified in 0.19.0, decision 165.
+ *
+ * The old rule refused the third Light Infantry a starting Village tried to raise, at 220 men of
+ * 1,100. These are the tests that would have caught it coming back.
+ */
+describe('no ceiling on an army but the people to make it of', () => {
+  it('raises an army far past the fifth the old rule allowed', () => {
     paris.population = 10_000;
-    const people = realmPeople(state, FRANKS);
-    expect(manpowerCap(state, FRANKS)).toBe(
-      Math.floor((people * MANPOWER_SHARE_PERMILLE) / 1000),
-    );
+
+    // Twenty Light Infantry is 2,000 men out of a realm of roughly ten thousand — comfortably
+    // past the 20% that used to be a hard wall, and refused by none of it.
+    for (let i = 0; i < 20; i++) {
+      expect(queueUnit(state, paris, 'light_infantry')).toEqual({ ok: true });
+    }
+    expect(manpowerUnderArms(state, FRANKS)).toBe(21 * LIGHT_INFANTRY);
+    expect(armedSharePermille(state, FRANKS)).toBeGreaterThan(200);
+  });
+
+  it('refuses only when the settlement itself has no more men to give', () => {
+    paris.population = 10_000;
+    // Levy until something stops it. The only thing that may is the settlement's own floor.
+    let refusal: unknown;
+    for (let i = 0; i < 500; i++) {
+      const result = queueUnit(state, paris, 'light_infantry');
+      if (!result.ok) {
+        refusal = result;
+        break;
+      }
+    }
+
+    expect(refusal).toEqual({ ok: false, reason: 'too-few-people' });
+    // Levied down to the floor and no further, and the realm is now mostly soldiers.
+    expect(availableManpower(paris)).toBeLessThan(LIGHT_INFANTRY);
+    expect(paris.population).toBeGreaterThanOrEqual(MIN_POPULATION);
+    expect(armedSharePermille(state, FRANKS)).toBeGreaterThan(900);
+  });
+
+  it('lifts the same ceiling off hulls, which drew on the same fifth', () => {
+    // A Dock, and a coastal settlement to put it on. Crews counted against the ceiling from
+    // 0.18.0 (decision 127), so removing it has to free the navy too.
+    const port = state.cities.find((c) => c.ownerIndex === FRANKS)!;
+    port.population = 10_000;
+    port.buildings.push('dock');
+
+    for (let i = 0; i < 20; i++) {
+      expect(queueShip(state, port, 'transport')).toEqual({ ok: true });
+    }
+    // Twenty Transports at forty crew apiece, plus the starting infantry.
+    expect(manpowerUnderArms(state, FRANKS)).toBe(20 * 40 + LIGHT_INFANTRY);
+  });
+
+  it('reports the share under arms rather than a cap to measure against', () => {
+    paris.population = 900;
+    // 100 men under arms in a realm of 1,000 souls.
+    expect(realmPeople(state, FRANKS)).toBe(1000);
+    expect(armedSharePermille(state, FRANKS)).toBe(100);
+
+    expect(armedSharePermille(state, roster.findIndex((f) => f.neutral))).toBe(0);
+  });
+
+  it('still costs a unit its whole size in people', () => {
+    // The owner kept this when the ceiling went: the limit moved to the wage bill, but the price
+    // in people did not change. It is what stops the treasury being the *only* constraint.
     expect(unitById('light_infantry')?.size).toBe(LIGHT_INFANTRY);
+    const before = paris.population;
+    queueUnit(state, paris, 'light_infantry');
+    expect(paris.population).toBe(before - LIGHT_INFANTRY);
   });
 });

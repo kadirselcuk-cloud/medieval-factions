@@ -16,7 +16,6 @@ import {
   unitById,
 } from '../data/units';
 import { pushEvent } from './events';
-import { canRaise } from './manpower';
 import {
   IMPROVEMENT_KINDS,
   MILLI,
@@ -46,7 +45,6 @@ export type BuildFailure =
   | 'max-level'
   | 'wrong-improvement'
   | 'too-few-people'
-  | 'no-manpower'
   | 'already-have-one';
 
 export type BuildResult = { ok: true } | { ok: false; reason: BuildFailure };
@@ -264,10 +262,11 @@ export function manpowerCost(unitId: string): number {
  * Population never falls below `MIN_POPULATION`, whether it is starved down there or recruited
  * down there — one floor, for the same reason.
  *
- * This is the local gate, and it is not the only one. The realm has a ceiling on the men it may
- * keep under arms at all — see `freeManpower` in manpower.ts — and a settlement full of people
- * inside a realm already at its limit can raise nothing. Two separate questions, two separate
- * refusals, so the panel can say which one is biting.
+ * **Since 0.19.0 this is the only manpower gate there is.** It used to be the local half of a pair,
+ * with a realm-wide ceiling behind it that could refuse a settlement full of people; that ceiling is
+ * gone (decision 165) and what limits an army now is what it costs to pay, not a share of the
+ * population. So this is the one refusal, and it says the only thing still true: this town has no
+ * more men to give.
  */
 export function availableManpower(city: CityState): number {
   return Math.max(0, city.population - MIN_POPULATION);
@@ -280,10 +279,11 @@ export function queueUnit(state: SimState, city: CityState, unitId: string): Bui
     return fail('not-available');
   }
   if (!canAfford(state, city.ownerIndex, unit.cost)) return fail('insufficient-resources');
+  // The **only** manpower gate since 0.19.0, and it is a local one: this settlement must have the
+  // people. The realm-wide ceiling that used to sit behind it is gone (decision 165) — what limits
+  // an army now is the wage bill, which comes off the net income that population growth is measured
+  // from, so an army too large for its realm is paid for in people rather than refused.
   if (availableManpower(city) < unit.size) return fail('too-few-people');
-  // And the realm as a whole must have room under its manpower ceiling — a settlement with
-  // people to spare cannot raise men a realm at its limit has no room to keep.
-  if (!canRaise(state, city.ownerIndex, unit.size)) return fail('no-manpower');
 
   pay(state, city.ownerIndex, unit.cost);
   // Levied when the order is placed, like every other cost. The men leave their fields the
@@ -299,11 +299,11 @@ export function queueUnit(state: SimState, city: CityState, unitId: string): Bui
  * **Since 0.18.0 this levies men, exactly as `queueUnit` does** (docs/DESIGN.md decision 127). A
  * ship used to be pure capital — gold and timber, no crew — so it went through here with only an
  * affordability check. It has a crew now, and a crew is people: they come off the settlement's
- * population and count against the realm's manpower ceiling from the month the keel is laid, on
- * the same reasoning that counts a unit still in training.
+ * population from the month the keel is laid, on the same reasoning that counts a unit still in
+ * training. A realm that could not do this could build a navy its people were never able to man.
  *
- * Without both gates a realm could build a navy its people could never man, and float straight
- * past the fifth of itself it is allowed to keep under arms.
+ * The realm-wide ceiling that stood beside it went in 0.19.0 (decision 165), for hulls exactly as
+ * for spearmen: a fleet is limited by the wages it costs, not by a share of the population.
  */
 export function queueShip(state: SimState, city: CityState, shipId: string): BuildResult {
   const ship = shipById(shipId);
@@ -311,7 +311,6 @@ export function queueShip(state: SimState, city: CityState, shipId: string): Bui
   if (!buildableShips(city.buildings).some((s) => s.id === shipId)) return fail('not-available');
   if (!canAfford(state, city.ownerIndex, ship.cost)) return fail('insufficient-resources');
   if (availableManpower(city) < ship.size) return fail('too-few-people');
-  if (!canRaise(state, city.ownerIndex, ship.size)) return fail('no-manpower');
 
   pay(state, city.ownerIndex, ship.cost);
   city.population -= ship.size;

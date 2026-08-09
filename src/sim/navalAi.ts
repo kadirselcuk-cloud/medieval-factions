@@ -66,34 +66,115 @@ import {
  * and 74 armies, had **one**. A realm that owns half the Mediterranean coast should not have the
  * navy of a realm that owns a fishing village.
  *
- * A realm with no land war left wants more of both — see `navalAppetite`. **[GEN]**
+ * Both are now **floors under a demand figure** rather than the whole answer — see `convoysWanted`
+ * and `navalAppetite`. What a realm holds says how big a navy it can keep; what it has standing
+ * about with nothing to do says how big a one it actually needs. **[GEN]**
  */
-function escortsWanted(cities: number, landlocked: boolean): number {
-  return Math.min(14, 1 + Math.floor(cities / 4) + (landlocked ? 3 : 0));
+export function escortsWanted(cities: number, landlocked: boolean, convoys: number): number {
+  /**
+   * **Three warships to a convoy, and a squadron over the top of that** — owner-specified in
+   * 0.19.1: *"a fleet that transports units should have large amounts of warships to protect them,
+   * both in the same fleet or in the fleet clearing the way for them."*
+   *
+   * One per convoy was the old floor and it was only ever the bare cargo rule (decision 126): enough
+   * that a hold is not naked, nowhere near enough to *win* the fight it gets into. Three is a
+   * squadron, and a convoy's fleet has sixteen berths spare beside its four Transports, so they ride
+   * with the cargo where they can and sail as a covering fleet where they cannot.
+   *
+   * Raising this number was the exact thing that destroyed overseas conquest in 0.18.9, and the
+   * reason it is safe now is not this function — it is `buildFleet`, which since 0.19.1 measures the
+   * escort against the **hold already afloat** rather than the hold eventually wanted. A big target
+   * here no longer means decades of warships before the first transport.
+   */
+  const perConvoy = convoys * ESCORTS_PER_CONVOY;
+  const patrol = 1 + Math.floor(cities / 4) + (landlocked ? 3 : 0);
+  return Math.min(ESCORT_CAP, Math.max(patrol, perConvoy));
 }
 
-function hullsWanted(cities: number, landlocked: boolean): number {
+/** Warships a realm wants for every convoy it means to run. **[GEN]** */
+export const ESCORTS_PER_CONVOY = 3;
+
+/**
+ * The most escorts a realm's navy will run to. **[GEN]**
+ *
+ * Raised from 14 to 40 in 0.19.1 with the rest of the owner's naval brief. Fourteen was a ceiling
+ * set when a realm ran at most five convoys and one escort each; at three apiece and twelve convoys
+ * it would bind long before the plan was built.
+ */
+const ESCORT_CAP = 40;
+
+export function hullsWanted(
+  cities: number,
+  landlocked: boolean,
+  convoys: number,
+  escorts: number,
+): number {
   // Raised again in 0.18.6: at 60 a 56-city empire with 31 harbours had **no shipyard queue busy
   // anywhere**, which is the same wall 0.18.5 knocked down one notch lower.
-  return Math.min(140, 12 + cities * 2 + (landlocked ? 20 : 0));
+  //
+  // And it is now never allowed to sit below the plan it is capping. A realm that has decided it
+  // wants five convoys and eight escorts needs 28 hulls to have them; a ceiling of 24 means it
+  // stops building at 24 and never assembles the thing it decided on — the same wall as before,
+  // one level up. The realm's own size still sets the ceiling whenever the ceiling is the larger.
+  const bySize = 12 + cities * 2 + (landlocked ? 20 : 0);
+  return Math.min(140, Math.max(bySize, MAX_FLEET_TRANSPORTS * convoys + escorts));
 }
 
 /**
  * Whole armies a realm wants to be able to lift at once, and therefore the berths it builds for.
  *
- * **This was the cap on everything** — owner-specified in 0.18.5. `BERTHS_WANTED` was a flat twenty,
- * one army's worth, for every realm on the map. Measured at 1600 the dominant realm held 45 cities,
- * **17 million gold, 797,000 wood, and was using 2.4% of its manpower ceiling** — and had stopped
- * building ships entirely, with not one shipyard queue busy anywhere in the realm, because it had
- * 29 hulls against a ceiling of 28.
+ * **This is the formula NEXT.md §2 said was the wrong shape, and this is the different shape.**
  *
- * A power like that should be able to put five armies to sea at once and does not notice the cost.
- * Being unable to move more than one is what left forty stacks wandering around Iberia while the
- * war it wanted was across the water.
+ * It used to be a function of **cities held** alone, and the previous session proved that raising
+ * that could not deliver the ships the owner asked for. Every attempt destroyed overseas conquest
+ * outright — hulls 300 and escorts 24 took **0** of the 7 marooned settlements against the shipped
+ * build's 5–7 — for two mechanical reasons that no constant can dodge. Escorts are built before
+ * transports, so a bigger escort target starves the hold for decades; and a crew and a spearman come
+ * out of the same fifth of a realm's people (decision 127), so a realm that pours a third of its
+ * population into hulls fields a smaller army and past a point the boats stop paying for themselves.
+ *
+ * The observation that fixes it: **both of those costs are only costs to a realm that still has a
+ * land war.** A realm with forty stacks walking in circles round Iberia because everything left is
+ * across the water is not short of soldiers — it is short of *shipping*, and every man it puts in a
+ * crew is a man who was doing nothing. So the demand signal is not what a realm owns, it is what it
+ * has spare: `spareLift` counts the units in field and raiding stacks that have no war they can
+ * march to, in whole armies' worth.
+ *
+ * Kept as a **floor, not a replacement**. The city figure is what the shipped build measurably
+ * conquers with, and a realm mid-war on its own continent gets exactly what it got before; only a
+ * realm with idle armies is given more. That is what makes this safe to raise where the flat
+ * attempts were not — the realms it raises are by definition the ones with people to spare.
  */
-function convoysWanted(cities: number): number {
-  return Math.max(1, Math.min(5, 1 + Math.floor(cities / 10)));
+export function convoysWanted(cities: number, spareLift: number): number {
+  // The size figure keeps **its own** old cap of five, not the new one. Letting it run up to
+  // `MAX_CONVOYS` would quietly hand every large realm three more convoys whether or not it had a
+  // man to spare, which is the flat raise that measurably destroyed overseas conquest last time.
+  // Only idle troops may push a realm past five.
+  const bySize = Math.min(CONVOYS_BY_SIZE, 1 + Math.floor(cities / 10));
+  return Math.max(1, Math.min(MAX_CONVOYS, Math.max(bySize, spareLift)));
 }
+
+/** The most convoys a realm's **size** alone will buy it — the shipped 0.18.5 figure, untouched. */
+const CONVOYS_BY_SIZE = 5;
+
+/**
+ * The most armies a realm will build shipping for at once. **[GEN]**
+ *
+ * Eight. Two things bound it from above and neither is the treasury: a realm lands on at most four
+ * beaches (`MAX_BEACHES`), so eight convoys is two waves onto each, and a convoy is four Transports
+ * of forty crew — eight of them is 1,280 men, which is a real bite out of a fifth of a realm even
+ * when the realm has nothing else to spend it on.
+ *
+ * **Twelve since 0.19.1**, up from eight — owner-specified, *"a large faction should be able to make
+ * more landings and have more naval dominance than current situation."* It is the companion to
+ * `maxBeaches`: seven coasts to land on is worth little if a realm can only fill eight holds, and
+ * twelve convoys against seven beaches is very nearly a second wave everywhere at once.
+ *
+ * Only realms with idle armies ever reach it — `convoysWanted` takes the larger of this demand and
+ * the realm's size, and size alone still stops at five (`CONVOYS_BY_SIZE`). A realm still fighting
+ * on land is untouched by the raise.
+ */
+export const MAX_CONVOYS = 12;
 
 /**
  * How often a realm re-plans its expedition, in months. **[GEN]**
@@ -219,7 +300,13 @@ export function runNavy(
   // fleet still afloat is handled even if it has just lost every port.
   if (ports.length === 0 && fleets.length === 0) return;
 
-  const appetite = navalAppetite(mine.length, landlocked, ports, fleets);
+  const appetite = navalAppetite(
+    mine.length,
+    landlocked,
+    spareLift(state, world, factionIndex, home, willAttack),
+    ports,
+    fleets,
+  );
 
   /**
    * **The local half of the naval month, and it runs every month.**
@@ -233,6 +320,10 @@ export function runNavy(
    * Ordered as it is for a reason: put men ashore before taking more aboard, and launch last, so a
    * hull finished this month is not launched into a fleet that has already sailed.
    */
+  // Where a hostile warship can reach. Computed once for the whole naval month — `keepBusy` needs it
+  // every month for the transports it sends to quays, not only the annual plan for the crossings.
+  const menaced = menacedWater(state, world, factionIndex);
+
   for (const fleet of fleets) {
     if (stackSize(fleet.cargo) > 0) putAshore(state, world, fleet, home);
   }
@@ -242,7 +333,7 @@ export function runNavy(
   // here with the rest of the local work rather than behind the annual plan, which capped every
   // realm on the map at one hull a year however large it was.
   buildFleet(state, world, factionIndex, ports, appetite);
-  keepBusy(state, world, factionIndex, ports);
+  keepBusy(state, world, factionIndex, ports, menaced);
 
   /**
    * **The plan is made once a year, staggered by realm.**
@@ -311,14 +402,17 @@ export function runNavy(
    * The first fleet always takes the chosen target, so a realm with one convoy behaves exactly as
    * it did before.
    */
-  const beaches = [target, ...otherLandings(state, world, factionIndex, seas, target)];
+  const beaches = [
+    target,
+    ...otherLandings(state, world, factionIndex, seas, target, maxBeaches(mine.length)),
+  ];
   let dealt = 0;
   for (const fleet of fleets) {
     const aboard = stackSize(fleet.cargo);
     if (aboard === 0) continue;
     const { capacity, used } = berths(fleet);
     if (aboard < LANDING_FORCE && used < capacity && waitingForMore(state, world, fleet)) continue;
-    setCourse(state, world, fleet, beaches[dealt % beaches.length] ?? target);
+    setCourse(state, world, fleet, beaches[dealt % beaches.length] ?? target, menaced);
     dealt += 1;
   }
 
@@ -530,6 +624,8 @@ function landingsByLandmass(
 interface NavalAppetite {
   hulls: number;
   escorts: number;
+  /** Escorts owed to the Transports **already afloat**, as opposed to the ones eventually planned. */
+  escortsDue: number;
   berths: number;
   wantsHulls: number;
   wantsEscorts: number;
@@ -538,9 +634,61 @@ interface NavalAppetite {
   complete: boolean;
 }
 
+/**
+ * **Armies' worth of men this realm has standing about with no land war to march to.**
+ *
+ * The demand signal `convoysWanted` is built on, and the whole point of the rewrite: a realm should
+ * want shipping in proportion to the troops that have nowhere to walk, not to the cities it owns.
+ *
+ * "No land war" is asked **per landmass**, not per realm, and that distinction is the useful half.
+ * `landlocked` is already a realm-wide flag and it is far too blunt for this — an empire fighting
+ * hard in Anatolia while thirty stacks sit idle in a conquered Iberia has a land war by any
+ * realm-wide test, and those thirty stacks are exactly the ones the boats are for. So a stack counts
+ * as spare when there is nothing on **its own** landmass that this realm would attack and could
+ * reach on foot.
+ *
+ * Counted in **units rather than stacks**, then divided by a full army, because a stack is not a
+ * fixed quantity of men: three one-unit raiders are not three armies' worth of shipping, and the
+ * figure the owner asked about — "forty armies' worth" — is a figure about men.
+ *
+ * Claiming stacks are excluded: they are one unit each and have a job on this side of the water.
+ * Guards are **not** excluded, because a guard on a landmass with nothing to attack has no border to
+ * watch and `order` hands it straight back to the field force (decision 154) — it is cargo, and the
+ * owner watched twenty of them sit in Cyprus beside a fleet with free berths.
+ */
+export function spareLift(
+  state: SimState,
+  world: World,
+  factionIndex: number,
+  home: Int32Array,
+  willAttack: (city: CityState) => boolean,
+): number {
+  // Landmasses with something on them this realm would attack and could walk to. The cheap tests go
+  // first and a landmass already known to be contested short-circuits the rest of its own cities,
+  // so `willAttack` runs a handful of times rather than once per settlement.
+  const contested = new Set<number>();
+  for (const city of state.cities) {
+    if (city.ownerIndex === factionIndex) continue;
+    const landmass = landmassOf(world, city.tileIndex);
+    if (landmass === 0 || contested.has(landmass)) continue;
+    if (!Number.isFinite(reachedIn(home, city.tileIndex))) continue;
+    if (!willAttack(city)) continue;
+    contested.add(landmass);
+  }
+
+  let idle = 0;
+  for (const army of armiesOf(state, factionIndex)) {
+    if (army.role === 'claim') continue;
+    if (contested.has(landmassOf(world, army.tileIndex))) continue;
+    idle += stackSize(army.units);
+  }
+  return Math.ceil(idle / MAX_ARMY_UNITS);
+}
+
 function navalAppetite(
   cities: number,
   landlocked: boolean,
+  lift: number,
   ports: readonly CityState[],
   fleets: readonly FleetState[],
 ): NavalAppetite {
@@ -559,21 +707,43 @@ function navalAppetite(
     0,
   );
 
-  const wantsHulls = hullsWanted(cities, landlocked);
-  const wantsEscorts = escortsWanted(cities, landlocked);
+  // The plan is made in convoys and read out in hulls, so the order matters: how many armies the
+  // realm means to lift decides the escort, and the two together decide the ceiling.
+  const convoys = convoysWanted(cities, lift);
+  const wantsEscorts = escortsWanted(cities, landlocked, convoys);
+  const wantsHulls = hullsWanted(cities, landlocked, convoys, wantsEscorts);
+  const wantsBerths = BERTHS_WANTED * convoys;
   const hulls = stackSize(afloat);
   const berths = fleetCapacity(afloat);
+
+  /**
+   * **The escort the hold already afloat needs, right now** — the figure that makes a large escort
+   * target safe, added in 0.19.1.
+   *
+   * `wantsEscorts` is the plan; this is the instalment due. `buildFleet` lays down an escort only
+   * while the realm is behind *this*, so warships and Transports come off the slipways in step at
+   * three to four rather than the whole escort arriving before the first hull that carries anything.
+   *
+   * That distinction is the entire reason 0.18.9's attempt to raise the escort target destroyed
+   * overseas conquest — measured, a large realm built two dozen warships before its first transport
+   * and took 0 of 7 marooned settlements. The plan can be as large as the owner likes now, because
+   * the *order* no longer follows from its size.
+   *
+   * The `+ 1` is a seed: a realm with no transports at all still wants one warship, both to cover the
+   * first Transport the month it launches and because a lone hunter is useful on its own.
+   */
+  const convoysAfloat = Math.ceil(transportsIn(afloat) / MAX_FLEET_TRANSPORTS);
+  const escortsDue = Math.min(wantsEscorts, convoysAfloat * ESCORTS_PER_CONVOY + 1);
 
   return {
     hulls,
     escorts,
+    escortsDue,
     berths,
     wantsHulls,
     wantsEscorts,
-    wantsBerths: BERTHS_WANTED * convoysWanted(cities),
-    complete:
-      hulls >= wantsHulls ||
-      (berths >= BERTHS_WANTED * convoysWanted(cities) && escorts >= wantsEscorts),
+    wantsBerths,
+    complete: hulls >= wantsHulls || (berths >= wantsBerths && escorts >= wantsEscorts),
   };
 }
 
@@ -587,11 +757,18 @@ function navalAppetite(
  * did. Shipbuilding sweeps nothing and needs no target — it is a decision about one settlement's
  * queue — so there was never a reason for it to sit behind the annual plan.
  *
- * **Escorts first.** This looks backwards and is not. `putToSea` launches a harbour's moorings when
- * they hold a landing force, so whatever is built *last* tends to be left behind: with transports
- * first, the convoy sailed the moment it had berths and the escort followed months later as a
- * second fleet of one, which is neither an escort nor a fleet. Building the escort first leaves it
- * tied up while the transports accumulate around it, and they all sail together.
+ * **Escorts first, but only up to what the hold afloat is owed** — the 0.19.1 shape.
+ *
+ * Escorts-before-transports looks backwards and is not: `putToSea` launches a harbour's moorings
+ * when they hold a landing force, so whatever is built *last* tends to be left behind. With
+ * transports first the convoy sailed the moment it had berths and the escort followed months later
+ * as a second fleet of one, which is neither an escort nor a fleet.
+ *
+ * What was wrong was measuring that priority against the **whole plan**. At one escort per convoy
+ * the difference never showed; at the three the owner asked for in 0.19.1 it would be decades of
+ * warships before a realm built anything that could carry an army — precisely the failure 0.18.9
+ * measured and could not get past. So the test is `escortsDue`, which is the escort owed to the
+ * Transports the realm *has*, and the two come off the slipways together at three to four.
  */
 function buildFleet(
   state: SimState,
@@ -602,8 +779,18 @@ function buildFleet(
 ): void {
   if (appetite.hulls >= appetite.wantsHulls) return;
 
-  const wantEscort = appetite.escorts < appetite.wantsEscorts;
   const wantTransport = appetite.berths < appetite.wantsBerths;
+  /**
+   * The instalment while there is still hold to build; the whole plan once there is not.
+   *
+   * The first clause is what keeps a big escort target from starving the hold (see `escortsDue`).
+   * The second is what finally builds the **war fleet** the owner asked for: once a realm can lift
+   * every army it means to, every further hull is a warship, and those are the squadrons that go
+   * hunting rather than escorting.
+   */
+  const wantEscort =
+    appetite.escorts < appetite.escortsDue ||
+    (!wantTransport && appetite.escorts < appetite.wantsEscorts);
   if (!wantEscort && !wantTransport) return;
 
   /**
@@ -672,6 +859,7 @@ function keepBusy(
   world: World,
   factionIndex: number,
   ports: readonly CityState[],
+  menaced: ReadonlySet<number>,
 ): void {
   for (const fleet of fleetsOf(state, factionIndex)) {
     if (fleet.path.length > 0 || stackSize(fleet.cargo) > 0) continue;
@@ -711,40 +899,74 @@ function keepBusy(
     const target = nearestOf(world, fleet.tileIndex, waiting.length > 0 ? waiting : quays);
     if (!target) continue;
 
-    // Sail to the water beside it, not onto it — a fleet cannot enter a land tile.
+    /**
+     * Sail to the water beside it, not onto it — a fleet cannot enter a land tile.
+     *
+     * **A hull that can carry cargo goes the safe way** (0.19.1). An empty Transport steaming to a
+     * quay is not carrying an army yet, but it is the thing that will, and losing it on the way is
+     * how a realm ends up with troops on a quay and nothing to put them in. A pure warship routes
+     * straight through: running into the enemy is the errand.
+     */
+    const carrier = fleetCapacity(fleet.ships) > 0;
     const berth = nearestWater(world, fleet.tileIndex, seaBeside(world, target.tileIndex));
     if (berth !== undefined && berth !== fleet.tileIndex) {
+      if (carrier && orderSail(state, world, fleet.id, berth, menaced).ok) continue;
       orderSail(state, world, fleet.id, berth);
     }
   }
 }
 
-/** Sail at the nearest enemy fleet worth catching. Returns true if a course was set. */
+/**
+ * Sail at the enemy. Returns true if a course was set.
+ *
+ * **Several candidates, nearest first, since 0.19.1.** It used to take the single nearest quarry and
+ * give up if `orderSail` could not find water to it — which was tolerable while hunting was capped at
+ * thirty tiles and the nearest thing was usually in the same sea. With the cap gone (see
+ * `HUNTING_RANGE`) the nearest enemy fleet by straight line is frequently in a sea this one cannot
+ * reach at all, and a war fleet would decline the whole idea and go home rather than sail at the
+ * perfectly reachable squadron behind it.
+ *
+ * **A loaded enemy convoy is worth more than an empty warship**, so cargo breaks the tie before
+ * distance does: drowning an army is the most valuable thing a navy can do (decision 126), and it is
+ * the one thing this fleet is uniquely able to prevent.
+ */
 function hunt(state: SimState, world: World, fleet: FleetState): boolean {
-  let quarry: FleetState | undefined;
-  let nearest = Number.POSITIVE_INFINITY;
-
-  for (const other of state.fleets) {
-    if (other.ownerIndex === fleet.ownerIndex) continue;
-    const distance = chebyshevTiles(world, fleet.tileIndex, other.tileIndex);
+  const quarries = state.fleets
+    .filter((other) => other.ownerIndex !== fleet.ownerIndex)
+    .map((other) => ({
+      fleet: other,
+      laden: stackSize(other.cargo) > 0 ? 0 : 1,
+      distance: chebyshevTiles(world, fleet.tileIndex, other.tileIndex),
+    }))
+    .filter((entry) => entry.distance <= HUNTING_RANGE)
     // Ties on the lower id, so two of our fleets never trade places chasing each other's targets.
-    if (distance > HUNTING_RANGE || distance > nearest) continue;
-    if (distance === nearest && quarry && other.id > quarry.id) continue;
-    nearest = distance;
-    quarry = other;
-  }
+    .sort((a, b) => a.laden - b.laden || a.distance - b.distance || a.fleet.id - b.fleet.id)
+    .slice(0, HUNTING_TRIES);
 
-  if (!quarry) return false;
-  return orderSail(state, world, fleet.id, quarry.tileIndex).ok;
+  for (const quarry of quarries) {
+    if (orderSail(state, world, fleet.id, quarry.fleet.tileIndex).ok) return true;
+  }
+  return false;
 }
+
+/** How many quarries a war fleet will consider before giving up on a hunt. **[GEN]** */
+const HUNTING_TRIES = 8;
 
 /**
  * How far a warship will sail to pick a fight, in tiles. **[GEN]**
  *
- * Fifteen — five months' sailing. Far enough that a navy patrols a sea rather than a harbour mouth,
- * near enough that it does not cross the map to chase one transport and leave its own coast open.
+ * **No limit since 0.19.1** — owner-specified: *"a war fleet should always look to find and destroy
+ * enemy ships."* It was fifteen tiles, then thirty, on the reasoning that a navy should patrol its
+ * own sea rather than cross the map after one transport and leave its coast open.
+ *
+ * The owner's answer to that worry is the right one: a warship sitting off its own coast is not
+ * defending it, because nothing is coming. What threatens a realm's shipping is the enemy's navy,
+ * and the way to stop a navy is to sink it wherever it happens to be. The figure is larger than the
+ * map's own diagonal so that nothing is ever out of range, and `orderSail` still declines a quarry
+ * there is no water route to — which is what keeps a fleet in an enclosed sea from setting out after
+ * something it could never reach.
  */
-const HUNTING_RANGE = 30;
+const HUNTING_RANGE = Number.POSITIVE_INFINITY;
 
 function chebyshevTiles(world: World, a: number, b: number): number {
   return Math.max(
@@ -1096,6 +1318,7 @@ function otherLandings(
   factionIndex: number,
   seas: Int32Array,
   chosen: Expedition,
+  beaches: number,
 ): Expedition[] {
   const held = new Set(
     state.cities
@@ -1106,23 +1329,73 @@ function otherLandings(
   return [...landingsByLandmass(state, world, factionIndex, seas).entries()]
     .filter(([landmass, site]) => !held.has(landmass) && site.water !== chosen.water)
     .sort((a, b) => a[1].distance - b[1].distance || a[1].water - b[1].water)
-    .slice(0, MAX_BEACHES)
+    .slice(0, beaches)
     .map(([, site]) => ({ city: chosen.city, water: site.water, beach: site.beach, distance: site.distance }));
 }
 
 /**
- * How many separate beaches a realm will land on at once. **[GEN]**
+ * How many separate beaches a realm will land on at once — **scaled to the realm since 0.19.1**.
  *
- * Four, counting the chosen one. More than that and a realm is scattering single stacks around the
- * map faster than any of them can take a city.
+ * It was a flat four, counting the chosen one, and the owner asked that a large faction be able to
+ * make more landings than that. A realm of a dozen cities still gets three; an empire of sixty gets
+ * seven, which is seven coasts a defender has to watch at once. Below that the scattering worry the
+ * flat figure was chosen for is real — single stacks put ashore faster than any of them can take a
+ * city — but it is a worry about a *small* realm's armies, not a large one's. **[GEN]**
  */
-const MAX_BEACHES = 3;
+export function maxBeaches(cities: number): number {
+  return Math.max(3, Math.min(7, 2 + Math.floor(cities / 10)));
+}
 
+/**
+ * **Water a convoy will not sail through** — every tile a hostile warship can reach this tick.
+ *
+ * A warship intercepts anything ending a tick within one tile of it (decision 125) and cargo drowns
+ * with the hull it was riding (decision 126), so the tile a warship is on and the eight around it are
+ * not a risk to a loaded transport, they are a certainty. The owner's rule — *transports should not
+ * directly go into enemy warships* — is therefore exactly this set, treated as land.
+ *
+ * **Only fleets carrying a warship menace anything.** Two transport convoys pass each other
+ * untouched, so an enemy convoy is not a hazard and routing around one would be superstition.
+ *
+ * Computed once per realm per naval month; it is a scan of the fleet list and eight neighbours each,
+ * against a fleet count that is dozens at the very most.
+ */
+export function menacedWater(state: SimState, world: World, factionIndex: number): Set<number> {
+  const menaced = new Set<number>();
+  for (const fleet of state.fleets) {
+    if (fleet.ownerIndex === factionIndex) continue;
+    if (!hasWarship(fleet.ships)) continue;
+    menaced.add(fleet.tileIndex);
+    for (const tile of seaNeighbours(world, fleet.tileIndex)) menaced.add(tile);
+  }
+  return menaced;
+}
+
+/**
+ * Point a loaded fleet at its landing water, **round the enemy's warships rather than through them**.
+ *
+ * Owner-specified in 0.19.1, and the first half of what the escort rule below is for. Three tries,
+ * in order, and the order is the whole rule:
+ *
+ * 1. **A clear route**, avoiding every tile a hostile warship covers. Taken whenever one exists,
+ *    escorted or not — a convoy that can go round has no business going through.
+ * 2. **The direct route, if the convoy is escorted.** Sometimes there is no way round: a strait is
+ *    corked, or the target coast is the one being watched. A convoy with warships of its own may
+ *    force it, which is what the warships are for.
+ * 3. **Nothing, if it is not.** An unescorted hold with no safe road waits in port. It will sail
+ *    when the escort it is owed is built, or when the blockade moves — and waiting costs upkeep,
+ *    where sailing costs the army.
+ *
+ * A fleet with a route already laid in is left alone. Re-planning a crossing is how a realm ends up
+ * with a transport tacking between two islands until its escort deserts — which is the same reason
+ * the plan itself is annual rather than monthly.
+ */
 function setCourse(
   state: SimState,
   world: World,
   fleet: FleetState,
   target: Expedition,
+  menaced: ReadonlySet<number>,
 ): void {
   if (fleet.path.length > 0) return;
   if (fleet.tileIndex === target.water) return;
@@ -1130,6 +1403,12 @@ function setCourse(
 
   // No route is not a failure to report — the target was chosen from a sweep that only knows about
   // open water, and a strait can be corked by a hostile fleet between the sweep and the order.
+  if (findSeaPath(state, world, fleet, target.water, fleet.tileIndex, menaced) !== null) {
+    orderSail(state, world, fleet.id, target.water, menaced);
+    return;
+  }
+
+  if (!hasWarship(fleet.ships)) return;
   if (findSeaPath(state, world, fleet, target.water) === null) return;
   orderSail(state, world, fleet.id, target.water);
 }

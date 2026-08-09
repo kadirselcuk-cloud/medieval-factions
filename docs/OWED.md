@@ -101,8 +101,8 @@ it is tagged **[GEN]** at its definition. None of it is owner-authored truth.
 | Consolidation: radius 3 around each settlement, weakest army only | `src/sim/ai.ts` | **live** — decides how blobby the map is and how soon wars start |
 | A field army sees for itself | `src/sim/vision.ts` | **live** — the sight figures themselves are owner-authored |
 | Every AI tuning number — income, odds, army sizes, build weights, levy floors | `data/ai.json` | **live** — the five difficulties and five personalities are owner-named |
-| Counting units **still in training** against the manpower ceiling | `src/sim/manpower.ts` | **live** — the 20% share itself is owner-authored |
-| Nothing is disbanded when a realm falls below its own ceiling | `src/sim/manpower.ts` | **live** — see OPEN-QUESTIONS, owner to decide |
+| Counting units **still in training** as men under arms | `src/sim/manpower.ts` | **live** — the ceiling they were counted against is gone (0.19.0); the counting rule survives it |
+| ~~Nothing is disbanded when a realm falls below its own ceiling~~ | — | **moot since 0.19.0.** There is no ceiling to fall below (decision 165) |
 | The 10-tile "known" band radiates from **settlements**, not from every owned tile | `src/sim/vision.ts` | **live** — the 10 tiles themselves are owner-authored |
 | The exact black of the unexplored shroud | `src/render/palette.ts` | **live** — the owner asked for black; the ink is mine |
 | Which realm gets which personality (rolled from the seed) | `src/sim/state.ts` | **live** — `data/factions.json` accepts an owner-authored `personality` instead |
@@ -119,27 +119,31 @@ it is tagged **[GEN]** at its definition. None of it is owner-authored truth.
 | Winter attrition does **not** touch fleets | `src/sim/tick.ts` | **live** — attrition is about hostile ground, and the sea belongs to nobody |
 | One amphibious expedition at a time per realm | `src/sim/navalAi.ts` | **live** — three at once splits an army into three that each land and die |
 | The naval plan is re-made once a year, staggered by realm | `src/sim/navalAi.ts` | **live** — `PLANNING_MONTHS`. Landing is still checked monthly; only target-picking is annual |
-| The AI wants a full army in berths and 1 escort, and stops at 8 hulls | `src/sim/navalAi.ts` | **live** — `BERTHS_WANTED`, `ESCORTS_WANTED`, `MAX_EXPEDITION_SHIPS` |
+| The AI wants a full army in berths before it builds an escort | `src/sim/navalAi.ts` | **live** — `BERTHS_WANTED`. The flat `ESCORTS_WANTED` and `MAX_EXPEDITION_SHIPS` it was recorded beside are gone, superseded by the scaling figures below |
 | A fleet waits for 6 units before it sails, and a realm needs 3 armies to spare one | `src/sim/navalAi.ts` | **live** — `LANDING_FORCE`, `ARMIES_BEFORE_SAILING`. How willing a realm is to gamble an army on a beach |
 | An unsettled landmass outranks distance when picking a target | `src/sim/navalAi.ts` | **live** — `VIRGIN_ISLAND_BONUS`. Without it Ireland was chosen 6 times in 120 years against Novgorod's 173 |
 | Splitting takes the **heaviest** formations first | `src/sim/fleets.ts` | **live** — the owner specified that a stack may be split, not which men board |
 | The recruiting roll is equal thirds, and rerolls 12 times | `src/sim/ai.ts` | **live** — the three categories are owner-specified; the even split and the reroll bound are mine |
 | Founding a field army costs half a full stack; a stack below half strength rallies, within 12 tiles | `src/sim/ai.ts` | **live** — `RALLY_BELOW_FRACTION`, `RALLY_RANGE`. Owner asked for concentration; the thresholds are mine |
 | One front per 6 settlements, max 4, at least 8 tiles apart | `src/sim/ai.ts` | **live** — `SETTLEMENTS_PER_FRONT`, `MAX_FRONTS`, `FRONTS_APART`. Decides whether an empire feels like one |
-| How many hulls and escorts a realm wants, and the bonus for having no land war left | `src/sim/navalAi.ts` | **live** — `hullsWanted`, `escortsWanted`. The lever if the map fills with navies |
+| How many hulls and escorts a realm wants, and the bonus for having no land war left | `src/sim/navalAi.ts` | **live** — `hullsWanted`, `escortsWanted`. The lever if the map fills with navies. See also `spareLift` below, which is what actually drives them from 0.18.10 |
 | A diagonal at sea costs √2 of a tile | `src/sim/sailing.ts` | **live** — `DIAGONAL_PERMILLE`. Eight-way sailing is owner-specified; charging the true length for it is mine |
 | Defenders count as 1 tile of distance per 100 soldiers when picking a target | `src/sim/ai.ts` | **live** — `DEFENDERS_PER_TILE`. Owner asked for easy targets; the exchange rate is mine |
 | Ship rather than march when the walk is 3× the sail and ≥12 tiles | `src/sim/navalAi.ts` | **live** — `SEA_SHORTCUT`. The dial for how sea-dominated the map feels |
 | A fleet will not unload within 6 tiles of home, and hunts within 15 | `src/sim/navalAi.ts` | **live** — `HOME_SHORE`, `HUNTING_RANGE` |
 | A realm with nothing winnable presses the softest reachable target anyway | `src/sim/ai.ts` | **live** — `desperateObjective`. Owner asked for no stalemates; that a hopeless attack is better than none is mine |
 | Loaded fleets are dealt across up to 4 beaches | `src/sim/navalAi.ts` | **live** — `MAX_BEACHES` |
-| Hulls (60), escorts (14) and berths (5 armies) a realm wants | `src/sim/navalAi.ts` | **live** — `hullsWanted`, `escortsWanted`, `convoysWanted`. The dial for how naval the world feels |
+| What a realm's **size** alone buys it — 140 hulls, 14 escorts, 5 convoys | `src/sim/navalAi.ts` | **live** — the floors inside `hullsWanted`, `escortsWanted`, `convoysWanted`. Unchanged since 0.18.6 and measured to conquer; now a floor rather than the whole answer |
+| **Armies with no land war count as demand for shipping**, in whole armies' worth | `src/sim/navalAi.ts` | **live** — `spareLift`. Which stacks count (field, raid and released guards, never claimers) and that "no land war" is asked per landmass rather than per realm |
+| A realm builds shipping for at most 8 armies at once | `src/sim/navalAi.ts` | **live** — `MAX_CONVOYS`. The dial for how naval the world feels. Two waves onto each of the four beaches `MAX_BEACHES` allows, and 1,280 men of crew |
 | A realm with only overseas enemies recruits at 66% | `src/sim/ai.ts` | **live** — `OVERSEAS_ARMY_PERMILLE`. Owner asked for fewer soldiers and more ships; the fraction is mine |
 | A forced landing gives the defender the full ground advantage and the attacker no penalty | `src/sim/sailing.ts` | **live** — owner specified the mechanic, not the modifiers |
 | Fleets in contact re-fight **monthly** rather than per tick | `src/sim/sailing.ts` | **live** — the owner asked that standoffs end; the cadence is mine |
 | Autosaves throttled to one per 2 real seconds | `src/sim/game.ts` | **live** — `AUTOSAVE_MIN_MS`. Only ever fires under the max-speed cheat; rotation keeps 5 either way |
 | One harbour of departure, nearest the target by sea | `src/sim/navalAi.ts` | **live** — spread across every port, hulls arrive two at a time and carry nothing |
 | A landed army is its own frontier, but only where its realm holds no settlement | `src/sim/ai.ts` | **live** — without it an expedition stands on its beach until the winter takes it |
+| That the income bands **mirror into the negative** | `src/sim/tick.ts` | **live** — the four rates and three thresholds are owner-authored; that debt costs what income gains is carried over from the treasury rule it replaced. One sign to reverse |
+| The upper three income bands are **never reached in play** | `src/sim/tick.ts` | **measured, not decided.** Largest net income over a 250-year campaign was 998 a month — inside the first band. If growth should answer to a strong economy, the 1% is the lever |
 
 ---
 

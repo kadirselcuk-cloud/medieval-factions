@@ -444,22 +444,59 @@ describe('recruitment and shipyards', () => {
     expect(paris.garrison['light_infantry']).toBe(40);
   });
 
-  it('shrinks a settlement that is deep in debt, but never below the floor', () => {
-    // The rivals are stood down for this one. Thirty-three years is long enough for one of them
-    // to march on a realm that is bankrupt, undefended and doing nothing, and a Paris that has
-    // changed hands is no longer testing what debt does to a population.
+  /**
+   * **Rewritten in 0.19.0, because the rule it tested is gone.**
+   *
+   * Population used to shrink from the size of a realm's *debt* — the balance in the vault. Growth
+   * now reads **net monthly income** (decision 164), so a hoard and a hole in the ground are alike
+   * worth nothing to it, and a realm two million in the red with a working economy grows normally.
+   *
+   * What shrinks a settlement now is **wages larger than income**, and that is a far more useful
+   * rule than the one it replaces: it is the feedback that makes an army self-limiting now that the
+   * manpower ceiling is gone (decision 165). Recruit past what the realm earns and it starts eating
+   * its own people.
+   */
+  it('shrinks a settlement whose realm is paying more in wages than it earns', () => {
+    // The rivals are stood down for this one. Four centuries is long enough for one of them to
+    // march on a realm that is undefended and doing nothing, and a Paris that has changed hands is
+    // no longer testing what an unpayable army does to a population.
     for (const rival of state.factions) rival.ai = null;
 
     const faction = state.factions[FRANKS]!;
-    faction.stock.gold = -2_000_000 * MILLI;
+    // Deep enough in credit that nothing ever deserts: desertion fires on a negative balance, and
+    // an army that melts away would quietly fix the very problem under test.
+    faction.stock.gold = 100_000_000 * MILLI;
+    // A hundred Light Infantry is 1,000 gold a month of wages against a Village's few coins.
+    paris.garrison['light_infantry'] = 100;
+    recomputeIncome(state, world);
+
+    expect(faction.monthlyIncome.gold).toBeLessThan(-500);
     const before = paris.population;
 
-    // Debt at the deepest band costs 15 people a month against the 5 a bare Village gains.
+    // Net income of about -1,000 costs 9 people a month against the 5 a bare Village gains.
     advanceBy(state, world, TICKS_PER_MONTH);
     expect(paris.population).toBeLessThan(before);
 
     advanceBy(state, world, TICKS_PER_MONTH * 400);
     expect(paris.population).toBe(MIN_POPULATION);
+  });
+
+  it('lets a realm deep in debt grow, so long as it is earning again', () => {
+    // The other half of the same change, and the surprising one: the treasury balance no longer
+    // enters into growth at all. A realm that has borrowed a fortune and rebuilt its economy is
+    // growing again the month its income turns positive.
+    for (const rival of state.factions) rival.ai = null;
+    const faction = state.factions[FRANKS]!;
+
+    paris.garrison = {};
+    paris.buildings.push('wooden_houses');
+    faction.stock.gold = -2_000_000 * MILLI;
+    recomputeIncome(state, world);
+    expect(faction.monthlyIncome.gold).toBeGreaterThanOrEqual(0);
+
+    const before = paris.population;
+    advanceBy(state, world, TICKS_PER_MONTH);
+    expect(paris.population).toBeGreaterThan(before);
   });
 });
 

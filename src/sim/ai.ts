@@ -28,7 +28,7 @@ import { beginSiege, RELIEF_RANGE, siegeTarget } from './conquest';
 import { isCoastal } from './fleets';
 import { landmassOf, reachedIn, sameLandmass, walkingDistanceFrom } from './geography';
 import { runNavy } from './navalAi';
-import { freeManpower } from './manpower';
+
 import { blockedBy, findPath, orderMove } from './movement';
 import {
   MAX_ARMY_UNITS,
@@ -540,9 +540,10 @@ function forceOf(state: SimState, factionIndex: number): number {
  * Ambitious one buys horse. Everything unaffordable in gold, in people, or in wages it could
  * not keep paying is filtered out first, so this can only ever return something safe to order.
  *
- * **Three ceilings, and the lowest wins.** The realm's manpower ceiling is checked first and is
- * the only one that is not local: a rival at its limit trains nothing anywhere, however full its
- * settlements are, exactly as the player's recruit panel refuses. It plays the same rule.
+ * **Two ceilings since 0.19.0, and the lower wins.** There used to be a third — the realm-wide
+ * manpower cap, the only one that was not local — and it went with decision 165. A rival is now
+ * held back by its purse rather than by a share of its people, which is the same rule the player's
+ * recruit panel plays.
  *
  * **It stops well above the survival floor, and it never conscripts a settlement backwards.**
  * `MIN_POPULATION` is where a settlement stops shrinking, not where it is still worth anything:
@@ -564,11 +565,10 @@ function buildableHere(state: SimState, city: CityState, mind: Mind): readonly L
   const purse = mind.faction.monthlyIncome.gold;
   const earned = settlementUpgradeTo(city.tier)?.minPopulation ?? 0;
   const floor = Math.max(mind.character.levyFloor, earned);
-  const manpower = Math.min(
-    availableManpower(city),
-    Math.max(0, city.population - floor),
-    freeManpower(state, city.ownerIndex),
-  );
+  // Two ceilings since 0.19.0, not three: the realm-wide manpower cap is gone (decision 165). What
+  // stops a rival over-recruiting now is the `purse` test below — wages come off the net income
+  // that its settlements grow from, so an army it cannot afford costs it people.
+  const manpower = Math.min(availableManpower(city), Math.max(0, city.population - floor));
 
   return recruitableUnits(city.tier, city.buildings).filter(
     (unit) =>
