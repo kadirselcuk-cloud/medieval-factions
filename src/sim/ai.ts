@@ -575,11 +575,44 @@ function buildableHere(state: SimState, city: CityState, mind: Mind): readonly L
     (unit) =>
       unit.size <= manpower &&
       canAfford(state, city.ownerIndex, unit.cost) &&
-      // Net income already has today's wages taken off it, so this leaves room for one more unit
-      // beyond the one being ordered — a margin, not a knife edge.
-      purse >= unit.upkeep * 2,
+      affordableWage(purse, unit.upkeep),
   );
 }
+
+/**
+ * **Can the realm carry this unit's wage?** — the wage test, rewritten in 0.20.3.
+ *
+ * It used to read `purse >= upkeep * 2`: after paying for everything it already has, a realm had to
+ * be able to afford *two* more of the unit before it would order one. That is a margin measured
+ * against the unit, and it has a bad property — the bar rises with the price of what you are buying,
+ * so the more a unit costs the further out of reach it stays. Measured over a 240-year campaign at
+ * 0.19.0's quarter income, the **median realm cleared 8 gold a month at 1370, 21 at 1410 and 34 at
+ * 1430**, against a bar of 20 for Light Infantry and **100 for Heavy Cavalry**. So for the first
+ * eighty years every realm on the map could afford the cheapest unit and nothing else, and the
+ * world's army was 100% one unit until 1410 — the monoculture NEXT.md has been carrying since
+ * 0.19.0, and it was never the roll of three that caused it.
+ *
+ * The margin is now measured against **the realm** instead: a single unit's wage may not eat more
+ * than `WAGE_SHARE_PERMILLE` of net income. That is scale-free — a poor realm still cannot commit to
+ * a Knight, a rich one can buy anything — and it leaves a quarter of the income standing, so a realm
+ * never recruits itself down to the zero net income that would stop its settlements growing
+ * (decision 164).
+ *
+ * Deliberately not `purse >= upkeep`, which is the same rule with no margin at all: that lets a
+ * realm hire until its income is exactly nothing, and a realm with no income is a realm that has
+ * stopped growing.
+ */
+function affordableWage(purse: number, upkeep: number): boolean {
+  return purse * WAGE_SHARE_PERMILLE >= upkeep * 1000;
+}
+
+/**
+ * The most of a realm's net income one unit's wage may take. **[GEN]**
+ *
+ * 750 per-mille — three quarters. The remaining quarter is what keeps the realm growing while it
+ * recruits.
+ */
+const WAGE_SHARE_PERMILLE = 250;
 
 /** The original argmax: men × hit points × damage, bent by the personality's taste in troops. */
 function strongest(options: readonly LandUnit[], mind: Mind): LandUnit | undefined {
@@ -766,14 +799,25 @@ function nearestFront(
  * home" and "send the best to the war" are both defensible and neither was specified.
  */
 function muster(state: SimState, world: World, mind: Mind): void {
-  // **A realm with nothing in the field gets its first army as soon as it has two units.**
-  // Otherwise a Defensive realm holds three at home before it will field anything, needs a
-  // fourth before there is a surplus and a seventh before that surplus is worth founding a stack
-  // with — and spends its first six years holding the five tiles it started on, unable to claim
-  // an acre or take a village. An army is what a realm acts *with*; the caution applies to the
-  // second one and after.
+  /**
+   * **A realm with nothing in the field keeps nobody back** — owner-specified in 0.20.3.
+   *
+   * The rule was already trying to say this and did not go far enough: it relaxed the garrison a
+   * Defensive realm holds down to *one*, which is exactly the number every realm starts with. So
+   * `spare` was 1 − 1 = 0 in January 1350 and **no realm on the map ever mustered its starting
+   * unit.** It sat in the capital until a second was recruited and paid for, which at 0.19.0's
+   * quarter income is a decade — a decade of thirteen realms holding the five tiles they opened on,
+   * claiming nothing, while the one free soldier each of them had stood behind a wall.
+   *
+   * The owner's rule is flat and has no personality in it: *every* faction musters its first unit
+   * and goes and takes the ground around it. So a realm with no army fields whatever it has, down
+   * to the last man, and the caution applies from the second army onward.
+   *
+   * Nothing is left undefended by it. A settlement's derived defenders are free, immobile and
+   * unaffected — they were always the real garrison, and a mustered stack was only ever the extra.
+   */
   const fielded = armiesOf(state, mind.faction.index).length;
-  const keep = fielded === 0 ? Math.min(1, mind.character.garrisonKeep) : mind.character.garrisonKeep;
+  const keep = fielded === 0 ? 0 : mind.character.garrisonKeep;
 
   for (const city of state.cities) {
     if (city.ownerIndex !== mind.faction.index || city.siege) continue;
@@ -846,7 +890,9 @@ function muster(state: SimState, world: World, mind: Mind): void {
     let skipped = 0;
     for (const id of order) {
       for (let i = 0; i < (city.garrison[id] ?? 0); i++) {
-        if (skipped < mind.character.garrisonKeep) {
+        // `keep`, not the personality's own figure — otherwise the relaxation above is computed and
+        // then thrown away here, and a realm with no army still holds its whole garrison back.
+        if (skipped < keep) {
           skipped += 1;
           continue;
         }

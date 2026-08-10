@@ -13,6 +13,65 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.20.3] — 2026-08-10
+
+**The balance pass, and the cause of the monoculture found.** NEXT.md has carried "the cheapest unit
+is most of the world's army" since 0.19.0 and blamed the halved income for it. That was wrong: the
+cause was a rule of mine, and fixing it pulled the whole campaign forward by 40 to 60 years.
+
+### Fixed
+
+- **Every faction now musters its starting unit and goes and takes ground** — owner-specified,
+  whatever its personality. The old rule intended this and stopped one short: it relaxed the garrison
+  a Defensive realm holds back down to *one*, which is exactly the number every realm starts with, so
+  the spare was zero in January 1350 and **no realm on the map ever mustered its opening unit**. It
+  stood behind a wall until a second was recruited and paid for — a decade at 0.19.0's income.
+  - Measured: all twelve rivals field an army by **month 3**, and claimed ground goes from 58 tiles
+    to 112 in three years, where before it sat at 58.
+  - The inner loop also skipped by the personality's own figure rather than the relaxed one, so the
+    relaxation was computed and then thrown away.
+- **A unit's wage may take at most a quarter of a realm's net income**, replacing "the realm must be
+  able to afford two of them". The old rule measured its margin against *the unit*, so the bar rose
+  with the price of what you were buying and the expensive half of the roster stayed out of reach for
+  ever. Measured over 240 years: the **median realm cleared 8 gold a month at 1370 and 21 at 1410**,
+  against a bar of 20 for Light Infantry and **100 for Heavy Cavalry**.
+  - **Tighter, not looser**, which is the counter-intuitive part. Loosening the margin to three
+    quarters made the monoculture *worse* — the largest unit share at 1510 went from 54% to 79% —
+    because realms simply flood the cheapest unit and never accumulate the income to buy a better
+    one. Tightening it to a quarter forces the saving that unlocks the roster.
+
+### Measured
+
+Two seeds, 240 years each. Before is 0.20.2 with the muster fix already in, so the two changes stay
+separable.
+
+| | Before | After |
+|---|---|---|
+| Kinds of unit in the world at 1430 | 5 | **8** |
+| Largest unit share at 1470 | 85% | **58%** |
+| Largest unit share at 1510 | 54% | **40%** |
+| Median net income at 1410 | 21 | **99** |
+| Independent cities gone by | 1550 | **1490** |
+| Walkable ground fully claimed by | 1590 | **1530** |
+| Fleets at sea at 1410 | 1 | **4** |
+| Map at 1590 | 50, 8, 1, 1 | **34, 11, 8, 7** |
+
+That last row is the one worth having: the map ends with four living realms rather than one realm of
+fifty and three remnants.
+
+**Three AI horizons came back in** — the first time in five versions they have moved that direction.
+Claiming 210 → 190 years, roster mix 220 → 160, independents 180 → 150.
+
+### Changed
+
+- **The performance guard measures cost per army, not cost.** A flat millisecond budget cannot tell a
+  quadratic from a world that has legitimately grown, and 0.20.3 grew it on purpose. The absolute
+  figure went 5,058ms to 6,365ms and tripped a 6,000ms ceiling — while the cost of an army went
+  **84.3ms to 87.2ms**, which is the number that says nothing is wrong. The alarm is per army now, so
+  a real quadratic still trips it and a bigger world does not.
+
+---
+
 ## [0.20.2] — 2026-08-10
 
 **Three corrections from the owner, and a unique unit for every realm.** 0.20.1 over-corrected: in

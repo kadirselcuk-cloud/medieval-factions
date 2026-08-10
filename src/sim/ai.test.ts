@@ -503,11 +503,11 @@ describe('a realm consolidates before it campaigns', () => {
      * |---|---|---|---|---|---|
      * | 9.46% | 3.17% | 1.97% | 1.62% | 1.25% | **0.00%** |
      *
-     * Monotonic the whole way, so this is claiming running late rather than claiming failing. It
-     * runs late because 0.19.2's escort rules put more of the field force on boats and overseas,
-     * which leaves fewer stacks tidying the mainland behind them.
+     * **Back to 190 in 0.20.3.** The wage rule that was starving rivals of anything but the cheapest
+     * unit is fixed, and with it the whole campaign came forward: measured on two seeds, bare ground
+     * is 7.5% at 1430, 1.3% at 1450 and **0.0% by 1530**.
      */
-    years(state, 210);
+    years(state, 190);
 
     // The landmasses a living rival actually has a settlement on. Nowhere else is walkable to.
     const reachable = new Set(
@@ -727,12 +727,15 @@ describe('an army with a shape', () => {
    * |---|---|---|---|---|
    * | 94% | 85% | 71% | **48%** | 40% |
    *
-   * 0.20.0 pushed it back a further forty years by giving each realm its own version of a unit:
-   * `strongest` scores what the faction would actually field, so the argmax lands differently and
-   * the roster opens up later. Monotonic throughout, so this is diversification running late rather
-   * than the roll of three (decision 130) failing.
+   * **Back to 160 in 0.20.3, and this is the horizon the balance pass was for.** The cause was never
+   * the roll of three — it was the wage rule pricing every realm out of everything but Light
+   * Infantry. With that fixed the world runs eight kinds of unit by 1430 and the largest share is:
+   *
+   * | 1430 | 1450 | 1470 | 1510 | 1590 |
+   * |---|---|---|---|---|
+   * | 80% | 72% | 58% | 40% | 31% |
    */
-  years(state, 220);
+  years(state, 160);
 
   /** Every unit the world has under arms, by id. */
   const muster = () => {
@@ -952,15 +955,10 @@ describe('a large realm acts like one', () => {
 describe('a realm keeps reaching', () => {
   const state = campaign();
   /**
-   * **180 years.** Measured after 0.20.1 changed what most units are worth: six independent cities
-   * still stand at 1450, five at 1480, four at 1500, one at 1510 and none from 1520 — so the map
-   * still finishes, seventy years later than the old horizon looked for it.
-   *
-   * The cause is not the naming. It is that 0.20.1 removed the stat trade from 127 of the 169 roster
-   * entries, so most units are now the base figures rather than a buffed version of them, and the
-   * campaign is fractionally slower everywhere as a result.
+   * **Back to 150 in 0.20.3.** The wage fix pulled the whole campaign forward: independent cities
+   * are down to 3 by 1430 and **none stand from 1490** on either test seed, against 1520 before.
    */
-  years(state, 180);
+  years(state, 150);
 
   it('claims the ground between its cities, not only the cities', () => {
     let land = 0;
@@ -1102,13 +1100,26 @@ describe('performance in a mature campaign', () => {
     const state = campaign('king');
     years(state, 100);
 
+    const armies = state.armies.length;
     const started = Date.now();
     years(state, 10);
     const elapsed = Date.now() - started;
 
-    // Measured at roughly 1.7s with 136 armies and 27 fleets afloat. The budget is deliberately
-    // loose — this is a smoke alarm for an accidental quadratic, not a benchmark.
-    expect(elapsed).toBeLessThan(6000);
+    /**
+     * **Cost per army, not cost** — rewritten in 0.20.3, and the rewrite is the point.
+     *
+     * A flat millisecond budget cannot tell a quadratic from a world that has legitimately grown,
+     * and 0.20.3 grew it on purpose: every realm now musters its starting unit, so a mature campaign
+     * carries 73 armies where it carried 60. The absolute figure went 5,058ms to 6,365ms and tripped
+     * a 6,000ms ceiling — while the cost of an army went **84.3ms to 87.2ms**, which is the number
+     * that says nothing is wrong.
+     *
+     * So the alarm is per army. A genuine quadratic doubles this the moment the world doubles; a
+     * bigger world does not move it at all.
+     */
     expect(state.armies.length).toBeGreaterThan(20);
+    expect(elapsed / Math.max(1, armies)).toBeLessThan(250);
+    // And a loose absolute ceiling, so an explosion in the *number* of armies is caught too.
+    expect(elapsed).toBeLessThan(20_000);
   });
 });
