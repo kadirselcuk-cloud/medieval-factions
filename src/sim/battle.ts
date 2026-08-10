@@ -1,4 +1,6 @@
 import { summariseBuildings } from '../data/buildings';
+import { factionIdAt } from '../data/factions';
+import { unitFor } from '../data/rosters';
 import { CITY_TILE_DEFENCE_BONUS, TERRAIN_PROFILE } from '../data/terrain';
 import { cityDefence, unitById, type Unit, type UnitStack } from '../data/units';
 import { TERRAINS, type Terrain, type World } from '../data/world';
@@ -154,11 +156,27 @@ export interface BattleSetup {
  * Order is fixed — contingents as given, unit ids sorted within each — because slot order
  * decides tie-breaks in the activation order, and a battle has to replay identically from a save.
  */
-function muster(contingents: readonly BattleContingent[], side: BattleSide, from: number): Fighter[] {
+function muster(
+  contingents: readonly BattleContingent[],
+  side: BattleSide,
+  from: number,
+  /**
+   * Whose troops these are — **the seam that gives a realm its own version of a unit** (0.20.0).
+   *
+   * This is the one place in the simulation where a unit id becomes the numbers that decide a
+   * fight, so routing it through `unitFor` is all it takes for a Gendarme to be a different
+   * proposition from a Sipahi. Nothing else in `fightBattle` changes: the formations it builds
+   * already carry their own `unit`, and every rule below reads that rather than the roster.
+   *
+   * An empty id, or a faction with no roster of its own, resolves to the base unit — which is what
+   * the Independents get, and what any save written before 0.20.0 gets.
+   */
+  factionId: string,
+): Fighter[] {
   const fighters: Fighter[] = [];
   for (const { source, stack, advantage, armyId } of contingents) {
     for (const unitId of Object.keys(stack).sort()) {
-      const unit = unitById(unitId);
+      const unit = unitFor(factionId, unitId);
       if (!unit) continue;
       for (let i = 0; i < (stack[unitId] ?? 0); i++) {
         fighters.push({
@@ -280,8 +298,13 @@ export interface BattleResult {
  * map is `conquest.ts`'s business, which keeps this function testable in isolation.
  */
 export function fightBattle(state: SimState, world: World, setup: BattleSetup): BattleResult {
-  const attackers = muster(setup.attacker, ATTACKER, 0);
-  const defenders = muster(setup.defender, DEFENDER, attackers.length);
+  const attackers = muster(setup.attacker, ATTACKER, 0, factionIdAt(setup.attackerIndex));
+  const defenders = muster(
+    setup.defender,
+    DEFENDER,
+    attackers.length,
+    factionIdAt(setup.defenderIndex),
+  );
   const fighters = [...attackers, ...defenders];
 
   const advantage = defenderAdvantage(state, world, setup.tileIndex);

@@ -327,3 +327,67 @@ exactly one army. Warships fill the remaining berths and are not capped.
 Only Transports carry anything. A fleet's capacity is `transports × 5`, and cargo above it is lost
 when it stops fitting (see MECHANICS §10). Where the berths fall short of the army, **the part that
 fits sails and the rest stays ashore** (decision 129) — the one place a stack can be divided.
+
+## 5. Per-faction rosters — since 0.20.0
+
+Owner-specified: every realm names its own troops and hulls, and every renaming carries a
+matching advantage and disadvantage. Names are period-appropriate to 1300–1500 and **may repeat**
+across realms; where a nation had something of its own, it is used.
+
+**Only combat and marching stats vary.** Cost, soldiers, upkeep and build time are identical in
+every realm — a Longbowman and a Toxotes take the same 100 gold, the same 60 people and the same
+four months. All figures below are **[GEN]**.
+
+### The two bonuses
+
+| Realm | Economy | Military |
+|---|---|---|
+| Castille | Crown revenues: +4% gold | Reconquista drill: +3% damage |
+| Britons | Royal forests: +5% wood | Archery statutes: +3% damage |
+| Franks | Rich farmland: +1 person a month in every settlement | Compagnies d'ordonnance: +3% hit points |
+| Holy Romans | Imperial mines: +5% iron | Plate harness: +3% hit points |
+| Italians | Banking houses: +5% gold | Milanese armour: +2% hit points |
+| Hungarians | Kremnica gold: +4% gold | Black Army couriers: +5% march speed |
+| Romans | Customs of the Horn: +4% gold | Walls of Theodosius: +3% hit points |
+| Bulgarians | Balkan quarries: +5% stone | Mountain fastnesses: +2% hit points |
+| Russians | Northern timber: +6% wood | Winter campaigning: +2% hit points |
+| Golden Horde | Silk road tolls: +4% gold | Steppe remounts: +6% march speed |
+| Turks | Devshirme levies: +4% gold | Janissary corps: +3% damage |
+| Mamluks | Red Sea spice tolls: +5% gold | Furusiyya training: +3% damage |
+| Moors | Saharan gold road: +4% gold | Zenata horsemanship: +5% march speed |
+
+### Land units
+
+| Realm | Light Infantry | Spear Infantry | Sword Infantry | Shock Infantry | Skirmisher | Archer | Light Cavalry | Cavalry Archer | Heavy Cavalry |
+|---|---|---|---|---|---|---|---|---|---|
+| Castille | **Peón**<br>-5 hp, +2 dmg | **Piquero**<br>+10 hp, -2 dmg | **Rodelero**<br>-10 hp, +4 dmg | **Almogávar**<br>-10 hp, +5 dmg | **Escaramuzador**<br>+8 hp, -1 dmg | **Ballestero**<br>+10 hp, -2 dmg | **Jinete**<br>-15 hp, +4 dmg | **Ballestero Montado**<br>+10 hp, -2 dmg | **Caballero**<br>+10 hp, -2 dmg |
+| Britons | **Billman**<br>+10 hp, -2 dmg | **Spearman** | **Man-at-Arms**<br>+12 hp, -2 dmg | **Galloglass**<br>+12 hp, -2 dmg | **Kern**<br>-6 hp, +3 dmg | **Longbowman**<br>-10 hp, +5 dmg | **Hobilar**<br>-10 hp, +3 dmg | **Mounted Archer**<br>-8 hp, +3 dmg | **Knight**<br>+15 hp, -3 dmg |
+| Franks | **Sergent**<br>+5 hp, -1 dmg | **Piquier**<br>+8 hp, -1 dmg | **Homme d'Armes**<br>+12 hp, -2 dmg | **Voulgier**<br>-8 hp, +4 dmg | **Brigand**<br>-5 hp, +2 dmg | **Arbalétrier**<br>+12 hp, -2 dmg | **Coustillier**<br>-8 hp, +3 dmg | **Archer à Cheval**<br>+8 hp, -1 dmg | **Gendarme**<br>+20 hp, -4 dmg |
+| Holy Romans | **Söldner**<br>+5 hp, -1 dmg | **Pikenier**<br>+12 hp, -2 dmg | **Doppelsöldner**<br>-10 hp, +5 dmg | **Landsknecht**<br>+8 hp, +2 dmg | **Schütze**<br>+5 hp, -1 dmg | **Armbruster**<br>+12 hp, -2 dmg | **Reiter**<br>+8 hp, -2 dmg | **Berittener Schütze**<br>+8 hp, -1 dmg | **Ritter**<br>+20 hp, -4 dmg |
+| Italians | **Fante**<br>+5 hp, -1 dmg | **Lanciere**<br>+8 hp, -1 dmg | **Uomo d'Arme**<br>+12 hp, -2 dmg | **Pavesaro**<br>+15 hp, -4 dmg | **Schioppettiere**<br>-8 hp, +4 dmg | **Balestriere Genovese**<br>+8 hp, +2 dmg | **Stradiotto**<br>-10 hp, +4 dmg | **Arciere a Cavallo**<br>+5 hp, -1 dmg | **Cavaliere**<br>+15 hp, -3 dmg |
+| Hungarians | **Hajdú**<br>-5 hp, +2 dmg | **Lándzsás**<br>+8 hp, -1 dmg | **Fekete Gyalogos**<br>+10 hp, -1 dmg | **Pajzsos**<br>+15 hp, -4 dmg | **Puskás**<br>-8 hp, +4 dmg | **Íjász**<br>-5 hp, +3 dmg | **Huszár**<br>-10 hp, +4 dmg | **Lovas Íjász**<br>-5 hp, +3 dmg | **Fekete Lovag**<br>+15 hp, -3 dmg |
+| Romans | **Peltastes**<br>-5 hp, +2 dmg | **Kontaratos**<br>+12 hp, -2 dmg | **Skoutatos**<br>+15 hp, -3 dmg | **Varangian**<br>-10 hp, +5 dmg | **Psilos**<br>+5 hp, -1 dmg | **Toxotes**<br>+8 hp, -1 dmg | **Trapezitos**<br>-10 hp, +3 dmg | **Hippotoxotes**<br>+5 hp, +2 dmg | **Kataphraktos**<br>+20 hp, -4 dmg |
+| Bulgarians | **Pehotinets**<br>+5 hp, -1 dmg | **Kopienosets**<br>+10 hp, -2 dmg | **Mechonosets**<br>+10 hp, -1 dmg | **Voynik**<br>-8 hp, +4 dmg | **Prashkar**<br>-5 hp, +2 dmg | **Strelets**<br>+5 hp, +1 dmg | **Konnik**<br>-8 hp, +3 dmg | **Konen Strelets**<br>+5 hp, -1 dmg | **Boliar**<br>+15 hp, -3 dmg |
+| Russians | **Opolchenets**<br>+8 hp, -2 dmg | **Kopeishchik**<br>+10 hp, -2 dmg | **Druzhinnik**<br>+12 hp, -2 dmg | **Berdyshnik**<br>-10 hp, +5 dmg | **Sulichnik**<br>-5 hp, +2 dmg | **Luchnik**<br>+5 hp, -1 dmg | **Kazak**<br>-10 hp, +4 dmg | **Konnyi Luchnik**<br>+5 hp, -1 dmg | **Boyar**<br>+15 hp, -3 dmg |
+| Golden Horde | **Nöker**<br>-5 hp, +2 dmg | **Jidachi**<br>+8 hp, -1 dmg | **Bahadur**<br>+8 hp, +1 dmg | **Keshig**<br>+10 hp, -1 dmg | **Chapar**<br>-8 hp, +3 dmg | **Mergen**<br>-8 hp, +4 dmg | **Chapqun**<br>-12 hp, +4 dmg | **Mangudai**<br>-8 hp, +5 dmg | **Keshig Lancer**<br>+10 hp, -1 dmg |
+| Turks | **Azap**<br>-5 hp, +2 dmg | **Piyade**<br>+8 hp, -1 dmg | **Yeniçeri**<br>-10 hp, +5 dmg | **Deli**<br>-12 hp, +5 dmg | **Serdengeçti**<br>-6 hp, +3 dmg | **Okçu**<br>+5 hp, +1 dmg | **Akıncı**<br>-12 hp, +4 dmg | **Atlı Okçu**<br>-5 hp, +3 dmg | **Sipahi**<br>+12 hp, -2 dmg |
+| Mamluks | **Ajnad**<br>+5 hp, -1 dmg | **Rammah**<br>+10 hp, -2 dmg | **Sayfiyya**<br>+8 hp, +1 dmg | **Halqa**<br>+10 hp, -1 dmg | **Naffatun**<br>-10 hp, +5 dmg | **Rami**<br>-5 hp, +3 dmg | **Badawi**<br>-12 hp, +4 dmg | **Faris Rami**<br>-5 hp, +4 dmg | **Royal Mamluk**<br>+15 hp, -2 dmg |
+| Moors | **Mutatawwi**<br>-5 hp, +2 dmg | **Harbi**<br>+8 hp, -1 dmg | **Sayyaf**<br>+8 hp, +1 dmg | **Ghuzat**<br>-10 hp, +5 dmg | **Zaghayi**<br>-6 hp, +3 dmg | **Ramiy**<br>+5 hp, -1 dmg | **Zenete**<br>-12 hp, +5 dmg | **Faris Ramiy**<br>-5 hp, +3 dmg | **Faris**<br>+12 hp, -2 dmg |
+
+### Ships
+
+| Realm | Transport | Light Ship | Heavy Ship | Flagship |
+|---|---|---|---|---|
+| Castille | **Nao**<br>+5 hp, -1 dmg | **Carabela**<br>-8 hp, +3 dmg | **Carraca**<br>+12 hp, -2 dmg | **Galeón**<br>+10 hp, -2 dmg |
+| Britons | **Cog**<br>+6 hp, -1 dmg | **Balinger**<br>-8 hp, +3 dmg | **Carrack**<br>+12 hp, -2 dmg | **Great Ship**<br>+14 hp, -3 dmg |
+| Franks | **Nef**<br>+5 hp, -1 dmg | **Balinger**<br>-8 hp, +3 dmg | **Caraque**<br>+12 hp, -2 dmg | **Grande Nef**<br>+12 hp, -2 dmg |
+| Holy Romans | **Kogge**<br>+8 hp, -2 dmg | **Schnigge**<br>-6 hp, +2 dmg | **Holk**<br>+14 hp, -3 dmg | **Große Holk**<br>+14 hp, -3 dmg |
+| Italians | **Cocca**<br>+5 hp, -1 dmg | **Galea Sottile**<br>-10 hp, +4 dmg | **Galeazza**<br>+10 hp, +2 dmg | **Nave Capitana**<br>+12 hp, -2 dmg |
+| Hungarians | **Sajka**<br>-5 hp, +2 dmg | **Naszád**<br>-10 hp, +4 dmg | **Gálya**<br>+8 hp, -1 dmg | **Nagy Gálya**<br>+10 hp, -2 dmg |
+| Romans | **Chelandion**<br>+6 hp, -1 dmg | **Ousiakon**<br>-8 hp, +3 dmg | **Dromon**<br>+12 hp, -2 dmg | **Pamphylos**<br>+12 hp, -2 dmg |
+| Bulgarians | **Lodiya**<br>+5 hp, -1 dmg | **Galiya**<br>-6 hp, +2 dmg | **Golyama Galiya**<br>+10 hp, -2 dmg | **Knyazheska Galiya**<br>+12 hp, -2 dmg |
+| Russians | **Lodya**<br>+6 hp, -1 dmg | **Ushkuy**<br>-10 hp, +4 dmg | **Nasad**<br>+10 hp, -2 dmg | **Knyazhya Lodya**<br>+12 hp, -2 dmg |
+| Golden Horde | **Kayık**<br>-5 hp, +2 dmg | **Şayka**<br>-8 hp, +3 dmg | **Kadırga**<br>+8 hp, -1 dmg | **Baştarda**<br>+10 hp, -2 dmg |
+| Turks | **Kayık**<br>-5 hp, +2 dmg | **Şayka**<br>-8 hp, +3 dmg | **Kadırga**<br>+8 hp, -1 dmg | **Baştarda**<br>+12 hp, -2 dmg |
+| Mamluks | **Markab**<br>+5 hp, -1 dmg | **Shalandi**<br>-8 hp, +3 dmg | **Harraqa**<br>-6 hp, +5 dmg | **Ghurab**<br>+12 hp, -2 dmg |
+| Moors | **Qarib**<br>+5 hp, -1 dmg | **Shini**<br>-8 hp, +3 dmg | **Ghurab**<br>+10 hp, -2 dmg | **Ghurab Kabir**<br>+12 hp, -2 dmg |

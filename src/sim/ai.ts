@@ -26,6 +26,7 @@ import {
 } from './construction';
 import { beginSiege, RELIEF_RANGE, siegeTarget } from './conquest';
 import { isCoastal } from './fleets';
+import { unitFor } from '../data/rosters';
 import { landmassOf, reachedIn, sameLandmass, walkingDistanceFrom } from './geography';
 import { runNavy } from './navalAi';
 
@@ -587,7 +588,12 @@ function strongest(options: readonly LandUnit[], mind: Mind): LandUnit | undefin
   let bestScore = 0;
 
   for (const unit of options) {
-    const score = Math.floor((unit.size * unit.hp * unit.damage) / 100) * bias[unit.class];
+    // **Scored as this realm would field it** (0.20.0). A Longbowman and a Toxotes are the same
+    // entry in the table and different propositions on the field, so a rival that judged the base
+    // figures would be judging a unit nobody has. The id chosen is still the base id — the roster
+    // is a lens over the same unit, not a different one to recruit.
+    const mine = unitFor(mind.faction.id, unit.id) ?? unit;
+    const score = Math.floor((mine.size * mine.hp * mine.damage) / 100) * bias[unit.class];
     if (score > bestScore || (score === bestScore && best && unit.id < best.id)) {
       bestScore = score;
       best = unit;

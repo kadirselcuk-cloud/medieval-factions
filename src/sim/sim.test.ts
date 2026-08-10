@@ -117,9 +117,10 @@ describe('economy', () => {
     expect(city.population).toBe(STARTING_POPULATION);
 
     // Growth is a flat count of people, never a percentage. A fresh Village with nothing built
-    // gains 2 for existing and 3 for its tier; Wooden Houses is what takes it to 15.
+    // gains 2 for existing and 3 for its tier — **and 1 more because it is Frankish**: rich
+    // farmland is that realm's economic bonus since 0.20.0, and it is a term in this same sum.
     advanceBy(state, world, 1);
-    expect(city.population).toBe(STARTING_POPULATION + 5);
+    expect(city.population).toBe(STARTING_POPULATION + 6);
   });
 
   // Housing and halls accumulate: a settlement with three of them standing has all three.
@@ -127,24 +128,25 @@ describe('economy', () => {
     const state = newState();
     const city = state.cities.find((c) => c.ownerIndex === state.playerFactionIndex)!;
 
+    // Every figure carries the Frankish +1 as well, which is why the sum opens at 6 rather than 5.
     const rate = () => cityGrowth(state, city);
-    expect(rate()).toBe(5); // 2 base + 3 for a Village
+    expect(rate()).toBe(6); // 2 base + 3 for a Village + 1 Frankish
 
     city.buildings.push('wooden_houses');
-    expect(rate()).toBe(15); // +10
+    expect(rate()).toBe(16); // +10
     city.buildings.push('stone_houses');
-    expect(rate()).toBe(30); // +15
+    expect(rate()).toBe(31); // +15
     city.buildings.push('villas');
-    expect(rate()).toBe(55); // +25
+    expect(rate()).toBe(56); // +25
     city.buildings.push('manors');
-    expect(rate()).toBe(95); // +40
+    expect(rate()).toBe(96); // +40
 
     city.buildings.push('town_hall');
-    expect(rate()).toBe(103); // +8
+    expect(rate()).toBe(104); // +8
     city.buildings.push('city_hall');
-    expect(rate()).toBe(115); // +12
+    expect(rate()).toBe(116); // +12
     city.buildings.push('palace');
-    expect(rate()).toBe(135); // +20
+    expect(rate()).toBe(136); // +20
   });
 
   it('never loses income to rounding across a year', () => {

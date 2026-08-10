@@ -195,7 +195,7 @@ export function BalancePanel({
                           title={
                             growth.besieged
                               ? 'Under siege — it starves, and nothing it has built counts'
-                              : `base ${growth.base} · prosperity ${growth.prosperity} · tier ${growth.tier} · buildings ${growth.buildings}`
+                              : `base ${growth.base} · prosperity ${growth.prosperity} · realm ${growth.realm} · tier ${growth.tier} · buildings ${growth.buildings}`
                           }
                         >
                           {signed(growth.total)}

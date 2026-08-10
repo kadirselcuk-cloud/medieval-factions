@@ -366,14 +366,17 @@ describe('recruitment and shipyards', () => {
     expect(paris.population).toBeGreaterThanOrEqual(MIN_POPULATION);
   });
 
-  it('costs a bare village twenty months of growth for one unit', () => {
+  it('costs a bare village years of growth for one unit', () => {
     // Deliberately not enriched: a Light Infantry is 50 gold and the realm opens with 250, so
     // this is the opening position exactly — a Village with nothing built and 250 in the bank.
-    expect(cityGrowth(state, paris)).toBe(5);
+    // Six a month rather than five since 0.20.0: Paris is Frankish, and rich farmland is that
+    // realm's economic bonus.
+    const rate = cityGrowth(state, paris);
+    expect(rate).toBe(6);
     expect(queueUnit(state, paris, 'light_infantry')).toEqual({ ok: true });
 
     // Flat growth never earns the manpower back, which is the whole weight of the decision.
-    expect(Math.ceil(100 / 5)).toBe(20);
+    expect(Math.ceil(100 / rate)).toBe(17);
     expect(paris.population).toBe(900);
   });
 

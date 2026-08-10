@@ -204,12 +204,12 @@ describe('auto-resolve', () => {
       setup({ light_infantry: 1 }, { light_infantry: 1 }, to),
     );
 
-    // Plains gives the defender +5% since 0.13.0 halved every defence bonus. A full-strength
-    // Light Infantry is 100 soldiers doing 20 damage each into 100 HP a man: 2,000 raw, ×1.05
-    // for the ground, 21 dead. The attacker's first blow is the same sum at ×0.95, against a
-    // target already down to 79 men.
+    // Plains gives the defender +5% since 0.13.0 halved every defence bonus. The defender is an
+    // Independent Light Infantry: 100 soldiers doing 20 damage each, 2,000 raw, ×1.05 for the
+    // ground. **Into 108 HP a man since 0.20.0** — the attacker is Frankish, and a Sergent is the
+    // base unit plus the roster's +5 and the realm's +3% — so 19 dead where it used to be 21.
     const blows = report.turns.flatMap((t) => t.actions).filter((a) => a.kind === 'strike');
-    expect(blows[0]).toMatchObject({ casualties: 21, charge: false });
+    expect(blows[0]).toMatchObject({ casualties: 19, charge: false });
   });
 
   it('fires the charge bonus once and only once', () => {

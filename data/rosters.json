@@ -1,0 +1,316 @@
+{
+  "_comment": "Per-faction unit and ship names, the stat trade each renaming carries, and the two small bonuses every realm has. Owner-specified in 0.20.0; the names and the figures are Claude's and are [GEN]. Names are period-appropriate to 1300-1500 and may repeat across factions on purpose — a Carrack served half of Europe. Deltas are added to the base figure in data/units.json, so retuning a base unit carries through to every faction. Only combat and marching stats may vary: hp, damage and strategicSpeed. Cost, size, upkeep and build time are deliberately identical everywhere, so a faction is never richer or more populous for its roster, only different on the field.",
+  "_bonusKinds": "economy: gold | wood | iron | stone (permille of that income) or growth (whole people per settlement per month). military: hp | damage | march (permille, applied to every unit the realm fields).",
+
+  "spanish": {
+    "bonus": {
+      "economy": { "kind": "gold", "permille": 40, "text": "Crown revenues: +4% gold" },
+      "military": { "kind": "damage", "permille": 30, "text": "Reconquista drill: +3% damage" }
+    },
+    "units": {
+      "light_infantry": { "name": "Peón", "hp": -5, "damage": 2 },
+      "spear_infantry": { "name": "Piquero", "hp": 10, "damage": -2 },
+      "sword_infantry": { "name": "Rodelero", "hp": -10, "damage": 4 },
+      "shock_infantry": { "name": "Almogávar", "hp": -10, "damage": 5 },
+      "skirmisher": { "name": "Escaramuzador", "hp": 8, "damage": -1 },
+      "archer": { "name": "Ballestero", "hp": 10, "damage": -2 },
+      "light_cavalry": { "name": "Jinete", "hp": -15, "damage": 4 },
+      "cavalry_archer": { "name": "Ballestero Montado", "hp": 10, "damage": -2 },
+      "heavy_cavalry": { "name": "Caballero", "hp": 10, "damage": -2 }
+    },
+    "ships": {
+      "transport": { "name": "Nao", "hp": 5, "damage": -1 },
+      "light_ship": { "name": "Carabela", "hp": -8, "damage": 3 },
+      "heavy_ship": { "name": "Carraca", "hp": 12, "damage": -2 },
+      "flagship": { "name": "Galeón", "hp": 10, "damage": -2 }
+    }
+  },
+
+  "britons": {
+    "bonus": {
+      "economy": { "kind": "wood", "permille": 50, "text": "Royal forests: +5% wood" },
+      "military": { "kind": "damage", "permille": 30, "text": "Archery statutes: +3% damage" }
+    },
+    "units": {
+      "light_infantry": { "name": "Billman", "hp": 10, "damage": -2 },
+      "spear_infantry": { "name": "Spearman", "hp": 0, "damage": 0 },
+      "sword_infantry": { "name": "Man-at-Arms", "hp": 12, "damage": -2 },
+      "shock_infantry": { "name": "Galloglass", "hp": 12, "damage": -2 },
+      "skirmisher": { "name": "Kern", "hp": -6, "damage": 3 },
+      "archer": { "name": "Longbowman", "hp": -10, "damage": 5 },
+      "light_cavalry": { "name": "Hobilar", "hp": -10, "damage": 3 },
+      "cavalry_archer": { "name": "Mounted Archer", "hp": -8, "damage": 3 },
+      "heavy_cavalry": { "name": "Knight", "hp": 15, "damage": -3 }
+    },
+    "ships": {
+      "transport": { "name": "Cog", "hp": 6, "damage": -1 },
+      "light_ship": { "name": "Balinger", "hp": -8, "damage": 3 },
+      "heavy_ship": { "name": "Carrack", "hp": 12, "damage": -2 },
+      "flagship": { "name": "Great Ship", "hp": 14, "damage": -3 }
+    }
+  },
+
+  "franks": {
+    "bonus": {
+      "economy": { "kind": "growth", "people": 1, "text": "Rich farmland: +1 person a month in every settlement" },
+      "military": { "kind": "hp", "permille": 30, "text": "Compagnies d'ordonnance: +3% hit points" }
+    },
+    "units": {
+      "light_infantry": { "name": "Sergent", "hp": 5, "damage": -1 },
+      "spear_infantry": { "name": "Piquier", "hp": 8, "damage": -1 },
+      "sword_infantry": { "name": "Homme d'Armes", "hp": 12, "damage": -2 },
+      "shock_infantry": { "name": "Voulgier", "hp": -8, "damage": 4 },
+      "skirmisher": { "name": "Brigand", "hp": -5, "damage": 2 },
+      "archer": { "name": "Arbalétrier", "hp": 12, "damage": -2 },
+      "light_cavalry": { "name": "Coustillier", "hp": -8, "damage": 3 },
+      "cavalry_archer": { "name": "Archer à Cheval", "hp": 8, "damage": -1 },
+      "heavy_cavalry": { "name": "Gendarme", "hp": 20, "damage": -4 }
+    },
+    "ships": {
+      "transport": { "name": "Nef", "hp": 5, "damage": -1 },
+      "light_ship": { "name": "Balinger", "hp": -8, "damage": 3 },
+      "heavy_ship": { "name": "Caraque", "hp": 12, "damage": -2 },
+      "flagship": { "name": "Grande Nef", "hp": 12, "damage": -2 }
+    }
+  },
+
+  "holy_romans": {
+    "bonus": {
+      "economy": { "kind": "iron", "permille": 50, "text": "Imperial mines: +5% iron" },
+      "military": { "kind": "hp", "permille": 30, "text": "Plate harness: +3% hit points" }
+    },
+    "units": {
+      "light_infantry": { "name": "Söldner", "hp": 5, "damage": -1 },
+      "spear_infantry": { "name": "Pikenier", "hp": 12, "damage": -2 },
+      "sword_infantry": { "name": "Doppelsöldner", "hp": -10, "damage": 5 },
+      "shock_infantry": { "name": "Landsknecht", "hp": 8, "damage": 2 },
+      "skirmisher": { "name": "Schütze", "hp": 5, "damage": -1 },
+      "archer": { "name": "Armbruster", "hp": 12, "damage": -2 },
+      "light_cavalry": { "name": "Reiter", "hp": 8, "damage": -2 },
+      "cavalry_archer": { "name": "Berittener Schütze", "hp": 8, "damage": -1 },
+      "heavy_cavalry": { "name": "Ritter", "hp": 20, "damage": -4 }
+    },
+    "ships": {
+      "transport": { "name": "Kogge", "hp": 8, "damage": -2 },
+      "light_ship": { "name": "Schnigge", "hp": -6, "damage": 2 },
+      "heavy_ship": { "name": "Holk", "hp": 14, "damage": -3 },
+      "flagship": { "name": "Große Holk", "hp": 14, "damage": -3 }
+    }
+  },
+
+  "italians": {
+    "bonus": {
+      "economy": { "kind": "gold", "permille": 50, "text": "Banking houses: +5% gold" },
+      "military": { "kind": "hp", "permille": 20, "text": "Milanese armour: +2% hit points" }
+    },
+    "units": {
+      "light_infantry": { "name": "Fante", "hp": 5, "damage": -1 },
+      "spear_infantry": { "name": "Lanciere", "hp": 8, "damage": -1 },
+      "sword_infantry": { "name": "Uomo d'Arme", "hp": 12, "damage": -2 },
+      "shock_infantry": { "name": "Pavesaro", "hp": 15, "damage": -4 },
+      "skirmisher": { "name": "Schioppettiere", "hp": -8, "damage": 4 },
+      "archer": { "name": "Balestriere Genovese", "hp": 8, "damage": 2 },
+      "light_cavalry": { "name": "Stradiotto", "hp": -10, "damage": 4 },
+      "cavalry_archer": { "name": "Arciere a Cavallo", "hp": 5, "damage": -1 },
+      "heavy_cavalry": { "name": "Cavaliere", "hp": 15, "damage": -3 }
+    },
+    "ships": {
+      "transport": { "name": "Cocca", "hp": 5, "damage": -1 },
+      "light_ship": { "name": "Galea Sottile", "hp": -10, "damage": 4 },
+      "heavy_ship": { "name": "Galeazza", "hp": 10, "damage": 2 },
+      "flagship": { "name": "Nave Capitana", "hp": 12, "damage": -2 }
+    }
+  },
+
+  "hungarians": {
+    "bonus": {
+      "economy": { "kind": "gold", "permille": 40, "text": "Kremnica gold: +4% gold" },
+      "military": { "kind": "march", "permille": 50, "text": "Black Army couriers: +5% march speed" }
+    },
+    "units": {
+      "light_infantry": { "name": "Hajdú", "hp": -5, "damage": 2 },
+      "spear_infantry": { "name": "Lándzsás", "hp": 8, "damage": -1 },
+      "sword_infantry": { "name": "Fekete Gyalogos", "hp": 10, "damage": -1 },
+      "shock_infantry": { "name": "Pajzsos", "hp": 15, "damage": -4 },
+      "skirmisher": { "name": "Puskás", "hp": -8, "damage": 4 },
+      "archer": { "name": "Íjász", "hp": -5, "damage": 3 },
+      "light_cavalry": { "name": "Huszár", "hp": -10, "damage": 4 },
+      "cavalry_archer": { "name": "Lovas Íjász", "hp": -5, "damage": 3 },
+      "heavy_cavalry": { "name": "Fekete Lovag", "hp": 15, "damage": -3 }
+    },
+    "ships": {
+      "transport": { "name": "Sajka", "hp": -5, "damage": 2 },
+      "light_ship": { "name": "Naszád", "hp": -10, "damage": 4 },
+      "heavy_ship": { "name": "Gálya", "hp": 8, "damage": -1 },
+      "flagship": { "name": "Nagy Gálya", "hp": 10, "damage": -2 }
+    }
+  },
+
+  "romans": {
+    "bonus": {
+      "economy": { "kind": "gold", "permille": 40, "text": "Customs of the Horn: +4% gold" },
+      "military": { "kind": "hp", "permille": 30, "text": "Walls of Theodosius: +3% hit points" }
+    },
+    "units": {
+      "light_infantry": { "name": "Peltastes", "hp": -5, "damage": 2 },
+      "spear_infantry": { "name": "Kontaratos", "hp": 12, "damage": -2 },
+      "sword_infantry": { "name": "Skoutatos", "hp": 15, "damage": -3 },
+      "shock_infantry": { "name": "Varangian", "hp": -10, "damage": 5 },
+      "skirmisher": { "name": "Psilos", "hp": 5, "damage": -1 },
+      "archer": { "name": "Toxotes", "hp": 8, "damage": -1 },
+      "light_cavalry": { "name": "Trapezitos", "hp": -10, "damage": 3 },
+      "cavalry_archer": { "name": "Hippotoxotes", "hp": 5, "damage": 2 },
+      "heavy_cavalry": { "name": "Kataphraktos", "hp": 20, "damage": -4 }
+    },
+    "ships": {
+      "transport": { "name": "Chelandion", "hp": 6, "damage": -1 },
+      "light_ship": { "name": "Ousiakon", "hp": -8, "damage": 3 },
+      "heavy_ship": { "name": "Dromon", "hp": 12, "damage": -2 },
+      "flagship": { "name": "Pamphylos", "hp": 12, "damage": -2 }
+    }
+  },
+
+  "bulgarians": {
+    "bonus": {
+      "economy": { "kind": "stone", "permille": 50, "text": "Balkan quarries: +5% stone" },
+      "military": { "kind": "hp", "permille": 20, "text": "Mountain fastnesses: +2% hit points" }
+    },
+    "units": {
+      "light_infantry": { "name": "Pehotinets", "hp": 5, "damage": -1 },
+      "spear_infantry": { "name": "Kopienosets", "hp": 10, "damage": -2 },
+      "sword_infantry": { "name": "Mechonosets", "hp": 10, "damage": -1 },
+      "shock_infantry": { "name": "Voynik", "hp": -8, "damage": 4 },
+      "skirmisher": { "name": "Prashkar", "hp": -5, "damage": 2 },
+      "archer": { "name": "Strelets", "hp": 5, "damage": 1 },
+      "light_cavalry": { "name": "Konnik", "hp": -8, "damage": 3 },
+      "cavalry_archer": { "name": "Konen Strelets", "hp": 5, "damage": -1 },
+      "heavy_cavalry": { "name": "Boliar", "hp": 15, "damage": -3 }
+    },
+    "ships": {
+      "transport": { "name": "Lodiya", "hp": 5, "damage": -1 },
+      "light_ship": { "name": "Galiya", "hp": -6, "damage": 2 },
+      "heavy_ship": { "name": "Golyama Galiya", "hp": 10, "damage": -2 },
+      "flagship": { "name": "Knyazheska Galiya", "hp": 12, "damage": -2 }
+    }
+  },
+
+  "russians": {
+    "bonus": {
+      "economy": { "kind": "wood", "permille": 60, "text": "Northern timber: +6% wood" },
+      "military": { "kind": "hp", "permille": 20, "text": "Winter campaigning: +2% hit points" }
+    },
+    "units": {
+      "light_infantry": { "name": "Opolchenets", "hp": 8, "damage": -2 },
+      "spear_infantry": { "name": "Kopeishchik", "hp": 10, "damage": -2 },
+      "sword_infantry": { "name": "Druzhinnik", "hp": 12, "damage": -2 },
+      "shock_infantry": { "name": "Berdyshnik", "hp": -10, "damage": 5 },
+      "skirmisher": { "name": "Sulichnik", "hp": -5, "damage": 2 },
+      "archer": { "name": "Luchnik", "hp": 5, "damage": -1 },
+      "light_cavalry": { "name": "Kazak", "hp": -10, "damage": 4 },
+      "cavalry_archer": { "name": "Konnyi Luchnik", "hp": 5, "damage": -1 },
+      "heavy_cavalry": { "name": "Boyar", "hp": 15, "damage": -3 }
+    },
+    "ships": {
+      "transport": { "name": "Lodya", "hp": 6, "damage": -1 },
+      "light_ship": { "name": "Ushkuy", "hp": -10, "damage": 4 },
+      "heavy_ship": { "name": "Nasad", "hp": 10, "damage": -2 },
+      "flagship": { "name": "Knyazhya Lodya", "hp": 12, "damage": -2 }
+    }
+  },
+
+  "golden_horde": {
+    "bonus": {
+      "economy": { "kind": "gold", "permille": 40, "text": "Silk road tolls: +4% gold" },
+      "military": { "kind": "march", "permille": 60, "text": "Steppe remounts: +6% march speed" }
+    },
+    "units": {
+      "light_infantry": { "name": "Nöker", "hp": -5, "damage": 2 },
+      "spear_infantry": { "name": "Jidachi", "hp": 8, "damage": -1 },
+      "sword_infantry": { "name": "Bahadur", "hp": 8, "damage": 1 },
+      "shock_infantry": { "name": "Keshig", "hp": 10, "damage": -1 },
+      "skirmisher": { "name": "Chapar", "hp": -8, "damage": 3 },
+      "archer": { "name": "Mergen", "hp": -8, "damage": 4 },
+      "light_cavalry": { "name": "Chapqun", "hp": -12, "damage": 4 },
+      "cavalry_archer": { "name": "Mangudai", "hp": -8, "damage": 5 },
+      "heavy_cavalry": { "name": "Keshig Lancer", "hp": 10, "damage": -1 }
+    },
+    "ships": {
+      "transport": { "name": "Kayık", "hp": -5, "damage": 2 },
+      "light_ship": { "name": "Şayka", "hp": -8, "damage": 3 },
+      "heavy_ship": { "name": "Kadırga", "hp": 8, "damage": -1 },
+      "flagship": { "name": "Baştarda", "hp": 10, "damage": -2 }
+    }
+  },
+
+  "turks": {
+    "bonus": {
+      "economy": { "kind": "gold", "permille": 40, "text": "Devshirme levies: +4% gold" },
+      "military": { "kind": "damage", "permille": 30, "text": "Janissary corps: +3% damage" }
+    },
+    "units": {
+      "light_infantry": { "name": "Azap", "hp": -5, "damage": 2 },
+      "spear_infantry": { "name": "Piyade", "hp": 8, "damage": -1 },
+      "sword_infantry": { "name": "Yeniçeri", "hp": -10, "damage": 5 },
+      "shock_infantry": { "name": "Deli", "hp": -12, "damage": 5 },
+      "skirmisher": { "name": "Serdengeçti", "hp": -6, "damage": 3 },
+      "archer": { "name": "Okçu", "hp": 5, "damage": 1 },
+      "light_cavalry": { "name": "Akıncı", "hp": -12, "damage": 4 },
+      "cavalry_archer": { "name": "Atlı Okçu", "hp": -5, "damage": 3 },
+      "heavy_cavalry": { "name": "Sipahi", "hp": 12, "damage": -2 }
+    },
+    "ships": {
+      "transport": { "name": "Kayık", "hp": -5, "damage": 2 },
+      "light_ship": { "name": "Şayka", "hp": -8, "damage": 3 },
+      "heavy_ship": { "name": "Kadırga", "hp": 8, "damage": -1 },
+      "flagship": { "name": "Baştarda", "hp": 12, "damage": -2 }
+    }
+  },
+
+  "mamluks": {
+    "bonus": {
+      "economy": { "kind": "gold", "permille": 50, "text": "Red Sea spice tolls: +5% gold" },
+      "military": { "kind": "damage", "permille": 30, "text": "Furusiyya training: +3% damage" }
+    },
+    "units": {
+      "light_infantry": { "name": "Ajnad", "hp": 5, "damage": -1 },
+      "spear_infantry": { "name": "Rammah", "hp": 10, "damage": -2 },
+      "sword_infantry": { "name": "Sayfiyya", "hp": 8, "damage": 1 },
+      "shock_infantry": { "name": "Halqa", "hp": 10, "damage": -1 },
+      "skirmisher": { "name": "Naffatun", "hp": -10, "damage": 5 },
+      "archer": { "name": "Rami", "hp": -5, "damage": 3 },
+      "light_cavalry": { "name": "Badawi", "hp": -12, "damage": 4 },
+      "cavalry_archer": { "name": "Faris Rami", "hp": -5, "damage": 4 },
+      "heavy_cavalry": { "name": "Royal Mamluk", "hp": 15, "damage": -2 }
+    },
+    "ships": {
+      "transport": { "name": "Markab", "hp": 5, "damage": -1 },
+      "light_ship": { "name": "Shalandi", "hp": -8, "damage": 3 },
+      "heavy_ship": { "name": "Harraqa", "hp": -6, "damage": 5 },
+      "flagship": { "name": "Ghurab", "hp": 12, "damage": -2 }
+    }
+  },
+
+  "moors": {
+    "bonus": {
+      "economy": { "kind": "gold", "permille": 40, "text": "Saharan gold road: +4% gold" },
+      "military": { "kind": "march", "permille": 50, "text": "Zenata horsemanship: +5% march speed" }
+    },
+    "units": {
+      "light_infantry": { "name": "Mutatawwi", "hp": -5, "damage": 2 },
+      "spear_infantry": { "name": "Harbi", "hp": 8, "damage": -1 },
+      "sword_infantry": { "name": "Sayyaf", "hp": 8, "damage": 1 },
+      "shock_infantry": { "name": "Ghuzat", "hp": -10, "damage": 5 },
+      "skirmisher": { "name": "Zaghayi", "hp": -6, "damage": 3 },
+      "archer": { "name": "Ramiy", "hp": 5, "damage": -1 },
+      "light_cavalry": { "name": "Zenete", "hp": -12, "damage": 5 },
+      "cavalry_archer": { "name": "Faris Ramiy", "hp": -5, "damage": 3 },
+      "heavy_cavalry": { "name": "Faris", "hp": 12, "damage": -2 }
+    },
+    "ships": {
+      "transport": { "name": "Qarib", "hp": 5, "damage": -1 },
+      "light_ship": { "name": "Shini", "hp": -8, "damage": 3 },
+      "heavy_ship": { "name": "Ghurab", "hp": 10, "damage": -2 },
+      "flagship": { "name": "Ghurab Kabir", "hp": 12, "damage": -2 }
+    }
+  }
+}

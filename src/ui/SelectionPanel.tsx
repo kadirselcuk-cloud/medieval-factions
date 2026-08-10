@@ -10,7 +10,8 @@ import {
   type Building,
   type SettlementUpgrade,
 } from "../data/buildings";
-import { RELIGION_LABEL, type Faction } from "../data/factions";
+import { factionIdAt, RELIGION_LABEL, type Faction } from "../data/factions";
+import { bonusesOf, unitNameFor, unitsFor } from "../data/rosters";
 import {
   improvementCost,
   improvementMonths,
@@ -242,6 +243,19 @@ export function SelectionPanel(props: SelectionPanelProps): JSX.Element {
               <div className="panel__owner panel__muted">Beyond your sight</div>
             )}
 
+            {/**
+             * **The realm's two bonuses**, one economic and one military — owner-specified in
+             * 0.20.0, and recorded here as well as in `data/rosters.json` so a faction-selection
+             * screen has somewhere to read them from. Shown for any realm the player can see,
+             * because knowing what an opponent is good at is part of deciding to fight it.
+             */}
+            {owner && bonusesOf(owner.id) && (
+              <div className="panel__owner panel__muted">
+                {bonusesOf(owner.id)!.economy.text} ·{" "}
+                {bonusesOf(owner.id)!.military.text}
+              </div>
+            )}
+
             <TileFacts
               tile={tile}
               state={state}
@@ -375,7 +389,9 @@ function ForeignArmy({
       <div className="panel__heading">{owner ? `${owner.name} — army` : "Army"}</div>
       {units.map(([id, count]) => (
         <div className="panel__row" key={id}>
-          <span className="panel__label">{unitById(id)?.name ?? id}</span>
+          <span className="panel__label">
+            {unitNameFor(factionIdAt(army.ownerIndex), id)}
+          </span>
           <span className="panel__value">×{count}</span>
         </div>
       ))}
@@ -432,7 +448,9 @@ function ForeignSettlement({
       <div className="panel__heading">Defences</div>
       {defenders.map(([id, count]) => (
         <div className="panel__row" key={id}>
-          <span className="panel__label">{unitById(id)?.name ?? id}</span>
+          <span className="panel__label">
+            {unitNameFor(factionIdAt(city.ownerIndex), id)}
+          </span>
           <span className="panel__value">×{count}</span>
         </div>
       ))}
@@ -441,7 +459,9 @@ function ForeignSettlement({
           <div className="panel__heading">Garrison</div>
           {garrison.map(([id, count]) => (
             <div className="panel__row" key={id}>
-              <span className="panel__label">{unitById(id)?.name ?? id}</span>
+              <span className="panel__label">
+                {unitNameFor(factionIdAt(city.ownerIndex), id)}
+              </span>
               <span className="panel__value">×{count}</span>
             </div>
           ))}
@@ -662,7 +682,7 @@ function ProgressLines({
       {
         heading: "Recruiting",
         items: city.recruitQueue.map((order) => ({
-          label: unitById(order.id)?.name ?? order.id,
+          label: unitNameFor(factionIdAt(city.ownerIndex), order.id),
           done: (unitById(order.id)?.months ?? 0) - order.monthsRemaining,
           total: unitById(order.id)?.months ?? 0,
         })),
@@ -757,13 +777,26 @@ function Garrison({
   const share = armedSharePermille(state, city.ownerIndex);
   const netIncome = state.factions[city.ownerIndex]?.monthlyIncome.gold ?? 0;
 
-  const tiles: BuildTile[] = loadUnits().map((unit) => {
+  /**
+   * **The realm's own roster, not the table's** — owner-specified in 0.20.0.
+   *
+   * `unitsFor` folds in the faction's name for the unit, the stat trade that name carries, and the
+   * realm's military bonus, so the card reads out what *this* player's Archer is actually worth. The
+   * base entry is kept alongside purely to show the difference on the card.
+   */
+  const roster = factionIdAt(city.ownerIndex);
+  const tiles: BuildTile[] = unitsFor(roster).map((unit) => {
+    const base = unitById(unit.id) ?? unit;
     const affordable = canAfford(state, city.ownerIndex, unit.cost);
     const enoughPeople = manpower >= unit.size;
     const unlocked = recruitable.has(unit.id);
     const missing = unit.requires
       .filter((id) => !city.buildings.includes(id))
       .map((id) => buildingById(id)?.name ?? id);
+
+    /** "120 HP (+20) · 16 damage (-4)" — the trade stated where the player is choosing. */
+    const swing = (now: number, was: number) =>
+      now === was ? "" : ` (${now > was ? "+" : ""}${now - was})`;
 
     return {
       id: unit.id,
@@ -773,6 +806,9 @@ function Garrison({
       blurb: artFor(unit.id).blurb,
       facts: [
         { label: "Class", value: labelOf(unit.class) },
+        ...(unit.name !== base.name
+          ? [{ label: "Elsewhere", value: base.name }]
+          : []),
         { label: "Soldiers", value: `${num(unit.size)} men` },
         {
           label: "Drawn from",
@@ -780,7 +816,9 @@ function Garrison({
         },
         {
           label: "Per soldier",
-          value: `${unit.hp} HP · ${unit.damage} damage`,
+          value:
+            `${unit.hp} HP${swing(unit.hp, base.hp)} · ` +
+            `${unit.damage} damage${swing(unit.damage, base.damage)}`,
         },
         {
           label: "Unit strength",
@@ -821,7 +859,7 @@ function Garrison({
 
   const training = creeping(
     city.recruitQueue.map((order) => ({
-      label: unitById(order.id)?.name ?? order.id,
+      label: unitNameFor(factionIdAt(city.ownerIndex), order.id),
       done: (unitById(order.id)?.months ?? 0) - order.monthsRemaining,
       total: unitById(order.id)?.months ?? 0,
     })),
@@ -838,7 +876,9 @@ function Garrison({
         <div className="panel__heading">Defenders</div>
         {defenders.map(([id, count]) => (
           <div className="panel__row" key={id}>
-            <span className="panel__label">{unitById(id)?.name ?? id}</span>
+            <span className="panel__label">
+              {unitNameFor(factionIdAt(city.ownerIndex), id)}
+            </span>
             <span className="panel__value">×{count}</span>
           </div>
         ))}
@@ -859,7 +899,9 @@ function Garrison({
           <>
             {units.map(([id, count]) => (
               <div className="panel__row" key={id}>
-                <span className="panel__label">{unitById(id)?.name ?? id}</span>
+                <span className="panel__label">
+                  {unitNameFor(factionIdAt(city.ownerIndex), id)}
+                </span>
                 <span className="panel__value">
                   ×{count}
                   <span className="panel__muted">
@@ -1030,7 +1072,9 @@ function ArmyCard({
 
       {units.map(([id, count]) => (
         <div className="panel__row" key={id}>
-          <span className="panel__label">{unitById(id)?.name ?? id}</span>
+          <span className="panel__label">
+            {unitNameFor(factionIdAt(army.ownerIndex), id)}
+          </span>
           <span className="panel__value">
             ×{count}
             <span className="panel__muted">
@@ -1254,7 +1298,9 @@ function FleetCard({
           <div className="panel__heading">Aboard</div>
           {cargo.map(([id, count]) => (
             <div className="panel__row" key={id}>
-              <span className="panel__label">{unitById(id)?.name ?? id}</span>
+              <span className="panel__label">
+                {unitNameFor(factionIdAt(fleet.ownerIndex), id)}
+              </span>
               <span className="panel__value">×{count}</span>
             </div>
           ))}

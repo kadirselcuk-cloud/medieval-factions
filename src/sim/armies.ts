@@ -1,3 +1,5 @@
+import { factionIdAt } from '../data/factions';
+import { unitFor } from '../data/rosters';
 import { cityDefence, unitById, type UnitStack } from '../data/units';
 import type { World } from '../data/world';
 import { pushEvent } from './events';
@@ -93,10 +95,17 @@ export function stackUpkeep(stack: UnitStack): number {
   );
 }
 
-/** An army marches at its slowest unit — docs/MECHANICS.md §3. */
+/**
+ * An army marches at its slowest unit — docs/MECHANICS.md §3.
+ *
+ * **Through its owner's roster since 0.20.0**, so a realm whose military bonus is march speed
+ * actually marches faster and a unit whose name bought it a longer stride keeps it. The stack knows
+ * whose it is, so no caller had to change.
+ */
 export function armySpeed(army: ArmyState): number {
+  const factionId = factionIdAt(army.ownerIndex);
   const speeds = Object.keys(army.units)
-    .map((id) => unitById(id)?.strategicSpeed ?? 0)
+    .map((id) => unitFor(factionId, id)?.strategicSpeed ?? 0)
     .filter((speed) => speed > 0);
   return speeds.length === 0 ? 0 : Math.min(...speeds);
 }

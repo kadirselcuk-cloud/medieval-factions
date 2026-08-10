@@ -2,6 +2,7 @@ import { AI_PERSONALITIES, difficultyProfile, LEVEL_DIFFICULTY } from '../data/a
 import { summariseBuildings } from '../data/buildings';
 import type { Faction } from '../data/factions';
 import { tileOutput } from '../data/improvements';
+import { bonusesOf } from '../data/rosters';
 import {
   adjacentWaterCount,
   featureAt,
@@ -254,6 +255,26 @@ export function recomputeIncome(state: SimState, world: World): void {
         );
       }
     }
+
+    /**
+     * **The realm's own economic bonus** — one per faction, owner-specified in 0.20.0.
+     *
+     * Deliberately small, and deliberately here: on gross income, before wages, alongside the
+     * difficulty handicap it most resembles. Four to six per cent of one resource is a thumb on the
+     * scale rather than a strategy — Castille collects a little more gold, Novgorod a little more
+     * timber — which is what the owner asked for in "small bonuses that don't affect the gameplay".
+     *
+     * The `growth` kind is not applied here. It is people rather than money, and it belongs in
+     * `cityGrowth` with the rest of the growth sum.
+     */
+    const economy = bonusesOf(faction.id)?.economy;
+    if (economy && economy.kind !== 'growth') {
+      const resource = economy.kind;
+      faction.monthlyIncome[resource] += Math.floor(
+        (faction.monthlyIncome[resource] * economy.permille) / 1000,
+      );
+    }
+
     faction.monthlyIncome.gold -= totalUpkeep(state, faction.index);
   }
 }

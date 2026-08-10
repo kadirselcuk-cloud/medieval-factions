@@ -83,3 +83,17 @@ export function neutralFaction(): Faction {
 export function playableFactions(): readonly Faction[] {
   return loadFactions().filter((f) => f.playable);
 }
+
+/**
+ * The faction id at a given index, for the places that hold an index and need a roster.
+ *
+ * `SimState.factions` is built from this array in order, so `state.factions[i].id` and
+ * `factionIdAt(i)` are the same string by construction — which is what lets `battle.ts` resolve a
+ * realm's own version of a unit (`unitFor`) without being handed the whole simulation state.
+ *
+ * Empty string for an index off the end, so a caller can pass it straight to `unitFor` and get the
+ * base unit back rather than having to test first.
+ */
+export function factionIdAt(index: number): string {
+  return loadFactions()[index]?.id ?? '';
+}

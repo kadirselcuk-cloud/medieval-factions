@@ -7,7 +7,14 @@ import { TICKS_PER_MONTH } from './calendar';
 import { improvementAt } from './construction';
 import { deserialise, serialise } from './save';
 import { taxedGold } from './state';
-import { advanceBy, BASE_GROWTH, cityGrowth, GROWTH_PER_TIER, prosperityGrowth } from './tick';
+import {
+  advanceBy,
+  BASE_GROWTH,
+  cityGrowth,
+  GROWTH_PER_TIER,
+  growthBonusOf,
+  prosperityGrowth,
+} from './tick';
 import { whole, type CityState, type SimState } from './types';
 
 /**
@@ -162,6 +169,14 @@ export interface GrowthBreakdown {
    * whole point of the change and the field name should not hide it.
    */
   prosperity: number;
+  /**
+   * The realm's own economic bonus, where that bonus is **people rather than money** — 0.20.0.
+   *
+   * A term of its own because it is a property of the realm and not of the settlement, and because
+   * a panel that quietly folded it into `base` would be lying about why a Frankish village grows
+   * faster than an Italian one.
+   */
+  realm: number;
   tier: number;
   buildings: number;
   /** People added next month — the sum of the terms above. */
@@ -179,6 +194,7 @@ export interface GrowthBreakdown {
 export function growthBreakdown(state: SimState, city: CityState): GrowthBreakdown {
   const owner = state.factions[city.ownerIndex];
   const prosperity = owner ? prosperityGrowth(owner.monthlyIncome.gold) : 0;
+  const realm = owner ? growthBonusOf(owner.id) : 0;
   const buildings = summariseBuildings(city.buildings).growthPeople;
   const tier = GROWTH_PER_TIER * city.tier;
 
@@ -186,6 +202,7 @@ export function growthBreakdown(state: SimState, city: CityState): GrowthBreakdo
     return {
       base: 0,
       prosperity: 0,
+      realm: 0,
       tier: 0,
       buildings: 0,
       total: cityGrowth(state, city),
@@ -195,9 +212,10 @@ export function growthBreakdown(state: SimState, city: CityState): GrowthBreakdo
   return {
     base: BASE_GROWTH,
     prosperity,
+    realm,
     tier,
     buildings,
-    total: BASE_GROWTH + prosperity + tier + buildings,
+    total: BASE_GROWTH + prosperity + realm + tier + buildings,
     besieged: false,
   };
 }

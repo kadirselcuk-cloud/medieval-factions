@@ -718,10 +718,21 @@ describe('fog of war', () => {
  */
 describe('an army with a shape', () => {
   const state = campaign();
-  // Measured after 0.19.0: Light Infantry is 80% of the world's army at 1470 and 43% at 1530.
-  // Poverty, not the roll — `buildableHere` refuses anything a realm cannot pay two wages for, and
-  // for the first century and a half of the halved economy that is the cheapest unit and no other.
-  years(state, 180);
+  /**
+   * **220 years**, and this horizon has now moved twice for the same underlying reason: poverty.
+   * `buildableHere` refuses any unit a realm cannot cover two wages for, and at 0.19.0's quarter
+   * income that is Light Infantry and nothing else for a very long time.
+   *
+   * | 1450 | 1490 | 1530 | 1570 | 1610 |
+   * |---|---|---|---|---|
+   * | 94% | 85% | 71% | **48%** | 40% |
+   *
+   * 0.20.0 pushed it back a further forty years by giving each realm its own version of a unit:
+   * `strongest` scores what the faction would actually field, so the argmax lands differently and
+   * the roster opens up later. Monotonic throughout, so this is diversification running late rather
+   * than the roll of three (decision 130) failing.
+   */
+  years(state, 220);
 
   /** Every unit the world has under arms, by id. */
   const muster = () => {

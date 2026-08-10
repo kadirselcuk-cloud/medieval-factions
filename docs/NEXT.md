@@ -9,7 +9,7 @@ the records are [ROADMAP.md](ROADMAP.md), [OWED.md](OWED.md) and [CHANGELOG.md](
 
 ## State of play
 
-**Version `0.19.2`**, on `main`. **315 tests pass**, typecheck clean, production build clean.
+**Version `0.20.0`**, on `main`. **331 tests pass**, typecheck clean, production build clean.
 Save format is **v10** and unchanged — growth, income and manpower are all derived, none stored.
 
 **The economy was redesigned in 0.19.0**, owner-specified: income halved again, growth moved from
@@ -232,7 +232,7 @@ on how large and how varied rival armies get.
 
 ---
 
-## 5. What 0.20.0 wants
+## 5. What 0.20.0 still wants
 
 Identity and polish, per the roadmap — and naval left it one extra job:
 

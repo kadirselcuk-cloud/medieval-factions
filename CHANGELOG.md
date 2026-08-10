@@ -13,6 +13,57 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.20.0] — 2026-08-10
+
+**Identity.** Every realm now has its own names for its troops and its ships, every name is a trade
+rather than an upgrade, and every realm has two small bonuses. Owner-specified.
+
+No save-format change: rosters are a lens over the same unit ids, so a pre-0.20.0 save loads and
+simply starts using its realm's names.
+
+### Added
+
+- **Per-faction unit and ship names**, all thirteen realms, all nine land units and all four hulls —
+  169 entries in the new [data/rosters.json](data/rosters.json). Period-appropriate to 1300–1500, and
+  **shared where sharing is honest**: a Carrack served half of Europe, and the Ottoman and Tatar
+  flagships are both a Baştarda. Where a nation had something of its own it is used — the Longbowman,
+  the Gendarme, the Landsknecht, the Huszár, the Genoese crossbowman, the Akıncı, the Mangudai, the
+  Zenete, the Varangian, the naphtha-throwing Naffatun.
+- **Every renaming is a trade.** A Longbowman is +5 damage and −10 hit points against the Archer it
+  is; a Gendarme is +20 hit points and −4 damage. **Only combat and marching stats may vary** — cost,
+  soldiers, upkeep and build time are identical in every realm, so a roster can never make a faction
+  richer or more populous, only different on the field.
+- **Two small bonuses per realm**, one economic and one military — 4–6% of one resource or one extra
+  person a month, and 2–6% on hit points, damage or march speed. Recorded in the data file **with the
+  line of text to display**, so the faction-selection screen has somewhere to read them from, and
+  shown in the panel for any realm the player can see.
+- **The recruit card reads out your version of the unit**, with the difference stated: "108 HP (+8) ·
+  19 damage (−1)", and the base name under "Elsewhere". Garrisons, defenders, army stacks, cargo and
+  build queues all use the realm's names too.
+
+### Changed
+
+- `unitFor(factionId, unitId)` is the single seam. Battle's `muster`, `armySpeed` and the AI's unit
+  scoring resolve through it, which was enough to give thirteen realms their own troops without a
+  second combat path, a per-faction unit table, or a faction index threaded through forty call sites.
+- **The balance panel gained a `realm` growth term.** The Frankish +1 person was in the simulation and
+  missing from the breakdown, so the panel disagreed with the campaign — the same class of bug 0.19.0
+  fixed for income, caught here by the test that pins the two together.
+
+### Measured
+
+Two AI horizons moved, both for the same reason and both recorded with their curves:
+
+- **Roster diversity, 180 → 220 years.** Light Infantry is 94% of the world's army at 1450, 71% at
+  1530, 48% at 1570 and 40% at 1610. The cause is still 0.19.0's quarter income — a realm cannot pay
+  two wages for anything better — and 0.20.0 pushes it back a further forty years because the AI now
+  scores what it would actually field.
+
+Three existing tests had to change their arithmetic rather than their claim, and the reasons are the
+feature working: a Frankish Sergent is 108 HP a man, not 100, so an Independent volley kills 5 of
+them rather than 6; and a Frankish village grows 6 a month, not 5, because rich farmland is that
+realm's bonus.
+
 ## [0.19.2] — 2026-08-10
 
 **"Transport ships still don't have escorts with them in their fleet. 4 ships only."** 0.19.1 raised

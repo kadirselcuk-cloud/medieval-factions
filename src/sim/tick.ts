@@ -1,4 +1,5 @@
 import { summariseBuildings } from '../data/buildings';
+import { bonusesOf } from '../data/rosters';
 import { unitById } from '../data/units';
 import type { World } from '../data/world';
 import { runAi } from './ai';
@@ -226,8 +227,17 @@ export function cityGrowth(state: SimState, city: CityState): number {
     // **Net income, not the treasury** — owner-specified in 0.19.0. `monthlyIncome.gold` already
     // has the tax, the difficulty handicap and this month's wages taken off it, so it is exactly
     // the "net income per month, faction-wide" the rule asks for and needs no arithmetic here.
-    prosperityGrowth(owner.monthlyIncome.gold)
+    prosperityGrowth(owner.monthlyIncome.gold) +
+    // And the realm's own bonus, where that bonus is people rather than money (0.20.0). One extra
+    // soul a month in every settlement is small on any one of them and worth having across thirty.
+    growthBonusOf(owner.id)
   );
+}
+
+/** The `growth` kind of a faction's economic bonus, in whole people per settlement per month. */
+export function growthBonusOf(factionId: string): number {
+  const economy = bonusesOf(factionId)?.economy;
+  return economy?.kind === 'growth' ? economy.people : 0;
 }
 
 /** Every settlement gains this much simply for existing. */

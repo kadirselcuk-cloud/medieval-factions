@@ -69,11 +69,15 @@ describe('growth breakdown', () => {
     paris.tier = 2;
 
     const growth = growthBreakdown(state, paris);
-    expect(growth.base + growth.prosperity + growth.tier + growth.buildings).toBe(growth.total);
+    expect(
+      growth.base + growth.prosperity + growth.realm + growth.tier + growth.buildings,
+    ).toBe(growth.total);
     expect(growth.total).toBe(cityGrowth(state, paris));
-    // 2 base + 6 for a Town + 10 houses + 8 hall + 145 for 100,000 a month in net income.
+    // 2 base + 6 for a Town + 10 houses + 8 hall + 145 for 100,000 a month in net income,
+    // + 1 because Paris is Frankish and rich farmland is that realm's bonus.
     expect(growth.prosperity).toBe(145);
-    expect(growth.total).toBe(171);
+    expect(growth.realm).toBe(1);
+    expect(growth.total).toBe(172);
   });
 
   it('reads what the realm earns rather than what it has saved', () => {
