@@ -100,10 +100,9 @@ describe('ranged accuracy', () => {
    * The volley that used to wipe out a Light Infantry unit unanswered now takes half as many
    * with it. 60 archers × 20 damage = 1,200, halved to 600 by accuracy.
    *
-   * **Over 108 HP a man since 0.20.0**, not 100. The target is Frankish, and a Frankish Sergent is
-   * the base Light Infantry plus the roster's +5 and then the realm's +3% — which is exactly the
-   * sort of difference per-faction rosters exist to make, and the reason this reads 5 where it
-   * used to read 6. The archers are Independent and therefore unmodified.
+   * **Over 103 HP a man since 0.20.1**, not 100. The target is a Frankish Levy Footman: a plain
+   * shared name, so no trade of its own, but the realm's +3% hit points still applies to every unit
+   * it fields. The archers are Independent and therefore entirely unmodified.
    */
   it('halves what an archer takes out of a volley', () => {
     const { from, to } = openGround();
@@ -112,7 +111,7 @@ describe('ranged accuracy', () => {
 
     const { report } = resolveEngagement(state, world, attacker, to);
     const volley = report.turns.flatMap((t) => t.actions).find((a) => a.kind === 'shoot');
-    expect(volley?.casualties).toBe(5);
+    expect(volley?.casualties).toBe(6);
   });
 });
 

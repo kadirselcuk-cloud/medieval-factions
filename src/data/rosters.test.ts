@@ -141,19 +141,64 @@ describe('a name is a trade, never a free upgrade', () => {
 });
 
 describe('resolving a faction s version of a unit', () => {
-  it('renames what the faction renames and leaves the rest alone', () => {
+  it('keeps the distinctive names a general audience would recognise', () => {
     expect(unitNameFor('britons', 'archer')).toBe('Longbowman');
     expect(unitNameFor('franks', 'heavy_cavalry')).toBe('Gendarme');
-    expect(unitNameFor('turks', 'light_cavalry')).toBe('Akıncı');
-    expect(unitNameFor('moors', 'light_cavalry')).toBe('Zenete');
+    expect(unitNameFor('franks', 'light_cavalry')).toBe('Coustillier');
+    expect(unitNameFor('turks', 'sword_infantry')).toBe('Janissary');
+    expect(unitNameFor('turks', 'heavy_cavalry')).toBe('Sipahi');
     expect(unitNameFor('holy_romans', 'shock_infantry')).toBe('Landsknecht');
-    expect(unitNameFor('turks', 'flagship')).toBe('Baştarda');
+    expect(unitNameFor('romans', 'heavy_cavalry')).toBe('Cataphract');
+    expect(unitNameFor('hungarians', 'light_cavalry')).toBe('Hussar');
   });
 
-  it('lets factions share a name, which the owner asked for', () => {
-    // A Carrack served half of Europe and a Baştarda served both Muslim powers on this map.
+  it('shares a plain name across most realms, which is the 0.20.1 rule', () => {
+    /**
+     * The owner's correction: the first pass was "very specific to that nation", and names should
+     * be "understandable by everyone". A shared plain name is now the default and a distinctive one
+     * the exception, so most realms field a Man-at-Arms and a Knight and a Cog.
+     */
+    const swordsmen = new Set(playable.map((f) => unitNameFor(f.id, 'sword_infantry')));
+    expect(swordsmen.has('Man-at-Arms')).toBe(true);
+    // Fewer distinct names than realms, in every category, is the shape of the rule.
+    for (const slot of ['sword_infantry', 'spear_infantry', 'heavy_cavalry', 'cavalry_archer']) {
+      const names = new Set(playable.map((f) => unitNameFor(f.id, slot)));
+      expect(names.size, slot).toBeLessThan(playable.length);
+    }
+    // Every realm calls a Transport a Cog.
+    expect(new Set(playable.map((f) => unitNameFor(f.id, 'transport'))).size).toBe(1);
+  });
+
+  it('lets factions share a name, including a distinctive one where history did', () => {
+    // Castille took the jinete from the Berber cavalry it fought, so both realms field one; the
+    // Boyar is Russian and Bulgarian alike; and four Mediterranean powers sail a Great Galley.
+    expect(unitNameFor('moors', 'light_cavalry')).toBe('Jinete');
+    expect(unitNameFor('spanish', 'light_cavalry')).toBe('Jinete');
+    expect(unitNameFor('russians', 'heavy_cavalry')).toBe(unitNameFor('bulgarians', 'heavy_cavalry'));
     expect(unitNameFor('golden_horde', 'flagship')).toBe(unitNameFor('turks', 'flagship'));
     expect(unitNameFor('britons', 'light_ship')).toBe(unitNameFor('franks', 'light_ship'));
+  });
+
+  it('charges only for a distinctive name, never for a shared plain one', () => {
+    /**
+     * The other half of the 0.20.1 rule. A realm calling its swordsmen Man-at-Arms has not changed
+     * the unit, so it fields the base figures; a realm fielding Longbowmen has, and pays for it.
+     * Checked against the base **before** the military bonus, which is a realm-wide thing and
+     * applies to plain and distinctive units alike.
+     */
+    const plain = new Set([
+      'Levy Footman', 'Spearman', 'Man-at-Arms', 'Halberdier', 'Javelineer',
+      'Archer', 'Crossbowman', 'Light Horseman', 'Horse Archer', 'Knight',
+      'Cog', 'Galley', 'Carrack', 'Galleon',
+    ]);
+    for (const faction of playable) {
+      const entry = rosterOf(faction.id)!;
+      for (const [id, delta] of Object.entries({ ...entry.units, ...entry.ships })) {
+        if (!plain.has(delta.name)) continue;
+        expect(delta.hp, `${faction.id} ${id} (${delta.name})`).toBe(0);
+        expect(delta.damage, `${faction.id} ${id} (${delta.name})`).toBe(0);
+      }
+    }
   });
 
   it('falls back to the base roster for a faction that has none', () => {

@@ -206,10 +206,11 @@ describe('auto-resolve', () => {
 
     // Plains gives the defender +5% since 0.13.0 halved every defence bonus. The defender is an
     // Independent Light Infantry: 100 soldiers doing 20 damage each, 2,000 raw, ×1.05 for the
-    // ground. **Into 108 HP a man since 0.20.0** — the attacker is Frankish, and a Sergent is the
-    // base unit plus the roster's +5 and the realm's +3% — so 19 dead where it used to be 21.
+    // ground. **Into 103 HP a man since 0.20.1** — the attacker is a Frankish Levy Footman, a plain
+    // shared name with no trade of its own, but the realm's +3% hit points applies to everything it
+    // fields — so 20 dead where an unmodified 100 HP would take 21.
     const blows = report.turns.flatMap((t) => t.actions).filter((a) => a.kind === 'strike');
-    expect(blows[0]).toMatchObject({ casualties: 19, charge: false });
+    expect(blows[0]).toMatchObject({ casualties: 20, charge: false });
   });
 
   it('fires the charge bonus once and only once', () => {

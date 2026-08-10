@@ -328,15 +328,22 @@ Only Transports carry anything. A fleet's capacity is `transports × 5`, and car
 when it stops fitting (see MECHANICS §10). Where the berths fall short of the army, **the part that
 fits sails and the rest stays ashore** (decision 129) — the one place a stack can be divided.
 
-## 5. Per-faction rosters — since 0.20.0
 
-Owner-specified: every realm names its own troops and hulls, and every renaming carries a
-matching advantage and disadvantage. Names are period-appropriate to 1300–1500 and **may repeat**
-across realms; where a nation had something of its own, it is used.
+## 5. Per-faction rosters — since 0.20.0, rewritten in 0.20.1
 
-**Only combat and marching stats vary.** Cost, soldiers, upkeep and build time are identical in
-every realm — a Longbowman and a Toxotes take the same 100 gold, the same 60 people and the same
-four months. All figures below are **[GEN]**.
+Owner-specified. **A shared plain name is the default; a distinctive one is the exception.**
+The first pass named nearly every unit in its own nation's language, and the owner's note was
+that it was "very specific to that nation" and should be "understandable by everyone". Most
+realms now field a Man-at-Arms, a Knight and a Cog, and only units a general audience would
+recognise keep a name of their own — the Longbowman, the Janissary, the Sipahi, the Gendarme,
+the Coustillier, the Landsknecht, the Hussar, the Cataphract, the Varangian Guard.
+
+**Only a distinctive name carries a stat trade.** A realm calling its swordsmen Man-at-Arms has
+not changed the unit and fields the base figures; a realm fielding Longbowmen has, and pays for
+it. Of 169 entries, **127 are shared plain names with no change** and 42 carry a trade.
+
+**Only combat stats vary.** Cost, soldiers, upkeep and build time are identical in every realm.
+All figures are **[GEN]**.
 
 ### The two bonuses
 
@@ -354,40 +361,44 @@ four months. All figures below are **[GEN]**.
 | Golden Horde | Silk road tolls: +4% gold | Steppe remounts: +6% march speed |
 | Turks | Devshirme levies: +4% gold | Janissary corps: +3% damage |
 | Mamluks | Red Sea spice tolls: +5% gold | Furusiyya training: +3% damage |
-| Moors | Saharan gold road: +4% gold | Zenata horsemanship: +5% march speed |
+| Moors | Saharan gold road: +4% gold | Berber horsemanship: +5% march speed |
 
 ### Land units
 
-| Realm | Light Infantry | Spear Infantry | Sword Infantry | Shock Infantry | Skirmisher | Archer | Light Cavalry | Cavalry Archer | Heavy Cavalry |
+Base figures in the header; bold means a distinctive name and the trade it carries.
+
+| Realm | Light Infantry<br><sub>100hp 20dmg</sub> | Spear Infantry<br><sub>120hp 20dmg</sub> | Sword Infantry<br><sub>150hp 25dmg</sub> | Shock Infantry<br><sub>100hp 25dmg</sub> | Skirmisher<br><sub>60hp 10dmg</sub> | Archer<br><sub>80hp 20dmg</sub> | Light Cavalry<br><sub>120hp 30dmg</sub> | Cavalry Archer<br><sub>100hp 20dmg</sub> | Heavy Cavalry<br><sub>200hp 40dmg</sub> |
 |---|---|---|---|---|---|---|---|---|---|
-| Castille | **Peón**<br>-5 hp, +2 dmg | **Piquero**<br>+10 hp, -2 dmg | **Rodelero**<br>-10 hp, +4 dmg | **Almogávar**<br>-10 hp, +5 dmg | **Escaramuzador**<br>+8 hp, -1 dmg | **Ballestero**<br>+10 hp, -2 dmg | **Jinete**<br>-15 hp, +4 dmg | **Ballestero Montado**<br>+10 hp, -2 dmg | **Caballero**<br>+10 hp, -2 dmg |
-| Britons | **Billman**<br>+10 hp, -2 dmg | **Spearman** | **Man-at-Arms**<br>+12 hp, -2 dmg | **Galloglass**<br>+12 hp, -2 dmg | **Kern**<br>-6 hp, +3 dmg | **Longbowman**<br>-10 hp, +5 dmg | **Hobilar**<br>-10 hp, +3 dmg | **Mounted Archer**<br>-8 hp, +3 dmg | **Knight**<br>+15 hp, -3 dmg |
-| Franks | **Sergent**<br>+5 hp, -1 dmg | **Piquier**<br>+8 hp, -1 dmg | **Homme d'Armes**<br>+12 hp, -2 dmg | **Voulgier**<br>-8 hp, +4 dmg | **Brigand**<br>-5 hp, +2 dmg | **Arbalétrier**<br>+12 hp, -2 dmg | **Coustillier**<br>-8 hp, +3 dmg | **Archer à Cheval**<br>+8 hp, -1 dmg | **Gendarme**<br>+20 hp, -4 dmg |
-| Holy Romans | **Söldner**<br>+5 hp, -1 dmg | **Pikenier**<br>+12 hp, -2 dmg | **Doppelsöldner**<br>-10 hp, +5 dmg | **Landsknecht**<br>+8 hp, +2 dmg | **Schütze**<br>+5 hp, -1 dmg | **Armbruster**<br>+12 hp, -2 dmg | **Reiter**<br>+8 hp, -2 dmg | **Berittener Schütze**<br>+8 hp, -1 dmg | **Ritter**<br>+20 hp, -4 dmg |
-| Italians | **Fante**<br>+5 hp, -1 dmg | **Lanciere**<br>+8 hp, -1 dmg | **Uomo d'Arme**<br>+12 hp, -2 dmg | **Pavesaro**<br>+15 hp, -4 dmg | **Schioppettiere**<br>-8 hp, +4 dmg | **Balestriere Genovese**<br>+8 hp, +2 dmg | **Stradiotto**<br>-10 hp, +4 dmg | **Arciere a Cavallo**<br>+5 hp, -1 dmg | **Cavaliere**<br>+15 hp, -3 dmg |
-| Hungarians | **Hajdú**<br>-5 hp, +2 dmg | **Lándzsás**<br>+8 hp, -1 dmg | **Fekete Gyalogos**<br>+10 hp, -1 dmg | **Pajzsos**<br>+15 hp, -4 dmg | **Puskás**<br>-8 hp, +4 dmg | **Íjász**<br>-5 hp, +3 dmg | **Huszár**<br>-10 hp, +4 dmg | **Lovas Íjász**<br>-5 hp, +3 dmg | **Fekete Lovag**<br>+15 hp, -3 dmg |
-| Romans | **Peltastes**<br>-5 hp, +2 dmg | **Kontaratos**<br>+12 hp, -2 dmg | **Skoutatos**<br>+15 hp, -3 dmg | **Varangian**<br>-10 hp, +5 dmg | **Psilos**<br>+5 hp, -1 dmg | **Toxotes**<br>+8 hp, -1 dmg | **Trapezitos**<br>-10 hp, +3 dmg | **Hippotoxotes**<br>+5 hp, +2 dmg | **Kataphraktos**<br>+20 hp, -4 dmg |
-| Bulgarians | **Pehotinets**<br>+5 hp, -1 dmg | **Kopienosets**<br>+10 hp, -2 dmg | **Mechonosets**<br>+10 hp, -1 dmg | **Voynik**<br>-8 hp, +4 dmg | **Prashkar**<br>-5 hp, +2 dmg | **Strelets**<br>+5 hp, +1 dmg | **Konnik**<br>-8 hp, +3 dmg | **Konen Strelets**<br>+5 hp, -1 dmg | **Boliar**<br>+15 hp, -3 dmg |
-| Russians | **Opolchenets**<br>+8 hp, -2 dmg | **Kopeishchik**<br>+10 hp, -2 dmg | **Druzhinnik**<br>+12 hp, -2 dmg | **Berdyshnik**<br>-10 hp, +5 dmg | **Sulichnik**<br>-5 hp, +2 dmg | **Luchnik**<br>+5 hp, -1 dmg | **Kazak**<br>-10 hp, +4 dmg | **Konnyi Luchnik**<br>+5 hp, -1 dmg | **Boyar**<br>+15 hp, -3 dmg |
-| Golden Horde | **Nöker**<br>-5 hp, +2 dmg | **Jidachi**<br>+8 hp, -1 dmg | **Bahadur**<br>+8 hp, +1 dmg | **Keshig**<br>+10 hp, -1 dmg | **Chapar**<br>-8 hp, +3 dmg | **Mergen**<br>-8 hp, +4 dmg | **Chapqun**<br>-12 hp, +4 dmg | **Mangudai**<br>-8 hp, +5 dmg | **Keshig Lancer**<br>+10 hp, -1 dmg |
-| Turks | **Azap**<br>-5 hp, +2 dmg | **Piyade**<br>+8 hp, -1 dmg | **Yeniçeri**<br>-10 hp, +5 dmg | **Deli**<br>-12 hp, +5 dmg | **Serdengeçti**<br>-6 hp, +3 dmg | **Okçu**<br>+5 hp, +1 dmg | **Akıncı**<br>-12 hp, +4 dmg | **Atlı Okçu**<br>-5 hp, +3 dmg | **Sipahi**<br>+12 hp, -2 dmg |
-| Mamluks | **Ajnad**<br>+5 hp, -1 dmg | **Rammah**<br>+10 hp, -2 dmg | **Sayfiyya**<br>+8 hp, +1 dmg | **Halqa**<br>+10 hp, -1 dmg | **Naffatun**<br>-10 hp, +5 dmg | **Rami**<br>-5 hp, +3 dmg | **Badawi**<br>-12 hp, +4 dmg | **Faris Rami**<br>-5 hp, +4 dmg | **Royal Mamluk**<br>+15 hp, -2 dmg |
-| Moors | **Mutatawwi**<br>-5 hp, +2 dmg | **Harbi**<br>+8 hp, -1 dmg | **Sayyaf**<br>+8 hp, +1 dmg | **Ghuzat**<br>-10 hp, +5 dmg | **Zaghayi**<br>-6 hp, +3 dmg | **Ramiy**<br>+5 hp, -1 dmg | **Zenete**<br>-12 hp, +5 dmg | **Faris Ramiy**<br>-5 hp, +3 dmg | **Faris**<br>+12 hp, -2 dmg |
+| Castille | Levy Footman | Spearman | **Rodelero** (-10 hp, +4 dmg) | **Almogavar** (-10 hp, +5 dmg) | Javelineer | Crossbowman | **Jinete** (-15 hp, +4 dmg) | Horse Archer | Knight |
+| Britons | **Billman** (+10 hp, -2 dmg) | Spearman | Man-at-Arms | **Galloglass** (+12 hp, -2 dmg) | Javelineer | **Longbowman** (-10 hp, +5 dmg) | Light Horseman | Horse Archer | Knight |
+| Franks | Levy Footman | Spearman | Man-at-Arms | Halberdier | Javelineer | Crossbowman | **Coustillier** (-8 hp, +3 dmg) | Horse Archer | **Gendarme** (+20 hp, -4 dmg) |
+| Holy Romans | Levy Footman | **Pikeman** (+12 hp, -2 dmg) | **Doppelsoldner** (-10 hp, +5 dmg) | **Landsknecht** (+8 hp, +2 dmg) | Javelineer | Crossbowman | Light Horseman | Horse Archer | Knight |
+| Italians | Levy Footman | Spearman | **Condottiero** (+12 hp, -2 dmg) | **Pavise Shieldman** (+15 hp, -4 dmg) | **Handgunner** (-8 hp, +4 dmg) | **Genoese Crossbowman** (+8 hp, +2 dmg) | **Stradiot** (-10 hp, +4 dmg) | Horse Archer | Knight |
+| Hungarians | Levy Footman | Spearman | Man-at-Arms | Halberdier | **Handgunner** (-8 hp, +4 dmg) | Archer | **Hussar** (-10 hp, +4 dmg) | Horse Archer | Knight |
+| Romans | Levy Footman | Spearman | Man-at-Arms | **Varangian Guard** (-10 hp, +5 dmg) | Javelineer | Archer | Light Horseman | Horse Archer | **Cataphract** (+20 hp, -4 dmg) |
+| Bulgarians | Levy Footman | Spearman | Man-at-Arms | Halberdier | Javelineer | Archer | Light Horseman | Horse Archer | **Boyar** (+15 hp, -3 dmg) |
+| Russians | Levy Footman | Spearman | Man-at-Arms | **Axeman** (-10 hp, +5 dmg) | Javelineer | Archer | **Cossack** (-10 hp, +4 dmg) | Horse Archer | **Boyar** (+15 hp, -3 dmg) |
+| Golden Horde | Levy Footman | Spearman | Man-at-Arms | **Keshik** (+10 hp, -1 dmg) | Javelineer | Archer | **Steppe Rider** (-12 hp, +4 dmg) | **Mangudai** (-8 hp, +5 dmg) | Knight |
+| Turks | Levy Footman | Spearman | **Janissary** (-10 hp, +5 dmg) | Halberdier | Javelineer | Archer | **Akinci** (-12 hp, +4 dmg) | Horse Archer | **Sipahi** (+12 hp, -2 dmg) |
+| Mamluks | Levy Footman | Spearman | Man-at-Arms | Halberdier | **Naphtha Thrower** (-10 hp, +5 dmg) | Archer | **Bedouin Raider** (-12 hp, +4 dmg) | Horse Archer | **Mamluk** (+15 hp, -2 dmg) |
+| Moors | Levy Footman | Spearman | Man-at-Arms | Halberdier | Javelineer | Archer | **Jinete** (-12 hp, +5 dmg) | Horse Archer | **Andalusian Lancer** (+12 hp, -2 dmg) |
 
 ### Ships
 
-| Realm | Transport | Light Ship | Heavy Ship | Flagship |
+Base figures in the header; bold means a distinctive name and the trade it carries.
+
+| Realm | Transport<br><sub>60hp 5dmg</sub> | Light Ship<br><sub>80hp 15dmg</sub> | Heavy Ship<br><sub>120hp 25dmg</sub> | Flagship<br><sub>160hp 40dmg</sub> |
 |---|---|---|---|---|
-| Castille | **Nao**<br>+5 hp, -1 dmg | **Carabela**<br>-8 hp, +3 dmg | **Carraca**<br>+12 hp, -2 dmg | **Galeón**<br>+10 hp, -2 dmg |
-| Britons | **Cog**<br>+6 hp, -1 dmg | **Balinger**<br>-8 hp, +3 dmg | **Carrack**<br>+12 hp, -2 dmg | **Great Ship**<br>+14 hp, -3 dmg |
-| Franks | **Nef**<br>+5 hp, -1 dmg | **Balinger**<br>-8 hp, +3 dmg | **Caraque**<br>+12 hp, -2 dmg | **Grande Nef**<br>+12 hp, -2 dmg |
-| Holy Romans | **Kogge**<br>+8 hp, -2 dmg | **Schnigge**<br>-6 hp, +2 dmg | **Holk**<br>+14 hp, -3 dmg | **Große Holk**<br>+14 hp, -3 dmg |
-| Italians | **Cocca**<br>+5 hp, -1 dmg | **Galea Sottile**<br>-10 hp, +4 dmg | **Galeazza**<br>+10 hp, +2 dmg | **Nave Capitana**<br>+12 hp, -2 dmg |
-| Hungarians | **Sajka**<br>-5 hp, +2 dmg | **Naszád**<br>-10 hp, +4 dmg | **Gálya**<br>+8 hp, -1 dmg | **Nagy Gálya**<br>+10 hp, -2 dmg |
-| Romans | **Chelandion**<br>+6 hp, -1 dmg | **Ousiakon**<br>-8 hp, +3 dmg | **Dromon**<br>+12 hp, -2 dmg | **Pamphylos**<br>+12 hp, -2 dmg |
-| Bulgarians | **Lodiya**<br>+5 hp, -1 dmg | **Galiya**<br>-6 hp, +2 dmg | **Golyama Galiya**<br>+10 hp, -2 dmg | **Knyazheska Galiya**<br>+12 hp, -2 dmg |
-| Russians | **Lodya**<br>+6 hp, -1 dmg | **Ushkuy**<br>-10 hp, +4 dmg | **Nasad**<br>+10 hp, -2 dmg | **Knyazhya Lodya**<br>+12 hp, -2 dmg |
-| Golden Horde | **Kayık**<br>-5 hp, +2 dmg | **Şayka**<br>-8 hp, +3 dmg | **Kadırga**<br>+8 hp, -1 dmg | **Baştarda**<br>+10 hp, -2 dmg |
-| Turks | **Kayık**<br>-5 hp, +2 dmg | **Şayka**<br>-8 hp, +3 dmg | **Kadırga**<br>+8 hp, -1 dmg | **Baştarda**<br>+12 hp, -2 dmg |
-| Mamluks | **Markab**<br>+5 hp, -1 dmg | **Shalandi**<br>-8 hp, +3 dmg | **Harraqa**<br>-6 hp, +5 dmg | **Ghurab**<br>+12 hp, -2 dmg |
-| Moors | **Qarib**<br>+5 hp, -1 dmg | **Shini**<br>-8 hp, +3 dmg | **Ghurab**<br>+10 hp, -2 dmg | **Ghurab Kabir**<br>+12 hp, -2 dmg |
+| Castille | Cog | **Caravel** (-8 hp, +3 dmg) | Carrack | Galleon |
+| Britons | Cog | Galley | Carrack | Galleon |
+| Franks | Cog | Galley | Carrack | Galleon |
+| Holy Romans | Cog | Galley | Carrack | Galleon |
+| Italians | Cog | Galley | **Galleass** (+10 hp, +2 dmg) | Galleon |
+| Hungarians | Cog | Galley | Carrack | Galleon |
+| Romans | Cog | Galley | **Dromon** (+12 hp, -2 dmg) | Galleon |
+| Bulgarians | Cog | Galley | Carrack | Galleon |
+| Russians | Cog | Galley | Carrack | Galleon |
+| Golden Horde | Cog | Galley | Carrack | **Great Galley** (+10 hp, -2 dmg) |
+| Turks | Cog | Galley | Carrack | **Great Galley** (+10 hp, -2 dmg) |
+| Mamluks | Cog | Galley | Carrack | **Great Galley** (+10 hp, -2 dmg) |
+| Moors | Cog | Galley | Carrack | **Great Galley** (+10 hp, -2 dmg) |

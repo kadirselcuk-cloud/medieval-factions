@@ -13,6 +13,42 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.20.1] — 2026-08-10
+
+**The names were too specific.** The owner's note on 0.20.0: most of the roster was "very specific
+to that nation", and names should be "understandable by everyone" — a Janissary, a Longbowman, a
+Sipahi, a Coustillier are recognised; a Kopienosets, a Zaghayi and a Naszád are not. And the brief
+had said from the start that not every unit needed a unique name.
+
+### Changed
+
+- **A shared plain name is now the default; a distinctive one is the exception.** Nine realms field
+  a Man-at-Arms, twelve a Spearman, twelve a Horse Archer, thirteen a Cog. Distinctive names are
+  kept only where a general audience would know them: Longbowman, Janissary, Sipahi, Gendarme,
+  Coustillier, Landsknecht, Doppelsoldner, Hussar, Cossack, Mamluk, Cataphract, Varangian Guard,
+  Genoese Crossbowman, Jinete, Mangudai, Keshik, Caravel, Galleass, Dromon.
+- **Only a distinctive name carries a stat trade.** A realm calling its swordsmen Man-at-Arms has
+  not changed the unit and fields the base figures; a realm fielding Longbowmen has, and pays for
+  it. **127 of the 169 entries are now plain and unchanged**, against 42 that carry a trade — where
+  before every one of the 169 did.
+- **Diacritics are gone.** Akıncı became Akinci, Huszár became Hussar, Kataphraktos became
+  Cataphract, Baştarda became Great Galley. A name nobody can type or pronounce is not a name a
+  player recognises.
+- **Shared where history shares.** Castille and the Moors both field a **Jinete** — the Spanish took
+  the word and the tactic from the Berber cavalry they fought — Russia and Bulgaria both a **Boyar**,
+  and four Mediterranean powers a **Great Galley**.
+- The recruit card's "Elsewhere" row is now **"Base type"**, which is what it always showed: the
+  generic category the realm's name sits on top of.
+
+### Measured
+
+Removing the trade from 127 entries makes most units the base figures rather than a buffed version,
+so the campaign is fractionally slower everywhere. One horizon moved: independent cities standing at
+1450 are 6, then 5 at 1480, 4 at 1500, 1 at 1510 and **none from 1520** — the map still finishes,
+seventy years later than the old 120-year check looked for it.
+
+---
+
 ## [0.20.0] — 2026-08-10
 
 **Identity.** Every realm now has its own names for its troops and its ships, every name is a trade

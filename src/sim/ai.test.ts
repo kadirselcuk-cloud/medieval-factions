@@ -951,7 +951,16 @@ describe('a large realm acts like one', () => {
  */
 describe('a realm keeps reaching', () => {
   const state = campaign();
-  years(state, 120);
+  /**
+   * **180 years.** Measured after 0.20.1 changed what most units are worth: six independent cities
+   * still stand at 1450, five at 1480, four at 1500, one at 1510 and none from 1520 — so the map
+   * still finishes, seventy years later than the old horizon looked for it.
+   *
+   * The cause is not the naming. It is that 0.20.1 removed the stat trade from 127 of the 169 roster
+   * entries, so most units are now the base figures rather than a buffed version of them, and the
+   * campaign is fractionally slower everywhere as a result.
+   */
+  years(state, 180);
 
   it('claims the ground between its cities, not only the cities', () => {
     let land = 0;

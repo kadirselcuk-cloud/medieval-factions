@@ -807,7 +807,7 @@ function Garrison({
       facts: [
         { label: "Class", value: labelOf(unit.class) },
         ...(unit.name !== base.name
-          ? [{ label: "Elsewhere", value: base.name }]
+          ? [{ label: "Base type", value: base.name }]
           : []),
         { label: "Soldiers", value: `${num(unit.size)} men` },
         {
