@@ -262,24 +262,83 @@ export function removeFleet(state: SimState, fleetId: number): void {
   if (position >= 0) state.fleets.splice(position, 1);
 }
 
-/** Fold one fleet into another on the same tile. One fleet per sea tile, as one army per land tile. */
+/**
+ * Fold one fleet into another. One fleet per sea tile, as one army per land tile.
+ *
+ * **Partial since 0.19.2** — owner-specified: *"enable fleets to merge if they are not mergeable."*
+ * It used to be all or nothing: a merge that would breach either cap was refused outright, so a
+ * squadron of eight warships meeting a convoy with room for six gave it none of them, and two
+ * half-empty convoys that could have made one full one stayed two. The refusal was protecting rules
+ * that a **partial** merge does not break at all — the result still never exceeds twenty hulls or
+ * four Transports (decisions 122 and 156), because what does not fit simply stays where it was.
+ *
+ * It fails now only when nothing whatever can move.
+ *
+ * **Warships move first, then Transports.** The common case is an escort joining a convoy, and it is
+ * the case the owner reported broken; filling the hold first would let four Transports take the room
+ * the escort needed. Order within each kind is by sorted id, so the same merge always moves the same
+ * hulls.
+ *
+ * **Cargo travels with its hold, or not at all.** If `from` is carrying men, its Transports move only
+ * if *all* of them fit — half a hold arriving is half a hold drowning, and `drownExcessCargo` would
+ * be the thing that killed them. Where they cannot all move, the warships still transfer and the
+ * loaded convoy is left intact, which is the right answer anyway: it is now escorted.
+ */
 export function mergeFleets(state: SimState, intoId: number, fromId: number): FleetResult {
   const into = fleetById(state, intoId);
   const from = fleetById(state, fromId);
   if (!into || !from) return fail('no-such-fleet');
   if (into.ownerIndex !== from.ownerIndex) return fail('not-owner');
-  if (stackSize(into.ships) + stackSize(from.ships) > MAX_FLEET_SHIPS) return fail('fleet-full');
-  if (transportsIn(into.ships) + transportsIn(from.ships) > MAX_FLEET_TRANSPORTS) {
-    return fail('too-many-transports');
+
+  let hullRoom = MAX_FLEET_SHIPS - stackSize(into.ships);
+  let holdRoom = MAX_FLEET_TRANSPORTS - transportsIn(into.ships);
+  if (hullRoom <= 0) return fail('fleet-full');
+
+  const carries = (id: string) => (shipById(id)?.carries ?? 0) > 0;
+  const ids = Object.keys(from.ships).sort(
+    (a, b) => Number(carries(a)) - Number(carries(b)) || a.localeCompare(b),
+  );
+
+  // Cargo cannot be split from the hulls under it, so decide up front whether the hold may move.
+  const laden = stackSize(from.cargo) > 0;
+  const holdMayMove = !laden || transportsIn(from.ships) <= Math.min(holdRoom, hullRoom);
+
+  let moved = 0;
+  for (const id of ids) {
+    const available = from.ships[id] ?? 0;
+    if (available <= 0) continue;
+
+    let room = hullRoom;
+    if (carries(id)) {
+      if (!holdMayMove) continue;
+      room = Math.min(room, holdRoom);
+    }
+
+    const take = Math.min(available, room);
+    if (take <= 0) continue;
+
+    into.ships[id] = (into.ships[id] ?? 0) + take;
+    from.ships[id] = available - take;
+    if (from.ships[id] === 0) delete from.ships[id];
+
+    hullRoom -= take;
+    if (carries(id)) holdRoom -= take;
+    moved += take;
   }
 
-  for (const [id, count] of Object.entries(from.ships)) {
-    into.ships[id] = (into.ships[id] ?? 0) + count;
+  if (moved === 0) return fail(holdRoom <= 0 ? 'too-many-transports' : 'fleet-full');
+
+  // The men only follow when every hull they were riding in has gone across with them.
+  if (holdMayMove && transportsIn(from.ships) === 0) {
+    for (const [id, count] of Object.entries(from.cargo)) {
+      into.cargo[id] = (into.cargo[id] ?? 0) + count;
+    }
+    from.cargo = {};
   }
-  for (const [id, count] of Object.entries(from.cargo)) {
-    into.cargo[id] = (into.cargo[id] ?? 0) + count;
-  }
-  removeFleet(state, fromId);
+
+  if (stackSize(from.ships) === 0) removeFleet(state, fromId);
+  else drownExcessCargo(state, from, 'in the crossing');
+
   // Two half-loaded convoys merging can exceed what their Transports between them carry only if
   // one of them was already over — but the check is cheap and the invariant is worth holding.
   drownExcessCargo(state, into, 'in the crossing');

@@ -8,6 +8,7 @@ import {
   hasWarship,
   loadShips,
   shipById,
+  transportsIn,
   unitById,
 } from '../data/units';
 import { armyAt, mobilise, stackSize } from './armies';
@@ -1036,7 +1037,11 @@ describe('a convoy is four transports and no more', () => {
     expect(state.fleets[0]?.ships).toEqual({ transport: 4, flagship: 2 });
   });
 
-  it('will not merge two convoys into one that carries two armies', () => {
+  /**
+   * **Merging takes what fits rather than refusing** — owner-specified in 0.19.2. The cap it used to
+   * protect is still protected: what does not fit stays where it was.
+   */
+  it('merges two convoys up to the cap and leaves the surplus behind', () => {
     const first = putToSea({ transport: 3 });
     const second: FleetState = {
       id: state.nextFleetId++,
@@ -1050,11 +1055,78 @@ describe('a convoy is four transports and no more', () => {
     if (second.tileIndex < 0) return;
     state.fleets.push(second);
 
+    expect(mergeFleets(state, first.id, second.id).ok).toBe(true);
+    // One Transport crossed to fill the hold; two stayed, and are still a fleet of their own.
+    expect(first.ships).toEqual({ transport: MAX_FLEET_TRANSPORTS });
+    expect(second.ships).toEqual({ transport: 2 });
+    expect(state.fleets).toHaveLength(2);
+  });
+
+  it('still refuses when not one hull can move', () => {
+    const first = putToSea({ transport: 4 });
+    const second: FleetState = {
+      id: state.nextFleetId++,
+      ownerIndex: FRANKS,
+      tileIndex: seaBeside(world, port.tileIndex).find((t) => t !== first.tileIndex) ?? -1,
+      ships: { transport: 1 },
+      cargo: {},
+      path: [],
+      sail: 0,
+    };
+    if (second.tileIndex < 0) return;
+    state.fleets.push(second);
+
     expect(mergeFleets(state, first.id, second.id)).toEqual({
       ok: false,
       reason: 'too-many-transports',
     });
     expect(state.fleets).toHaveLength(2);
+  });
+
+  it('lets an escort join a full hold, which is the whole point of the change', () => {
+    const convoy = putToSea({ transport: 4 });
+    const escort: FleetState = {
+      id: state.nextFleetId++,
+      ownerIndex: FRANKS,
+      tileIndex: seaBeside(world, port.tileIndex).find((t) => t !== convoy.tileIndex) ?? -1,
+      ships: { light_ship: 20 },
+      cargo: {},
+      path: [],
+      sail: 0,
+    };
+    if (escort.tileIndex < 0) return;
+    state.fleets.push(escort);
+
+    expect(mergeFleets(state, convoy.id, escort.id).ok).toBe(true);
+    // Sixteen berths beside the four Transports, and the other four warships stay put.
+    expect(convoy.ships).toEqual({ transport: 4, light_ship: 16 });
+    expect(stackSize(convoy.ships)).toBe(MAX_FLEET_SHIPS);
+    expect(escort.ships).toEqual({ light_ship: 4 });
+  });
+
+  it('never lands half a hold, because the men would drown with the half left behind', () => {
+    const laden = putToSea({ transport: 3 });
+    port.garrison = { light_infantry: 6 };
+    const army = mobilise(state, world, port, { light_infantry: 6 });
+    embark(state, world, laden.id, (army as { armyId: number }).armyId);
+    expect(stackSize(laden.cargo)).toBe(6);
+
+    const receiving: FleetState = {
+      id: state.nextFleetId++,
+      ownerIndex: FRANKS,
+      tileIndex: seaBeside(world, port.tileIndex).find((t) => t !== laden.tileIndex) ?? -1,
+      ships: { transport: 2, light_ship: 1 },
+      cargo: {},
+      path: [],
+      sail: 0,
+    };
+    if (receiving.tileIndex < 0) return;
+    state.fleets.push(receiving);
+
+    // Only two of the three loaded Transports would fit, so none of them move and nobody drowns.
+    mergeFleets(state, receiving.id, laden.id);
+    expect(stackSize(laden.cargo)).toBe(6);
+    expect(transportsIn(laden.ships)).toBe(3);
   });
 });
 

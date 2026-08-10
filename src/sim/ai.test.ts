@@ -495,8 +495,19 @@ describe('a realm consolidates before it campaigns', () => {
    */
   it('finishes every acre a realm can walk to, however far from a city', () => {
     const state = campaign();
-    // Measured after 0.19.0: 9.8% of walkable ground still bare at 1470, 0.3% at 1510, none at 1530.
-    years(state, 180);
+    /**
+     * **210 years**, up from 180 in 0.19.2 — and the curve is worth writing down rather than
+     * re-deriving, because this horizon has now moved twice:
+     *
+     * | 1510 | 1530 | 1540 | 1550 | 1560 | 1570 |
+     * |---|---|---|---|---|---|
+     * | 9.46% | 3.17% | 1.97% | 1.62% | 1.25% | **0.00%** |
+     *
+     * Monotonic the whole way, so this is claiming running late rather than claiming failing. It
+     * runs late because 0.19.2's escort rules put more of the field force on boats and overseas,
+     * which leaves fewer stacks tidying the mainland behind them.
+     */
+    years(state, 210);
 
     // The landmasses a living rival actually has a settlement on. Nowhere else is walkable to.
     const reachable = new Set(
@@ -875,7 +886,15 @@ describe('a large realm acts like one', () => {
   });
 
   it('puts real fleets to sea, not one hull for the world', () => {
-    expect(state.fleets.length).toBeGreaterThan(10);
+    /**
+     * **Hulls, not fleets** — corrected in 0.19.2, and the correction is the point of the change
+     * that forced it. Escorts now sail out and merge into the convoys they cover (decision 170), so
+     * the same navy shows up as *fewer and larger* fleets: measured, nine fleets of roughly one hull
+     * each became two of four and three. Counting fleets read that as a navy collapsing when it was
+     * a navy forming up, which is what this test was written to demand in the first place.
+     */
+    const hulls = state.fleets.reduce((n, fleet) => n + stackSize(fleet.ships), 0);
+    expect(hulls).toBeGreaterThan(10);
   });
 
   it('gets somebody off their starting landmass', () => {
@@ -953,7 +972,9 @@ describe('a realm keeps reaching', () => {
   });
 
   it('keeps its fleets doing something rather than swinging at anchor', () => {
-    expect(state.fleets.length).toBeGreaterThan(5);
+    // Hulls rather than fleets, for the reason given above: escorts merging into their convoys
+    // makes a growing navy look like a shrinking one if you count keels-per-flag.
+    expect(state.fleets.reduce((n, fleet) => n + stackSize(fleet.ships), 0)).toBeGreaterThan(5);
 
     /**
      * **Sampled over three years, not read off one month** — 0.19.1.

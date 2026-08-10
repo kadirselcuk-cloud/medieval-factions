@@ -13,6 +13,57 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.19.2] — 2026-08-10
+
+**"Transport ships still don't have escorts with them in their fleet. 4 ships only."** 0.19.1 raised
+the escort target to three per convoy and built them — but every rule that put a warship *into* a
+convoy worked at the quayside and only there, so a warship finished after its convoy had sailed had
+no way of ever joining it. Three causes, all fixed.
+
+### Fixed
+
+- **An escort now goes and finds the convoy it is meant to escort.** A warship fleet carrying no
+  cargo looks for the worst-escorted friendly convoy, sails to it avoiding menaced water, and merges
+  with it. Ranked **above hunting** on purpose: a warship that abandons an unescorted hold to chase
+  something is doing the enemy's work, because cargo drowns with the ship.
+- **Merging takes what fits instead of refusing outright.** A squadron of eight warships meeting a
+  convoy with room for six used to give it none of them. Partial merging breaks neither the
+  twenty-hull nor the four-Transport cap — what does not fit stays where it was — and fails only when
+  nothing whatever can move.
+  - **Warships cross first**, since the case that matters is an escort joining a hold, and filling
+    the hold first would take the room the escort needed.
+  - **Cargo travels with its hold or not at all.** Where a laden fleet's Transports cannot all move,
+    none of them do: half a hold arriving is half a hold drowning.
+- **A harbour holds a convoy back while its own slipway has a warship on it** — but only its own.
+  Waiting on any warship anywhere was tried first and was worse than the disease: escorts and
+  Transports are routinely laid down in different ports, so hulls sat in harbour waiting for each
+  other and fleets at sea fell from nine to four.
+
+### Measured
+
+Convoys at sea, and how many carry no warship at all:
+
+| Year | Convoys | Bare | Escort hulls / Transport hulls |
+|---|---|---|---|
+| 1410 | 1 | **0** | 3 / 4 |
+| 1450 | 2 | **0** | 7 / 7 |
+| 1490 | 11 | **0** | 18 / 25 |
+| 1590 | 22 | 5 | 37 / 42 |
+
+Seed 12345. Escort hulls now run close to one for one against the hold, against the three-to-four the
+plan asks for, and the bare convoys that remain are newly launched holds an escort has not reached
+yet rather than convoys crossing alone. All seven marooned settlements still fall, twenty years later
+than 0.19.1 — the price of a hold waiting for its escort.
+
+### Changed
+
+- **Two AI tests counted fleets where they meant hulls.** Escorts merging into their convoys makes
+  the same navy show up as fewer, larger fleets — nine of about one hull each became two of four and
+  three — so a fleet count read a navy forming up as a navy collapsing.
+- The claim-every-acre horizon moves from 180 years to 210. Measured, unclaimed ground falls 9.46% →
+  3.17% → 1.97% → 0.00% between 1510 and 1570: claiming running late, not failing, because more of
+  the field force is now on boats.
+
 ## [0.19.1] — 2026-08-10
 
 Four owner directives about how the AI uses its navy. All four shipped; the escort one carried the

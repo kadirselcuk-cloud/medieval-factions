@@ -1125,6 +1125,18 @@ enemy warship are a certainty rather than a risk. A convoy routes **around** the
 it cannot, a convoy carrying warships of its own may force the passage and an unescorted one waits in
 port. An enemy *convoy* menaces nothing, since two holds pass each other untouched.
 
+**An escort goes and finds its convoy** (decision 170). Every rule that put warships into a
+convoy worked at the quayside and only there, so a warship finished after its convoy had sailed
+crossed alone and the hold crossed bare — the owner saw convoys of four Transports and nothing else.
+A warship fleet with no cargo now seeks the worst-escorted friendly convoy, sails to it round menaced
+water, and merges. It outranks hunting: abandoning an unescorted hold to chase a transport is doing
+the enemy-s work, since cargo drowns with the ship. A harbour also holds a convoy back while **its
+own** slipway has a warship on it, but never for one being built elsewhere.
+
+**Merging takes what fits** (decision 171), rather than refusing when either cap would be breached.
+Warships cross first, because the case that matters is an escort joining a hold. Cargo travels with
+its hold or not at all: where a laden fleet-s Transports cannot all move, none of them do.
+
 **Three warships to a convoy** (decision 167), riding in its own sixteen spare berths where they fit
 and sailing as a covering fleet where they do not. The escort is built **in step with the hold**, not
 ahead of it: shipbuilding measures the escort against the Transports already afloat, so the two come

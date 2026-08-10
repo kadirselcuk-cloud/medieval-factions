@@ -22,6 +22,7 @@ import {
   isWater,
   landingSites,
   launch,
+  mergeFleets,
   seaNeighbours,
   seaBeside,
 } from './fleets';
@@ -861,8 +862,25 @@ function keepBusy(
   ports: readonly CityState[],
   menaced: ReadonlySet<number>,
 ): void {
-  for (const fleet of fleetsOf(state, factionIndex)) {
+  for (const fleet of [...fleetsOf(state, factionIndex)]) {
+    // The list is walked over a copy because `escortDuty` can merge this fleet out of existence.
+    if (!state.fleets.includes(fleet)) continue;
     if (fleet.path.length > 0 || stackSize(fleet.cargo) > 0) continue;
+
+    /**
+     * **Escort duty outranks the hunt** — owner-reported in 0.19.2.
+     *
+     * A warship built after its convoy had sailed used to have no way of ever joining it: it
+     * launched as a fleet of its own, went hunting or took station off a rival's coast, and the
+     * convoy crossed alone. Every rule for putting escorts *in* a convoy worked at the quayside and
+     * only at the quayside, which is why the owner kept seeing holds of four ships and nothing else.
+     *
+     * Above hunting on purpose. A warship that leaves an unescorted hold to chase something is doing
+     * the enemy's work for it: cargo drowns with the ship (decision 126), so the convoy it abandoned
+     * is worth more than the transport it catches.
+     */
+    if (hasWarship(fleet.ships) && escortDuty(state, world, factionIndex, fleet, menaced)) continue;
+    if (!state.fleets.includes(fleet)) continue;
 
     if (hasWarship(fleet.ships) && hunt(state, world, fleet)) continue;
 
@@ -953,6 +971,82 @@ function hunt(state: SimState, world: World, fleet: FleetState): boolean {
 const HUNTING_TRIES = 8;
 
 /**
+ * **Go and join the convoy that has no escort.** Returns true if this fleet did anything.
+ *
+ * The missing half of the escort rules, added in 0.19.2. Everything before it put warships into a
+ * convoy *at the quayside* — `oneConvoy` gathers whatever is moored, `launch` reinforces the fleet
+ * alongside — and none of it could help a warship finished after its convoy had already sailed. The
+ * owner's report was the symptom: convoys of four Transports and nothing else, with warships of the
+ * same realm off hunting somewhere.
+ *
+ * Two steps, because two fleets cannot occupy one tile:
+ *
+ * 1. **Adjacent already** — merge, taking as much as fits (`mergeFleets` is partial since 0.19.2).
+ * 2. **Not yet** — sail for the water beside it, avoiding menaced tiles on the way, because a lone
+ *    escort caught before it arrives has helped nobody.
+ *
+ * The convoy chosen is the **worst escorted, nearest first**: a hold with no warship at all outranks
+ * one that merely wants a third, and among equals the nearest wins. Ties on the lower fleet id, so
+ * two escorts never trade places covering each other's convoys.
+ */
+function escortDuty(
+  state: SimState,
+  world: World,
+  factionIndex: number,
+  escort: FleetState,
+  menaced: ReadonlySet<number>,
+): boolean {
+  // A fleet that is itself carrying berths is a convoy, not an escort; it has its own crossing to
+  // make and stripping it to cover another would only move the problem.
+  if (fleetCapacity(escort.ships) > 0) return false;
+
+  const needy = state.fleets
+    .filter(
+      (other) =>
+        other.ownerIndex === factionIndex &&
+        other.id !== escort.id &&
+        transportsIn(other.ships) > 0 &&
+        warshipsIn(other.ships) < ESCORTS_PER_CONVOY &&
+        // Room for at least one more hull, or there is nothing to give it.
+        stackSize(other.ships) < MAX_FLEET_SHIPS,
+    )
+    .map((other) => ({
+      fleet: other,
+      short: ESCORTS_PER_CONVOY - warshipsIn(other.ships),
+      distance: chebyshevTiles(world, escort.tileIndex, other.tileIndex),
+    }))
+    .sort((a, b) => b.short - a.short || a.distance - b.distance || a.fleet.id - b.fleet.id);
+
+  for (const candidate of needy) {
+    const convoy = candidate.fleet;
+
+    if (seaNeighbours(world, escort.tileIndex).includes(convoy.tileIndex)) {
+      // Into the convoy, not the other way about: the convoy keeps its id, its cargo and its orders.
+      if (mergeFleets(state, convoy.id, escort.id).ok) return true;
+      continue;
+    }
+
+    const berth = nearestWater(
+      world,
+      escort.tileIndex,
+      seaNeighbours(world, convoy.tileIndex).filter((tile) => isWater(world, tile)),
+    );
+    if (berth === undefined || berth === escort.tileIndex) continue;
+    if (orderSail(state, world, escort.id, berth, menaced).ok) return true;
+    if (orderSail(state, world, escort.id, berth).ok) return true;
+  }
+  return false;
+}
+
+/** Hulls in a stack that carry nothing — the escort, as opposed to the hold. */
+function warshipsIn(ships: UnitStack): number {
+  return Object.entries(ships).reduce(
+    (n, [id, count]) => n + (shipById(id)?.carries === 0 ? count : 0),
+    0,
+  );
+}
+
+/**
  * How far a warship will sail to pick a fight, in tiles. **[GEN]**
  *
  * **No limit since 0.19.1** — owner-specified: *"a war fleet should always look to find and destroy
@@ -1026,6 +1120,24 @@ function armiesNear(
  *
  * A warship with no transports is still worth having at sea whatever else is true — it is the only
  * thing that can close a strait, and it needs no cargo to do it.
+ *
+ * **A hold does not sail alone** — owner-reported in 0.19.2: *"transport ships still don't have
+ * escorts with them in their fleet, 4 ships only."* This was the cause. The berth test was met by
+ * four Transports the month the fourth was finished, so the convoy cast off as a fleet of four and
+ * whatever escort the yards were still building had nothing left to join. `oneConvoy` had always
+ * been willing to take warships along; there were simply never any moored at the moment it looked.
+ *
+ * So a carrier convoy waits for its escort — but **only for one this harbour is actually going to
+ * get**, which is the narrower rule the first attempt got wrong. Shipbuilding places hulls at the
+ * port with the most troops beside it, so a realm's escorts and its Transports are routinely laid
+ * down in different harbours; a hold that waits for a warship moored two hundred miles away waits
+ * for ever. Measured on the first attempt: four fleets at sea in 1470 where there had been nine, with
+ * the rest of the hulls tied up in port waiting for each other.
+ *
+ * A harbour therefore waits only while **it has a warship on its own slipway**. Everything else
+ * sails, and `escortDuty` brings the escort out to it — which is what that rule is for, and why an
+ * unescorted convoy at sea is a temporary state rather than a permanent one. A hold that does sail
+ * alone still routes round trouble (decision 166).
  */
 function putToSea(state: SimState, world: World, base: CityState, appetite: NavalAppetite): void {
   const moored = base.fleet;
@@ -1034,6 +1146,10 @@ function putToSea(state: SimState, world: World, base: CityState, appetite: Nava
   const enough = fleetCapacity(moored) >= BERTHS_WANTED;
   const escortOnly = fleetCapacity(moored) === 0 && hasWarship(moored);
   if (!enough && !escortOnly && !appetite.complete) return;
+
+  // An escort this harbour is building is worth the wait; one somewhere else is not.
+  const escortComing = base.shipQueue.some((order) => shipById(order.id)?.carries === 0);
+  if (!escortOnly && !hasWarship(moored) && escortComing) return;
 
   launch(state, world, base, oneConvoy(state, world, base, moored));
 }
