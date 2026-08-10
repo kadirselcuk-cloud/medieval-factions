@@ -23,14 +23,30 @@ import { loadShips, loadUnits, unitById, type Unit } from './units';
  * base unit carries through to all fourteen rosters at once and no faction silently keeps an old
  * number. It also makes the trade legible: `hp +10, damage -2` says what it is.
  *
- * Names may repeat across factions on purpose — a Carrack served half of Europe, and the owner
- * asked for shared names where no distinctive unit exists. Where a realm had something of its own
- * in 1300-1500 it is used: the Longbowman, the Gendarme, the Landsknecht, the Huszár, the Akıncı,
- * the Mangudai, the Zenete, the Genoese crossbowman.
+ * **Names are English, or the accepted English form** — Longbowman, Gendarme, Cataphract, Bardiche
+ * Axeman, Mountain Spearman. A native word survives only where it is what English actually calls the
+ * thing: Azab, Jinete, Akinci, Coustillier, Stradiot, Druzhina. Names are shared across realms
+ * wherever sharing is honest, so no category has thirteen different words for the same job — but no
+ * realm is all-generic either, which was the fault of 0.20.1 and the owner's second correction.
+ *
+ * **Exactly one land unit per realm is its `unique` one** (0.20.2): the Longbowman, the Janissary,
+ * the Gendarme, the Almogavar, the Bardiche Axeman, the Mountain Spearman. It is the signature a
+ * player picks the faction to field and carries the largest trade in that realm's roster.
+ *
+ * **The skirmisher line throws things.** It is range 30 at accuracy 0.3 — a javelin, a sling, a dart.
+ * Javelineer, Slinger, Peltast, Kern, Bedouin Skirmisher. The handgunner and naphtha thrower 0.20.1
+ * put there were simply the wrong weapon and are gone.
  */
 
 const deltaSchema = z.object({
   name: z.string().min(1),
+  /**
+   * The realm's **one signature unit** — owner-specified in 0.20.2.
+   *
+   * Exactly one land unit per realm carries it: the thing a player picks the faction to field, and
+   * the largest trade in that realm's roster. Never a ship; the owner asked for a unique land unit.
+   */
+  unique: z.boolean().default(false),
   /** Added to the base unit's hit points per soldier. */
   hp: z.number().int().default(0),
   /** Added to the base unit's damage per soldier. */
@@ -101,6 +117,26 @@ export function rosterOf(factionId: string): FactionRoster | undefined {
  */
 export function bonusesOf(factionId: string): FactionRoster['bonus'] | undefined {
   return rosterOf(factionId)?.bonus;
+}
+
+/**
+ * The realm's signature unit — its id and how the realm names it, or `undefined` for a realm with
+ * no roster. Read by the recruit card, and by anything that wants to say what a faction is *for*.
+ */
+export function uniqueUnitOf(
+  factionId: string,
+): { id: string; name: string } | undefined {
+  const roster = rosterOf(factionId);
+  if (!roster) return undefined;
+  for (const [id, delta] of Object.entries(roster.units)) {
+    if (delta.unique) return { id, name: delta.name };
+  }
+  return undefined;
+}
+
+/** Whether this realm's version of the unit is its signature one. */
+export function isUniqueUnit(factionId: string, unitId: string): boolean {
+  return rosterOf(factionId)?.units[unitId]?.unique === true;
 }
 
 /** What this realm calls the unit, falling back to the roster's own name. */

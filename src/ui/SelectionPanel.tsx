@@ -11,7 +11,7 @@ import {
   type SettlementUpgrade,
 } from "../data/buildings";
 import { factionIdAt, RELIGION_LABEL, type Faction } from "../data/factions";
-import { bonusesOf, unitNameFor, unitsFor } from "../data/rosters";
+import { bonusesOf, isUniqueUnit, unitNameFor, unitsFor } from "../data/rosters";
 import {
   improvementCost,
   improvementMonths,
@@ -806,6 +806,9 @@ function Garrison({
       blurb: artFor(unit.id).blurb,
       facts: [
         { label: "Class", value: labelOf(unit.class) },
+        ...(isUniqueUnit(roster, unit.id)
+          ? [{ label: "Unique unit", value: "Yours alone — no other realm fields these" }]
+          : []),
         ...(unit.name !== base.name
           ? [{ label: "Base type", value: base.name }]
           : []),

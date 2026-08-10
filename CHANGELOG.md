@@ -13,6 +13,45 @@ Pre-`1.0.0` the game is not feature-complete. `1.0.0` marks the first public rel
 
 ---
 
+## [0.20.2] — 2026-08-10
+
+**Three corrections from the owner, and a unique unit for every realm.** 0.20.1 over-corrected: in
+fixing names that were too specific it made most of them too plain. "Too many levy footmen and
+spearmen."
+
+### Added
+
+- **Every realm now has exactly one unique unit** — its signature, always a land unit, always the
+  largest trade in its roster. The Longbowman, the Janissary, the Gendarme, the Almogavar, the
+  Doppelsoldner, the Genoese Crossbowman, the Hussar, the Varangian Guard, the Mountain Spearman,
+  the Bardiche Axeman, the Mangudai, the Mamluk Horseman, the Berber Lancer. Marked in the recruit
+  card as **"Yours alone"**, and recorded in the data for a faction-selection screen.
+
+### Changed
+
+- **Variety back in the roster.** Light infantry went from one name across thirteen realms to four
+  (Footman, Militia, Billman, **Azab** — which the owner named as a good one); heavy cavalry from
+  six names to nine; shock infantry to nine. No slot has thirteen different words for one job, and
+  no realm is all-generic any more: every realm fields at least three units of its own.
+- **The skirmisher line throws things again.** It is range 30 at accuracy 0.3 — a javelin, a sling,
+  a dart. The Handgunner and the Naphtha Thrower 0.20.1 put there were the wrong weapon entirely and
+  are replaced by Javelineer, Slinger, Peltast, Kern, Bedouin Skirmisher and Berber Javelineer.
+- **Holy Roman signature moved from the Landsknecht to the Doppelsoldner**, which is both the more
+  iconic unit and — unlike the Landsknecht, which was simply good — a real trade.
+- **One name, one unit.** Castille and the Moors both field a Jinete and it now has the same figures
+  in both, which is the point of sharing a name.
+
+### Measured
+
+No campaign horizon moved. 338 tests pass.
+
+Four new tests pin the rules the corrections established: exactly one unique land unit per realm and
+never a ship; the unique unit out-trades everything beside it; the skirmisher slot only ever names a
+thrown weapon; and every realm fields at least three units of its own. A fifth holds every name in
+the file to plain ASCII — a name nobody can type is not one a player recognises.
+
+---
+
 ## [0.20.1] — 2026-08-10
 
 **The names were too specific.** The owner's note on 0.20.0: most of the roster was "very specific

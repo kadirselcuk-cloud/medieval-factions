@@ -9,7 +9,7 @@ the records are [ROADMAP.md](ROADMAP.md), [OWED.md](OWED.md) and [CHANGELOG.md](
 
 ## State of play
 
-**Version `0.20.1`**, on `main`. **333 tests pass**, typecheck clean, production build clean.
+**Version `0.20.2`**, on `main`. **338 tests pass**, typecheck clean, production build clean.
 Save format is **v10** and unchanged — growth, income and manpower are all derived, none stored.
 
 **The economy was redesigned in 0.19.0**, owner-specified: income halved again, growth moved from

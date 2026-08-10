@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { factionIdAt, loadFactions } from './factions';
 import {
   bonusesOf,
+  isUniqueUnit,
   rosterOf,
   rosteredFactions,
   shipsFor,
   unitFor,
+  uniqueUnitOf,
   unitNameFor,
   unitsFor,
 } from './rosters';
@@ -152,7 +154,71 @@ describe('resolving a faction s version of a unit', () => {
     expect(unitNameFor('hungarians', 'light_cavalry')).toBe('Hussar');
   });
 
-  it('shares a plain name across most realms, which is the 0.20.1 rule', () => {
+  it('gives every realm exactly one unique land unit, and never a ship', () => {
+    /**
+     * Owner-specified in 0.20.2. The signature a player picks the faction to field — and it must be
+     * a land unit, which is what the owner asked for.
+     */
+    for (const faction of playable) {
+      const entry = rosterOf(faction.id)!;
+      const uniques = Object.values(entry.units).filter((u) => u.unique);
+      expect(uniques.length, faction.id).toBe(1);
+      expect(Object.values(entry.ships).some((s) => s.unique), faction.id).toBe(false);
+
+      const signature = uniqueUnitOf(faction.id)!;
+      expect(signature.name).toBe(uniques[0]!.name);
+      expect(isUniqueUnit(faction.id, signature.id)).toBe(true);
+    }
+    expect(uniqueUnitOf('independents')).toBeUndefined();
+  });
+
+  it('makes the unique unit the sharpest trade in its realm', () => {
+    // It is meant to be the reason to play the faction, so it should not be a milder change than
+    // an ordinary rename sitting beside it.
+    for (const faction of playable) {
+      const entry = rosterOf(faction.id)!;
+      const swing = (u: { hp: number; damage: number }) => Math.abs(u.hp) + Math.abs(u.damage) * 3;
+      const signature = Object.values(entry.units).find((u) => u.unique)!;
+      for (const other of Object.values(entry.units)) {
+        if (other.unique) continue;
+        expect(swing(signature), `${faction.id} vs ${other.name}`).toBeGreaterThanOrEqual(swing(other));
+      }
+    }
+  });
+
+  it('names every unique unit in English, or the form English uses', () => {
+    // The owner's brief: "name should be in english". No diacritics anywhere in the roster.
+    for (const faction of playable) {
+      for (const delta of Object.values({ ...rosterOf(faction.id)!.units, ...rosterOf(faction.id)!.ships })) {
+        expect(delta.name, faction.id).toMatch(/^[A-Za-z][A-Za-z '-]*$/);
+      }
+    }
+  });
+
+  it('keeps the skirmisher line to thrown weapons', () => {
+    /**
+     * Owner-reported in 0.20.2: a handgunner and a naphtha thrower "does not fit the skirmisher
+     * line". The slot is range 30 at accuracy 0.3 — a javelin, a sling, a dart — so the names have
+     * to be things somebody throws.
+     */
+    const thrown = new Set([
+      'Javelineer', 'Berber Javelineer', 'Slinger', 'Peltast', 'Kern', 'Bedouin Skirmisher',
+    ]);
+    for (const faction of playable) {
+      expect(thrown.has(unitNameFor(faction.id, 'skirmisher')), faction.id).toBe(true);
+    }
+  });
+
+  it('gives every realm names of its own rather than an all-generic roster', () => {
+    // 0.20.1 over-corrected into blandness — the owner's note was "too many levy footmen and
+    // spearmen". Every realm should field at least three units nobody would call generic.
+    for (const faction of playable) {
+      const named = Object.values(rosterOf(faction.id)!.units).filter((u) => u.hp || u.damage);
+      expect(named.length, faction.id).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('shares a plain name across most realms, so no slot has thirteen words for one job', () => {
     /**
      * The owner's correction: the first pass was "very specific to that nation", and names should
      * be "understandable by everyone". A shared plain name is now the default and a distinctive one
@@ -187,8 +253,9 @@ describe('resolving a faction s version of a unit', () => {
      * applies to plain and distinctive units alike.
      */
     const plain = new Set([
-      'Levy Footman', 'Spearman', 'Man-at-Arms', 'Halberdier', 'Javelineer',
-      'Archer', 'Crossbowman', 'Light Horseman', 'Horse Archer', 'Knight',
+      'Footman', 'Militia', 'Spearman', 'Man-at-Arms', 'Halberdier', 'Javelineer',
+      'Archer', 'Crossbowman', 'Light Horseman', 'Mounted Archer', 'Horse Archer',
+      'Knight', 'Heavy Lancer',
       'Cog', 'Galley', 'Carrack', 'Galleon',
     ]);
     for (const faction of playable) {
@@ -215,15 +282,15 @@ describe('resolving a faction s version of a unit', () => {
   });
 
   it('applies the military bonus on top of the named trade', () => {
-    // The Britons trade 10 hit points for 5 damage on the Longbowman, and their bonus is +3%
+    // The Britons trade 10 hit points for 6 damage on the Longbowman, and their bonus is +3%
     // damage on everything. Base archer: 80 hp, 20 damage.
     const base = unitById('archer')!;
     const longbow = unitFor('britons', 'archer')!;
     expect(base.hp).toBe(80);
     expect(base.damage).toBe(20);
     expect(longbow.hp).toBe(70);
-    // 20 + 5 = 25, then +3% floored = 25.
-    expect(longbow.damage).toBe(25);
+    // 20 + 6 = 26, then +3% of 26 floored to nothing = 26.
+    expect(longbow.damage).toBe(26);
   });
 
   it('gives a march bonus to the realms whose bonus is march', () => {

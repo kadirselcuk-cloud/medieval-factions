@@ -329,21 +329,40 @@ when it stops fitting (see MECHANICS §10). Where the berths fall short of the a
 fits sails and the rest stays ashore** (decision 129) — the one place a stack can be divided.
 
 
-## 5. Per-faction rosters — since 0.20.0, rewritten in 0.20.1
 
-Owner-specified. **A shared plain name is the default; a distinctive one is the exception.**
-The first pass named nearly every unit in its own nation's language, and the owner's note was
-that it was "very specific to that nation" and should be "understandable by everyone". Most
-realms now field a Man-at-Arms, a Knight and a Cog, and only units a general audience would
-recognise keep a name of their own — the Longbowman, the Janissary, the Sipahi, the Gendarme,
-the Coustillier, the Landsknecht, the Hussar, the Cataphract, the Varangian Guard.
+## 5. Per-faction rosters — since 0.20.0, revised through 0.20.2
 
-**Only a distinctive name carries a stat trade.** A realm calling its swordsmen Man-at-Arms has
-not changed the unit and fields the base figures; a realm fielding Longbowmen has, and pays for
-it. Of 169 entries, **127 are shared plain names with no change** and 42 carry a trade.
+Owner-specified, and corrected twice. **Names are English or the accepted English form**, shared
+across realms wherever sharing is honest, so no category has thirteen different words for one
+job — and no realm is all-generic either, which was the fault of the first correction.
 
-**Only combat stats vary.** Cost, soldiers, upkeep and build time are identical in every realm.
-All figures are **[GEN]**.
+**Every realm has exactly one unique unit**, marked ★ below. It is that realm's signature, it is
+always a land unit, and it carries the largest trade in its roster.
+
+**The skirmisher line throws things** — range 30 at accuracy 0.3, so a javelin, a sling or a dart.
+Handgunners and naphtha throwers were a mistake and are gone.
+
+**Only a distinctive name carries a trade**; a shared plain name fields the base figures. Only
+combat stats ever vary — cost, soldiers, upkeep and build time are identical everywhere. All
+figures are **[GEN]**.
+
+### Signature units
+
+| Realm | Unique unit | Slot | Trade |
+|---|---|---|---|
+| Castille | **Almogavar** | Shock Infantry | -12 hp, +6 dmg |
+| Britons | **Longbowman** | Archer | -10 hp, +6 dmg |
+| Franks | **Gendarme** | Heavy Cavalry | +22 hp, -4 dmg |
+| Holy Romans | **Doppelsoldner** | Sword Infantry | -12 hp, +6 dmg |
+| Italians | **Genoese Crossbowman** | Archer | -6 hp, +6 dmg |
+| Hungarians | **Hussar** | Light Cavalry | -12 hp, +6 dmg |
+| Romans | **Varangian Guard** | Shock Infantry | -10 hp, +6 dmg |
+| Bulgarians | **Mountain Spearman** | Spear Infantry | +18 hp, -3 dmg |
+| Russians | **Bardiche Axeman** | Shock Infantry | -12 hp, +6 dmg |
+| Golden Horde | **Mangudai** | Cavalry Archer | -10 hp, +6 dmg |
+| Turks | **Janissary** | Sword Infantry | -10 hp, +6 dmg |
+| Mamluks | **Mamluk Horseman** | Heavy Cavalry | +18 hp, -3 dmg |
+| Moors | **Berber Lancer** | Heavy Cavalry | +18 hp, -4 dmg |
 
 ### The two bonuses
 
@@ -365,27 +384,27 @@ All figures are **[GEN]**.
 
 ### Land units
 
-Base figures in the header; bold means a distinctive name and the trade it carries.
+Base figures in the header. Bold is a distinctive name and the trade it carries; ★ is the realm's unique unit.
 
 | Realm | Light Infantry<br><sub>100hp 20dmg</sub> | Spear Infantry<br><sub>120hp 20dmg</sub> | Sword Infantry<br><sub>150hp 25dmg</sub> | Shock Infantry<br><sub>100hp 25dmg</sub> | Skirmisher<br><sub>60hp 10dmg</sub> | Archer<br><sub>80hp 20dmg</sub> | Light Cavalry<br><sub>120hp 30dmg</sub> | Cavalry Archer<br><sub>100hp 20dmg</sub> | Heavy Cavalry<br><sub>200hp 40dmg</sub> |
 |---|---|---|---|---|---|---|---|---|---|
-| Castille | Levy Footman | Spearman | **Rodelero** (-10 hp, +4 dmg) | **Almogavar** (-10 hp, +5 dmg) | Javelineer | Crossbowman | **Jinete** (-15 hp, +4 dmg) | Horse Archer | Knight |
-| Britons | **Billman** (+10 hp, -2 dmg) | Spearman | Man-at-Arms | **Galloglass** (+12 hp, -2 dmg) | Javelineer | **Longbowman** (-10 hp, +5 dmg) | Light Horseman | Horse Archer | Knight |
-| Franks | Levy Footman | Spearman | Man-at-Arms | Halberdier | Javelineer | Crossbowman | **Coustillier** (-8 hp, +3 dmg) | Horse Archer | **Gendarme** (+20 hp, -4 dmg) |
-| Holy Romans | Levy Footman | **Pikeman** (+12 hp, -2 dmg) | **Doppelsoldner** (-10 hp, +5 dmg) | **Landsknecht** (+8 hp, +2 dmg) | Javelineer | Crossbowman | Light Horseman | Horse Archer | Knight |
-| Italians | Levy Footman | Spearman | **Condottiero** (+12 hp, -2 dmg) | **Pavise Shieldman** (+15 hp, -4 dmg) | **Handgunner** (-8 hp, +4 dmg) | **Genoese Crossbowman** (+8 hp, +2 dmg) | **Stradiot** (-10 hp, +4 dmg) | Horse Archer | Knight |
-| Hungarians | Levy Footman | Spearman | Man-at-Arms | Halberdier | **Handgunner** (-8 hp, +4 dmg) | Archer | **Hussar** (-10 hp, +4 dmg) | Horse Archer | Knight |
-| Romans | Levy Footman | Spearman | Man-at-Arms | **Varangian Guard** (-10 hp, +5 dmg) | Javelineer | Archer | Light Horseman | Horse Archer | **Cataphract** (+20 hp, -4 dmg) |
-| Bulgarians | Levy Footman | Spearman | Man-at-Arms | Halberdier | Javelineer | Archer | Light Horseman | Horse Archer | **Boyar** (+15 hp, -3 dmg) |
-| Russians | Levy Footman | Spearman | Man-at-Arms | **Axeman** (-10 hp, +5 dmg) | Javelineer | Archer | **Cossack** (-10 hp, +4 dmg) | Horse Archer | **Boyar** (+15 hp, -3 dmg) |
-| Golden Horde | Levy Footman | Spearman | Man-at-Arms | **Keshik** (+10 hp, -1 dmg) | Javelineer | Archer | **Steppe Rider** (-12 hp, +4 dmg) | **Mangudai** (-8 hp, +5 dmg) | Knight |
-| Turks | Levy Footman | Spearman | **Janissary** (-10 hp, +5 dmg) | Halberdier | Javelineer | Archer | **Akinci** (-12 hp, +4 dmg) | Horse Archer | **Sipahi** (+12 hp, -2 dmg) |
-| Mamluks | Levy Footman | Spearman | Man-at-Arms | Halberdier | **Naphtha Thrower** (-10 hp, +5 dmg) | Archer | **Bedouin Raider** (-12 hp, +4 dmg) | Horse Archer | **Mamluk** (+15 hp, -2 dmg) |
-| Moors | Levy Footman | Spearman | Man-at-Arms | Halberdier | Javelineer | Archer | **Jinete** (-12 hp, +5 dmg) | Horse Archer | **Andalusian Lancer** (+12 hp, -2 dmg) |
+| Castille | Footman | Spearman | **Rodelero** (-10 hp, +4 dmg) | **★ Almogavar** (-12 hp, +6 dmg) | Javelineer | Crossbowman | **Jinete** (-12 hp, +5 dmg) | Mounted Archer | Knight |
+| Britons | **Billman** (+10 hp, -2 dmg) | Spearman | Man-at-Arms | **Galloglass** (+12 hp, -2 dmg) | **Kern** (-6 hp, +3 dmg) | **★ Longbowman** (-10 hp, +6 dmg) | Light Horseman | Mounted Archer | Knight |
+| Franks | Footman | Spearman | Man-at-Arms | **Voulgier** (-8 hp, +4 dmg) | Javelineer | Crossbowman | **Coustillier** (-8 hp, +3 dmg) | Mounted Archer | **★ Gendarme** (+22 hp, -4 dmg) |
+| Holy Romans | Militia | **Pikeman** (+12 hp, -2 dmg) | **★ Doppelsoldner** (-12 hp, +6 dmg) | **Landsknecht** (+8 hp, +2 dmg) | Javelineer | Crossbowman | Light Horseman | Mounted Archer | Knight |
+| Italians | Militia | **Pikeman** (+12 hp, -2 dmg) | **Condottiero** (+12 hp, -2 dmg) | **Pavise Shieldman** (+12 hp, -3 dmg) | Javelineer | **★ Genoese Crossbowman** (-6 hp, +6 dmg) | **Stradiot** (-10 hp, +4 dmg) | Mounted Archer | Knight |
+| Hungarians | Footman | **Pikeman** (+12 hp, -2 dmg) | Man-at-Arms | Halberdier | Javelineer | Archer | **★ Hussar** (-12 hp, +6 dmg) | Mounted Archer | **Black Knight** (+15 hp, -3 dmg) |
+| Romans | Footman | Spearman | Man-at-Arms | **★ Varangian Guard** (-10 hp, +6 dmg) | **Peltast** (-5 hp, +2 dmg) | Archer | Light Horseman | Horse Archer | **Cataphract** (+16 hp, -3 dmg) |
+| Bulgarians | Footman | **★ Mountain Spearman** (+18 hp, -3 dmg) | Man-at-Arms | Halberdier | **Slinger** (-5 hp, +2 dmg) | Archer | Light Horseman | Mounted Archer | **Boyar** (+15 hp, -3 dmg) |
+| Russians | Militia | Spearman | **Druzhina** (+12 hp, -2 dmg) | **★ Bardiche Axeman** (-12 hp, +6 dmg) | Javelineer | Archer | **Cossack** (-10 hp, +4 dmg) | Mounted Archer | **Boyar** (+15 hp, -3 dmg) |
+| Golden Horde | Footman | Spearman | Man-at-Arms | **Keshik** (+10 hp, -1 dmg) | Javelineer | Archer | **Steppe Rider** (-12 hp, +4 dmg) | **★ Mangudai** (-10 hp, +6 dmg) | Heavy Lancer |
+| Turks | **Azab** (-5 hp, +2 dmg) | Spearman | **★ Janissary** (-10 hp, +6 dmg) | Halberdier | Javelineer | Archer | **Akinci** (-12 hp, +4 dmg) | Horse Archer | **Sipahi** (+12 hp, -2 dmg) |
+| Mamluks | Footman | Spearman | Man-at-Arms | Halberdier | **Bedouin Skirmisher** (-6 hp, +3 dmg) | Archer | **Bedouin Raider** (-12 hp, +4 dmg) | Horse Archer | **★ Mamluk Horseman** (+18 hp, -3 dmg) |
+| Moors | Footman | Spearman | Man-at-Arms | Halberdier | **Berber Javelineer** (-6 hp, +3 dmg) | Archer | **Jinete** (-12 hp, +5 dmg) | Mounted Archer | **★ Berber Lancer** (+18 hp, -4 dmg) |
 
 ### Ships
 
-Base figures in the header; bold means a distinctive name and the trade it carries.
+Base figures in the header. Bold is a distinctive name and the trade it carries; ★ is the realm's unique unit.
 
 | Realm | Transport<br><sub>60hp 5dmg</sub> | Light Ship<br><sub>80hp 15dmg</sub> | Heavy Ship<br><sub>120hp 25dmg</sub> | Flagship<br><sub>160hp 40dmg</sub> |
 |---|---|---|---|---|

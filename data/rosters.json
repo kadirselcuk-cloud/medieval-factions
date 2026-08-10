@@ -1,7 +1,9 @@
 {
-  "_comment": "Per-faction unit and ship names, the stat trade a distinctive name carries, and the two small bonuses every realm has. Owner-specified in 0.20.0 and REWRITTEN in 0.20.1 to be readable rather than authentic: the owner's note was that most of the first pass was 'very specific to that nation' and that names should be 'understandable by everyone'.",
-  "_rule": "A SHARED PLAIN NAME IS THE DEFAULT. Man-at-Arms, Spearman, Crossbowman, Knight, Halberdier, Horse Archer, Cog, Galley, Carrack, Galleon — most realms use these and most realms share them, which is what the owner asked for and what history supports. A DISTINCTIVE NAME IS THE EXCEPTION, kept only where the unit is one a general audience recognises: Longbowman, Janissary, Sipahi, Gendarme, Coustillier, Landsknecht, Hussar, Cossack, Mamluk, Cataphract, Varangian Guard, Genoese Crossbowman, Jinete, Mangudai, Caravel, Galleass.",
-  "_trades": "Only a distinctive name carries a stat trade. A realm calling its swordsmen Man-at-Arms has not changed the unit, so it gets the base figures unchanged; a realm fielding Longbowmen has, and pays for it. Deltas are added to the base in data/units.json. Only hp, damage and strategicSpeed may vary — cost, size, upkeep and build time are identical in every realm.",
+  "_comment": "Per-faction unit and ship names, the stat trade a distinctive name carries, the ONE unique unit every realm fields, and the two small bonuses. Owner-specified across 0.20.0–0.20.2.",
+  "_naming": "English or the accepted English form, always — Longbowman, Janissary, Gendarme, Cataphract, Bardiche Axeman, Mountain Spearman. A native word is kept only where it is the name English actually uses for the thing (Azab, Jinete, Akinci, Coustillier, Stradiot, Druzhina). Names are shared across realms wherever sharing is honest, so no category has thirteen different words for the same job — but no realm is all-generic either, which was the fault of 0.20.1.",
+  "_unique": "Exactly one land unit per realm carries \"unique\": true. It is that realm's signature — the thing a player picks the faction to field — and it carries the largest trade in the roster. Never a ship: the owner asked for a unique LAND unit.",
+  "_skirmishers": "The skirmisher line is range 30, accuracy 0.3 — a javelin, sling or dart thrower. Javelineer, Slinger, Peltast, Kern, Bedouin Skirmisher. Handgunners and naphtha throwers were 0.20.1 mistakes and are gone: neither is a skirmishing weapon.",
+  "_trades": "Only a distinctive name carries a stat trade; a shared plain name fields the base figures. Deltas are added to the base in data/units.json. Only hp, damage and strategicSpeed may vary — cost, size, upkeep and build time are identical in every realm.",
 
   "spanish": {
     "bonus": {
@@ -9,14 +11,14 @@
       "military": { "kind": "damage", "permille": 30, "text": "Reconquista drill: +3% damage" }
     },
     "units": {
-      "light_infantry": { "name": "Levy Footman" },
+      "light_infantry": { "name": "Footman" },
       "spear_infantry": { "name": "Spearman" },
       "sword_infantry": { "name": "Rodelero", "hp": -10, "damage": 4 },
-      "shock_infantry": { "name": "Almogavar", "hp": -10, "damage": 5 },
+      "shock_infantry": { "name": "Almogavar", "unique": true, "hp": -12, "damage": 6 },
       "skirmisher": { "name": "Javelineer" },
       "archer": { "name": "Crossbowman" },
-      "light_cavalry": { "name": "Jinete", "hp": -15, "damage": 4 },
-      "cavalry_archer": { "name": "Horse Archer" },
+      "light_cavalry": { "name": "Jinete", "hp": -12, "damage": 5 },
+      "cavalry_archer": { "name": "Mounted Archer" },
       "heavy_cavalry": { "name": "Knight" }
     },
     "ships": {
@@ -37,10 +39,10 @@
       "spear_infantry": { "name": "Spearman" },
       "sword_infantry": { "name": "Man-at-Arms" },
       "shock_infantry": { "name": "Galloglass", "hp": 12, "damage": -2 },
-      "skirmisher": { "name": "Javelineer" },
-      "archer": { "name": "Longbowman", "hp": -10, "damage": 5 },
+      "skirmisher": { "name": "Kern", "hp": -6, "damage": 3 },
+      "archer": { "name": "Longbowman", "unique": true, "hp": -10, "damage": 6 },
       "light_cavalry": { "name": "Light Horseman" },
-      "cavalry_archer": { "name": "Horse Archer" },
+      "cavalry_archer": { "name": "Mounted Archer" },
       "heavy_cavalry": { "name": "Knight" }
     },
     "ships": {
@@ -57,15 +59,15 @@
       "military": { "kind": "hp", "permille": 30, "text": "Compagnies d'ordonnance: +3% hit points" }
     },
     "units": {
-      "light_infantry": { "name": "Levy Footman" },
+      "light_infantry": { "name": "Footman" },
       "spear_infantry": { "name": "Spearman" },
       "sword_infantry": { "name": "Man-at-Arms" },
-      "shock_infantry": { "name": "Halberdier" },
+      "shock_infantry": { "name": "Voulgier", "hp": -8, "damage": 4 },
       "skirmisher": { "name": "Javelineer" },
       "archer": { "name": "Crossbowman" },
       "light_cavalry": { "name": "Coustillier", "hp": -8, "damage": 3 },
-      "cavalry_archer": { "name": "Horse Archer" },
-      "heavy_cavalry": { "name": "Gendarme", "hp": 20, "damage": -4 }
+      "cavalry_archer": { "name": "Mounted Archer" },
+      "heavy_cavalry": { "name": "Gendarme", "unique": true, "hp": 22, "damage": -4 }
     },
     "ships": {
       "transport": { "name": "Cog" },
@@ -81,14 +83,14 @@
       "military": { "kind": "hp", "permille": 30, "text": "Plate harness: +3% hit points" }
     },
     "units": {
-      "light_infantry": { "name": "Levy Footman" },
+      "light_infantry": { "name": "Militia" },
       "spear_infantry": { "name": "Pikeman", "hp": 12, "damage": -2 },
-      "sword_infantry": { "name": "Doppelsoldner", "hp": -10, "damage": 5 },
+      "sword_infantry": { "name": "Doppelsoldner", "unique": true, "hp": -12, "damage": 6 },
       "shock_infantry": { "name": "Landsknecht", "hp": 8, "damage": 2 },
       "skirmisher": { "name": "Javelineer" },
       "archer": { "name": "Crossbowman" },
       "light_cavalry": { "name": "Light Horseman" },
-      "cavalry_archer": { "name": "Horse Archer" },
+      "cavalry_archer": { "name": "Mounted Archer" },
       "heavy_cavalry": { "name": "Knight" }
     },
     "ships": {
@@ -105,14 +107,14 @@
       "military": { "kind": "hp", "permille": 20, "text": "Milanese armour: +2% hit points" }
     },
     "units": {
-      "light_infantry": { "name": "Levy Footman" },
-      "spear_infantry": { "name": "Spearman" },
+      "light_infantry": { "name": "Militia" },
+      "spear_infantry": { "name": "Pikeman", "hp": 12, "damage": -2 },
       "sword_infantry": { "name": "Condottiero", "hp": 12, "damage": -2 },
-      "shock_infantry": { "name": "Pavise Shieldman", "hp": 15, "damage": -4 },
-      "skirmisher": { "name": "Handgunner", "hp": -8, "damage": 4 },
-      "archer": { "name": "Genoese Crossbowman", "hp": 8, "damage": 2 },
+      "shock_infantry": { "name": "Pavise Shieldman", "hp": 12, "damage": -3 },
+      "skirmisher": { "name": "Javelineer" },
+      "archer": { "name": "Genoese Crossbowman", "unique": true, "hp": -6, "damage": 6 },
       "light_cavalry": { "name": "Stradiot", "hp": -10, "damage": 4 },
-      "cavalry_archer": { "name": "Horse Archer" },
+      "cavalry_archer": { "name": "Mounted Archer" },
       "heavy_cavalry": { "name": "Knight" }
     },
     "ships": {
@@ -129,15 +131,15 @@
       "military": { "kind": "march", "permille": 50, "text": "Black Army couriers: +5% march speed" }
     },
     "units": {
-      "light_infantry": { "name": "Levy Footman" },
-      "spear_infantry": { "name": "Spearman" },
+      "light_infantry": { "name": "Footman" },
+      "spear_infantry": { "name": "Pikeman", "hp": 12, "damage": -2 },
       "sword_infantry": { "name": "Man-at-Arms" },
       "shock_infantry": { "name": "Halberdier" },
-      "skirmisher": { "name": "Handgunner", "hp": -8, "damage": 4 },
+      "skirmisher": { "name": "Javelineer" },
       "archer": { "name": "Archer" },
-      "light_cavalry": { "name": "Hussar", "hp": -10, "damage": 4 },
-      "cavalry_archer": { "name": "Horse Archer" },
-      "heavy_cavalry": { "name": "Knight" }
+      "light_cavalry": { "name": "Hussar", "unique": true, "hp": -12, "damage": 6 },
+      "cavalry_archer": { "name": "Mounted Archer" },
+      "heavy_cavalry": { "name": "Black Knight", "hp": 15, "damage": -3 }
     },
     "ships": {
       "transport": { "name": "Cog" },
@@ -153,15 +155,15 @@
       "military": { "kind": "hp", "permille": 30, "text": "Walls of Theodosius: +3% hit points" }
     },
     "units": {
-      "light_infantry": { "name": "Levy Footman" },
+      "light_infantry": { "name": "Footman" },
       "spear_infantry": { "name": "Spearman" },
       "sword_infantry": { "name": "Man-at-Arms" },
-      "shock_infantry": { "name": "Varangian Guard", "hp": -10, "damage": 5 },
-      "skirmisher": { "name": "Javelineer" },
+      "shock_infantry": { "name": "Varangian Guard", "unique": true, "hp": -10, "damage": 6 },
+      "skirmisher": { "name": "Peltast", "hp": -5, "damage": 2 },
       "archer": { "name": "Archer" },
       "light_cavalry": { "name": "Light Horseman" },
       "cavalry_archer": { "name": "Horse Archer" },
-      "heavy_cavalry": { "name": "Cataphract", "hp": 20, "damage": -4 }
+      "heavy_cavalry": { "name": "Cataphract", "hp": 16, "damage": -3 }
     },
     "ships": {
       "transport": { "name": "Cog" },
@@ -177,14 +179,14 @@
       "military": { "kind": "hp", "permille": 20, "text": "Mountain fastnesses: +2% hit points" }
     },
     "units": {
-      "light_infantry": { "name": "Levy Footman" },
-      "spear_infantry": { "name": "Spearman" },
+      "light_infantry": { "name": "Footman" },
+      "spear_infantry": { "name": "Mountain Spearman", "unique": true, "hp": 18, "damage": -3 },
       "sword_infantry": { "name": "Man-at-Arms" },
       "shock_infantry": { "name": "Halberdier" },
-      "skirmisher": { "name": "Javelineer" },
+      "skirmisher": { "name": "Slinger", "hp": -5, "damage": 2 },
       "archer": { "name": "Archer" },
       "light_cavalry": { "name": "Light Horseman" },
-      "cavalry_archer": { "name": "Horse Archer" },
+      "cavalry_archer": { "name": "Mounted Archer" },
       "heavy_cavalry": { "name": "Boyar", "hp": 15, "damage": -3 }
     },
     "ships": {
@@ -201,14 +203,14 @@
       "military": { "kind": "hp", "permille": 20, "text": "Winter campaigning: +2% hit points" }
     },
     "units": {
-      "light_infantry": { "name": "Levy Footman" },
+      "light_infantry": { "name": "Militia" },
       "spear_infantry": { "name": "Spearman" },
-      "sword_infantry": { "name": "Man-at-Arms" },
-      "shock_infantry": { "name": "Axeman", "hp": -10, "damage": 5 },
+      "sword_infantry": { "name": "Druzhina", "hp": 12, "damage": -2 },
+      "shock_infantry": { "name": "Bardiche Axeman", "unique": true, "hp": -12, "damage": 6 },
       "skirmisher": { "name": "Javelineer" },
       "archer": { "name": "Archer" },
       "light_cavalry": { "name": "Cossack", "hp": -10, "damage": 4 },
-      "cavalry_archer": { "name": "Horse Archer" },
+      "cavalry_archer": { "name": "Mounted Archer" },
       "heavy_cavalry": { "name": "Boyar", "hp": 15, "damage": -3 }
     },
     "ships": {
@@ -225,15 +227,15 @@
       "military": { "kind": "march", "permille": 60, "text": "Steppe remounts: +6% march speed" }
     },
     "units": {
-      "light_infantry": { "name": "Levy Footman" },
+      "light_infantry": { "name": "Footman" },
       "spear_infantry": { "name": "Spearman" },
       "sword_infantry": { "name": "Man-at-Arms" },
       "shock_infantry": { "name": "Keshik", "hp": 10, "damage": -1 },
       "skirmisher": { "name": "Javelineer" },
       "archer": { "name": "Archer" },
       "light_cavalry": { "name": "Steppe Rider", "hp": -12, "damage": 4 },
-      "cavalry_archer": { "name": "Mangudai", "hp": -8, "damage": 5 },
-      "heavy_cavalry": { "name": "Knight" }
+      "cavalry_archer": { "name": "Mangudai", "unique": true, "hp": -10, "damage": 6 },
+      "heavy_cavalry": { "name": "Heavy Lancer" }
     },
     "ships": {
       "transport": { "name": "Cog" },
@@ -249,9 +251,9 @@
       "military": { "kind": "damage", "permille": 30, "text": "Janissary corps: +3% damage" }
     },
     "units": {
-      "light_infantry": { "name": "Levy Footman" },
+      "light_infantry": { "name": "Azab", "hp": -5, "damage": 2 },
       "spear_infantry": { "name": "Spearman" },
-      "sword_infantry": { "name": "Janissary", "hp": -10, "damage": 5 },
+      "sword_infantry": { "name": "Janissary", "unique": true, "hp": -10, "damage": 6 },
       "shock_infantry": { "name": "Halberdier" },
       "skirmisher": { "name": "Javelineer" },
       "archer": { "name": "Archer" },
@@ -273,15 +275,15 @@
       "military": { "kind": "damage", "permille": 30, "text": "Furusiyya training: +3% damage" }
     },
     "units": {
-      "light_infantry": { "name": "Levy Footman" },
+      "light_infantry": { "name": "Footman" },
       "spear_infantry": { "name": "Spearman" },
       "sword_infantry": { "name": "Man-at-Arms" },
       "shock_infantry": { "name": "Halberdier" },
-      "skirmisher": { "name": "Naphtha Thrower", "hp": -10, "damage": 5 },
+      "skirmisher": { "name": "Bedouin Skirmisher", "hp": -6, "damage": 3 },
       "archer": { "name": "Archer" },
       "light_cavalry": { "name": "Bedouin Raider", "hp": -12, "damage": 4 },
       "cavalry_archer": { "name": "Horse Archer" },
-      "heavy_cavalry": { "name": "Mamluk", "hp": 15, "damage": -2 }
+      "heavy_cavalry": { "name": "Mamluk Horseman", "unique": true, "hp": 18, "damage": -3 }
     },
     "ships": {
       "transport": { "name": "Cog" },
@@ -297,15 +299,15 @@
       "military": { "kind": "march", "permille": 50, "text": "Berber horsemanship: +5% march speed" }
     },
     "units": {
-      "light_infantry": { "name": "Levy Footman" },
+      "light_infantry": { "name": "Footman" },
       "spear_infantry": { "name": "Spearman" },
       "sword_infantry": { "name": "Man-at-Arms" },
       "shock_infantry": { "name": "Halberdier" },
-      "skirmisher": { "name": "Javelineer" },
+      "skirmisher": { "name": "Berber Javelineer", "hp": -6, "damage": 3 },
       "archer": { "name": "Archer" },
       "light_cavalry": { "name": "Jinete", "hp": -12, "damage": 5 },
-      "cavalry_archer": { "name": "Horse Archer" },
-      "heavy_cavalry": { "name": "Andalusian Lancer", "hp": 12, "damage": -2 }
+      "cavalry_archer": { "name": "Mounted Archer" },
+      "heavy_cavalry": { "name": "Berber Lancer", "unique": true, "hp": 18, "damage": -4 }
     },
     "ships": {
       "transport": { "name": "Cog" },
